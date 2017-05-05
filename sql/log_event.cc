@@ -4131,6 +4131,21 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
+  if ((user != NULL && user_len > 0) || (host != NULL && host_len > 0))
+  {
+    const char *user2;
+    const char *host2;
+    if (user != NULL && user_len > 0)
+      user2 = user;
+    else
+      user2 = "unknownUser";
+    if (host != NULL && host_len > 0)
+      host2 = host;
+    else
+      host2 = "unkonwHost";
+    my_b_printf(file, "###invoker:%s@%s\n", user2, host2);
+  }
+
   if ((common_header->flags & LOG_EVENT_SUPPRESS_USE_F))
   {
     if (!is_trans_keyword())

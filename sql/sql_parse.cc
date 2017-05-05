@@ -3604,6 +3604,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
+    thd->binlog_invoker();
     res= lex->m_sql_cmd->execute(thd);
     break;
   }
@@ -3614,6 +3615,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
+    thd->binlog_invoker();
     res= lex->m_sql_cmd->execute(thd);
     break;
   }
