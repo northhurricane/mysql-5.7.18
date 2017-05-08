@@ -84,6 +84,14 @@ struct row_events_statements
   /** Length in bytes of @c m_object_name. */
   uint m_object_name_length;
 
+  /** Column USER_NAME. */
+  char m_user_name[NAME_LEN];
+  /** Length in bytes of @c m_user_name. */
+  uint m_user_name_length;
+  /** Column HOST_NAME. */
+  char m_host_name[NAME_LEN];
+  /** Length in bytes of @c m_host_name. */
+  uint m_host_name_length;
 
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
