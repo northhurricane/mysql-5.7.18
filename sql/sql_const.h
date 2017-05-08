@@ -138,6 +138,11 @@
 */
 #define TABLE_DEF_CACHE_MIN     400
 
+/**
+   In CTRIP online working, 10 connections reserved is enough.
+*/
+#define RESERVED_CONNECTIONS_DEFAULT (10)
+
 /*
   Stack reservation.
   Feel free to raise this by the smallest amount you can to get the

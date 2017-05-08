@@ -2325,6 +2325,19 @@ static Sys_var_ulong Sys_max_connect_errors(
        VALID_RANGE(1, ULONG_MAX), DEFAULT(100),
        BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_reserved_connections(
+  "reserved_connections", "The number of reserved connection for admin",
+  READ_ONLY GLOBAL_VAR(reserved_connections), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(1, 100),
+  DEFAULT(RESERVED_CONNECTIONS_DEFAULT),
+  BLOCK_SIZE(1),
+  NO_MUTEX_GUARD,
+  NOT_IN_BINLOG,
+  ON_CHECK(0),
+  ON_UPDATE(0),
+  NULL,
+  sys_var::PARSE_EARLY);
+
 static Sys_var_long Sys_max_digest_length(
        "max_digest_length",
        "Maximum length considered for digest text.",
