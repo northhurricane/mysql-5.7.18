@@ -7851,6 +7851,7 @@ static void set_server_version(void)
 {
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);
+  end= my_stpcpy(end, "-ctrip");
 #ifdef EMBEDDED_LIBRARY
   end= my_stpcpy(end, "-embedded");
 #endif
