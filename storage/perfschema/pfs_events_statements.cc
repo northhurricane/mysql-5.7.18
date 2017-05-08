@@ -31,6 +31,7 @@
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "m_string.h"
+#include "table_helper.h"
 
 PFS_ALIGNED size_t events_statements_history_long_size= 0;
 /** Consumer flag for table EVENTS_STATEMENTS_CURRENT. */
@@ -215,6 +216,442 @@ void insert_events_statements_history_long(PFS_events_statements *statement)
 
   /* See related comment in insert_events_statements_history. */
   copy_events_statements(&events_statements_history_long_array[index], statement);
+}
+
+static void set_str_object_type(char *buffer, enum_object_type object_type)
+{
+  switch (object_type)
+  {
+  case OBJECT_TYPE_EVENT:
+    strcpy(buffer, "EVENT");
+    break;
+  case OBJECT_TYPE_FUNCTION:
+    strcpy(buffer, "FUNCTION");
+    break;
+  case OBJECT_TYPE_PROCEDURE:
+    strcpy(buffer, "PROCEDURE");
+    break;
+  case OBJECT_TYPE_TABLE:
+    strcpy(buffer, "TABLE");
+    break;
+  case OBJECT_TYPE_TEMPORARY_TABLE:
+    strcpy(buffer, "TEMPORARY TABLE");
+    break;
+  case OBJECT_TYPE_TRIGGER:
+    strcpy(buffer, "TRIGGER");
+    break;
+  case OBJECT_TYPE_GLOBAL:
+    strcpy(buffer, "GLOBAL");
+    break;
+  case OBJECT_TYPE_SCHEMA:
+    strcpy(buffer, "SCHEMA");
+    break;
+  case OBJECT_TYPE_COMMIT:
+    strcpy(buffer, "COMMIT");
+    break;
+  case OBJECT_TYPE_USER_LEVEL_LOCK:
+    strcpy(buffer, "USER LEVEL LOCK");
+    break;
+  case OBJECT_TYPE_TABLESPACE:
+    strcpy(buffer, "TABLESPACE");
+    break;
+  case OBJECT_TYPE_LOCKING_SERVICE:
+    strcpy(buffer, "LOCKING SERVICE");
+    break;
+  case NO_OBJECT_TYPE:
+    strcpy(buffer, "");
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+}
+
+ulonglong
+get_nano_time(int type, ulonglong orig)
+{
+  if (type == TIMER_TYPE_NANO)
+  {
+    return orig;
+  }
+  else if (type == TIMER_TYPE_MICRO)
+  {
+    return orig * 1000;
+  }
+  else if (type == TIMER_TYPE_MILLI)
+  {
+    return orig * 1000 * 1000;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+#define MAX_SQL_TEXT_LEN (8 * 1024)
+#define MAX_MSG_TEXT_LEN (8 * 1024)
+#define MAX_DIG_TEXT_LEN (8 * 1024)
+int events_statements_2_csv(PFS_events_statements *statement
+                            , char *buffer, int buffer_size, int type)
+{
+  int pos = 0;
+  int len = 0;
+  /* THREAD_ID */
+  sprintf(buffer + pos, "%lld", statement->m_thread_internal_id);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* EVENT_ID */
+  sprintf(buffer + pos, "%lld", statement->m_event_id);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* END_EVENT_ID */
+  if (statement->m_end_event_id > 0)
+  {
+    sprintf(buffer + pos, "%lld", statement->m_end_event_id);
+    pos += strlen(buffer + pos);
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+  }
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* EVENT_NAME */
+  memcpy(buffer + pos, statement->m_class->m_name
+         , statement->m_class->m_name_length);
+  buffer[pos + statement->m_class->m_name_length] = '|';
+  pos += (statement->m_class->m_name_length + 1);
+  /* SOURCE */
+  //全路径的文件名过长，为了提高写入效率，只取最后20个字符
+  len = strlen(statement->m_source_file);
+  if (len > 20)
+  {
+    memcpy(buffer + pos, statement->m_source_file + (len - 20), 20);
+    len = 20;
+  }
+  else
+  {
+    memcpy(buffer + pos, statement->m_source_file, len);
+  }
+  buffer[pos + len] = '|';
+  pos += (len + 1);
+  /*TIMER_START/TIMER_END/TIMER_WAIT/LOCK_TIME都已纳秒方式给出*/
+  /* TIMER_START */
+  if (statement->m_timer_start != 0)
+    sprintf(buffer + pos, "%lld",
+            get_nano_time(type, statement->m_timer_start));
+  else
+    sprintf(buffer + pos, "%s", "");
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* TIMER_END */
+  if (statement->m_timer_end != 0)
+    sprintf(buffer + pos, "%lld", get_nano_time(type, statement->m_timer_end));
+  else
+    sprintf(buffer + pos, "%s", "");
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* TIMER_WAIT */
+  ulonglong timer_wait = statement->m_timer_end - statement->m_timer_start;
+  if (timer_wait > 0)
+    sprintf(buffer + pos, "%lld", get_nano_time(type, timer_wait));
+  else
+    sprintf(buffer + pos, "%s", "");
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* LOCK_TIME */
+  sprintf(buffer + pos, "%lld",
+          statement->m_lock_time * MICROSEC_TO_PICOSEC / 1000);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SQL_TEXT */
+  if (statement->m_sqltext_length > 0)
+  {
+    if (statement->m_sqltext_length > MAX_SQL_TEXT_LEN)
+      len = MAX_SQL_TEXT_LEN;
+    else
+      len = statement->m_sqltext_length;
+    memcpy(buffer + pos, statement->m_sqltext, len);
+    pos += len;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* DIGEST */
+  {
+    MD5_HASH_TO_STRING(statement->m_digest_storage.m_md5, buffer + pos);
+    buffer[pos + MD5_HASH_TO_STRING_LENGTH] = '|';
+    pos += (MD5_HASH_TO_STRING_LENGTH + 1);
+  }
+  /*DIGEST_TEXT*/
+  String digest_text;
+  compute_digest_text(&statement->m_digest_storage, &digest_text);
+  //len = digest_text.length();
+  if (digest_text.ptr())
+  {
+    len = strlen(digest_text.ptr());
+  }
+  else
+  {
+    len = 0;
+  }
+  if (len > 0)
+  {
+    if (len > MAX_DIG_TEXT_LEN)
+      len = MAX_DIG_TEXT_LEN;
+    memcpy(buffer + pos, digest_text.ptr(), len);
+    pos += len;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* CURRENT_SCHEMA */
+  if (statement->m_current_schema_name_length > 0)
+  {
+    memcpy(buffer + pos, statement->m_current_schema_name
+           , statement->m_current_schema_name_length);
+    pos += statement->m_current_schema_name_length;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* OBJECT_TYPE */
+  set_str_object_type(buffer + pos, statement->m_sp_type);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* OBJECT_SCHEMA */
+  if (statement->m_schema_name_length > 0)
+  {
+    memcpy(buffer + pos, statement->m_schema_name
+           , statement->m_schema_name_length);
+    pos += statement->m_schema_name_length;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* OBJECT_NAME */
+  if (statement->m_object_name_length > 0)
+  {
+    memcpy(buffer + pos, statement->m_object_name
+           , statement->m_object_name_length);
+    pos += statement->m_object_name_length;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* OBJECT_INSTANCE_BEGIN */
+  sprintf(buffer + pos, "%s", "");
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* MYSQL_ERRNO */
+  sprintf(buffer + pos, "%d", statement->m_sql_errno);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* RETURNED_SQLSTATE */
+  if (statement->m_sqlstate[0] != 0)
+  {
+    memcpy(buffer + pos, statement->m_sqlstate, SQLSTATE_LENGTH);
+    pos += SQLSTATE_LENGTH;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* MESSAGE_TEXT */
+  len = 0;
+  if (statement->m_message_text)
+    len = strlen(statement->m_message_text);
+  if (len > 0)
+  {
+    if (len > MAX_MSG_TEXT_LEN)
+      len = MAX_MSG_TEXT_LEN;
+    memcpy(buffer + pos, statement->m_message_text, len);
+    pos += len;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* ERRORS */
+  sprintf(buffer + pos, "%d", statement->m_error_count);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* WARNINGS */
+  sprintf(buffer + pos, "%d", statement->m_warning_count);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* ROWS_AFFECTED */
+  sprintf(buffer + pos, "%lld", statement->m_rows_affected);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* ROWS_SENT */
+  sprintf(buffer + pos, "%lld", statement->m_rows_sent);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* ROWS_EXAMINED */
+  sprintf(buffer + pos, "%lld", statement->m_rows_examined);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* CREATED_TMP_DISK_TABLES */
+  sprintf(buffer + pos, "%lld", statement->m_created_tmp_disk_tables);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* CREATED_TMP_TABLES */
+  sprintf(buffer + pos, "%lld", statement->m_created_tmp_tables);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SELECT_FULL_JOIN */
+  sprintf(buffer + pos, "%lld", statement->m_select_full_join);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SELECT_FULL_RANGE_JOIN */
+  sprintf(buffer + pos, "%lld", statement->m_select_full_range_join);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SELECT_RANGE */
+  sprintf(buffer + pos, "%lld", statement->m_select_range);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SELECT_RANGE_CHECK */
+  sprintf(buffer + pos, "%lld", statement->m_select_range_check);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SELECT_SCAN */
+  sprintf(buffer + pos, "%lld", statement->m_select_scan);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SORT_MERGE_PASSES */
+  sprintf(buffer + pos, "%lld", statement->m_sort_merge_passes);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SORT_RANGE */
+  sprintf(buffer + pos, "%lld", statement->m_sort_range);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SORT_ROWS */
+  sprintf(buffer + pos, "%lld", statement->m_sort_rows);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* SORT_SCAN */
+  sprintf(buffer + pos, "%lld", statement->m_sort_scan);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* NO_INDEX_USED */
+  sprintf(buffer + pos, "%lld", statement->m_no_index_used);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* NO_GOOD_INDEX_USED */
+  sprintf(buffer + pos, "%lld", statement->m_no_good_index_used);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* NESTING_EVENT_ID */
+  if (statement->m_nesting_event_id != 0)
+    sprintf(buffer + pos, "%lld", statement->m_nesting_event_id);
+  else
+    sprintf(buffer + pos, "%s", "");
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* NESTING_EVENT_TYPE */
+  if (statement->m_nesting_event_type != 0)
+    sprintf(buffer + pos, "%d", statement->m_nesting_event_type);
+  else
+    sprintf(buffer + pos, "%s", "");
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* NESTING_EVENT_LEVEL */
+  sprintf(buffer + pos, "%d", statement->m_nesting_event_level);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* CLIENT_USER */
+  if (statement->m_user_name_length > 0)
+  {
+    memcpy(buffer + pos, statement->m_user_name
+           , statement->m_user_name_length);
+    pos += statement->m_user_name_length;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "");
+    pos += strlen(buffer + pos);
+  }
+  buffer[pos] = '|';
+  pos++;
+  /* CLIENT_HOST */
+  if (statement->m_host_name_length > 0)
+  {
+    memcpy(buffer + pos, statement->m_host_name
+           , statement->m_host_name_length);
+    pos += statement->m_host_name_length;
+  }
+  else
+  {
+    sprintf(buffer + pos, "%s", "NULL");
+    pos += strlen(buffer + pos);
+  }
+  /* end */
+  DBUG_ASSERT(pos < buffer_size);
+  strcpy(buffer + pos, "\r\n");
+  pos += 2;
+  buffer[pos] = 0;
+
+  return pos;
 }
 
 static void fct_reset_events_statements_current(PFS_thread *pfs_thread)
