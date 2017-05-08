@@ -498,7 +498,7 @@ int events_statements_2_csv(PFS_events_statements *statement
   {
     if (len > MAX_MSG_TEXT_LEN)
       len = MAX_MSG_TEXT_LEN;
-    memcpy(buffer + pos, statement->m_sqltext, len);
+    memcpy(buffer + pos, statement->m_message_text, len);
     pos += len;
   }
   else
