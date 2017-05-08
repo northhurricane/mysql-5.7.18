@@ -58,6 +58,260 @@
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
 
+#define MIN_BUFFER_SIZE (8)
+#define LOG_BUFFER_SIZE (1024 * 1024 * MIN_BUFFER_SIZE)
+
+/*
+  由于MySQL的mutex初始化问题，必须利用plugin的初始化串行性来初始化该类的对象
+*/
+class StaticLocker
+{
+ public :
+  void Init()
+  {
+    if (!inited_)
+      mysql_mutex_init(NULL, &lock_, MY_MUTEX_INIT_FAST);
+  }
+  void Lock()
+  {
+    mysql_mutex_lock(&lock_);
+  }
+  void Unlock()
+  {
+    mysql_mutex_unlock(&lock_);
+  }
+  StaticLocker()
+  {
+    inited_ = false;
+  }
+  ~StaticLocker()
+  {
+    mysql_mutex_destroy(&lock_);
+  }
+
+ private :
+  mysql_mutex_t lock_;
+  bool inited_;
+};
+static StaticLocker csv_lock;
+
+class PfsLogBuffer
+{
+ public :
+  PfsLogBuffer(FILE *file);
+  void Write(const char *msg, int msg_len);
+  void Flush();
+  //size是以KB计数的，4表示4KB
+  int SetBufferSize(int size);
+  void SetFile(FILE *f)
+  {
+    file_ = f;
+  }
+  void Truncate()
+  {
+    ftruncate(fileno(file_), 0);
+  }
+
+ private :
+  char buffer_inner_[LOG_BUFFER_SIZE];
+  char *buffer_;
+  int buffer_size_;
+  int available_pos_;
+  FILE *file_;
+
+  void Buffer(const char *msg, int msg_len);
+};
+
+PfsLogBuffer::PfsLogBuffer(FILE *file)
+{
+  file_ = file;
+  buffer_size_ = LOG_BUFFER_SIZE;
+  buffer_ = buffer_inner_;
+  available_pos_ = 0;
+}
+
+void PfsLogBuffer::Write(const char *msg, int msg_len)
+{
+  if ((available_pos_ + msg_len) >= buffer_size_)
+    Flush();
+  if (msg_len >= buffer_size_)
+  {
+    fprintf(file_, "%s", msg);
+    fflush(file_);
+    return;
+  }
+  Buffer(msg, msg_len);
+}
+
+void PfsLogBuffer::Flush()
+{
+  char *content = buffer_;
+  if (available_pos_ == 0)
+    return;
+  fprintf(file_, "%s", content);
+  fflush(file_);
+  available_pos_ = 0;
+}
+
+void PfsLogBuffer::Buffer(const char *msg, int msg_len)
+{
+  strncpy(buffer_ + available_pos_, msg, msg_len);
+  available_pos_ += msg_len;
+  buffer_[available_pos_] = 0;
+}
+
+int PfsLogBuffer::SetBufferSize(int size)
+{
+  int byte_size = size * 1024;
+  if (byte_size < LOG_BUFFER_SIZE)
+    return 0;
+
+  if (byte_size == LOG_BUFFER_SIZE)
+  {
+    Flush();
+
+    if (buffer_ != buffer_inner_)
+      free(buffer_);
+
+    buffer_ = buffer_inner_;
+    buffer_size_ = LOG_BUFFER_SIZE;
+
+    return 0;
+  }
+
+  char *buffer_new = (char*)malloc(byte_size);
+  if (buffer_new == NULL)
+    return 1;
+
+  Flush();
+
+  if (buffer_ != buffer_inner_)
+    free(buffer_);
+
+  buffer_ = buffer_new;
+  buffer_size_ = byte_size;
+
+  return 0;
+}
+
+PfsLogBuffer *csv_logger = NULL;
+FILE *csv_log_file = NULL;
+char log_file_name[1024];
+static long long write_bytes = 0;
+const long long MAX_LOG_SIZE = (long long)(1024 * 1024 * 1024) * 4;
+
+static bool csv_log_working = false;
+
+bool pfs_log_csv()
+{
+  return csv_log_working;
+}
+
+void pfs_csv_log_impl(const char *csv_row, int row_len)
+{
+  DBUG_ASSERT(csv_logger != NULL);
+  if (!csv_log_working)
+    return;
+  csv_logger->Write(csv_row, row_len);
+  write_bytes += row_len;
+  if (write_bytes >= MAX_LOG_SIZE)
+  {
+    csv_logger->Truncate();
+    write_bytes = 0;
+  }
+}
+
+void pfs_csv_log(const char *csv_row, int row_len)
+{
+  csv_lock.Lock();
+  pfs_csv_log_impl(csv_row, row_len);
+  csv_lock.Unlock();
+}
+
+void pfs_csv_log_flush_impl()
+{
+  if (!csv_log_working)
+    return;
+  csv_logger->Flush();
+
+  {
+    char file_name_new[512];
+    time_t tm = time(NULL);
+    fclose(csv_log_file);
+    sprintf(file_name_new, "%s.%d", log_file_name, (int)tm);
+    rename(log_file_name, file_name_new);
+    csv_log_file = fopen(log_file_name, "a+");
+    if (csv_log_file == NULL)
+    {
+      delete csv_logger;
+      csv_logger = NULL;
+      csv_log_working = false;
+      return ;
+    }
+    csv_logger->SetFile(csv_log_file);
+  }
+}
+
+void pfs_csv_log_flush()
+{
+  csv_lock.Lock();
+  pfs_csv_log_flush_impl();
+  csv_lock.Unlock();
+}
+
+void
+pfs_init_csv_log_impl(const char *csv_file)
+{
+  if (csv_log_working)
+    return;
+
+  csv_log_file = fopen(csv_file, "a+");
+  if (csv_log_file == NULL)
+    return;
+
+  strcpy(log_file_name, csv_file);
+  csv_logger = new PfsLogBuffer(csv_log_file);
+  if (csv_logger == NULL)
+  {
+    fclose(csv_log_file);
+    csv_log_file = NULL;
+    return ;
+  }
+  csv_log_working = true;
+}
+
+void pfs_init_csv_log(const char * csv_file)
+{
+  csv_lock.Init();
+  csv_lock.Lock();
+  pfs_init_csv_log_impl(csv_file);
+  csv_lock.Unlock();
+}
+
+void pfs_deinit_csv_log_impl()
+{
+  if (!csv_log_working)
+    return;
+
+  if (csv_logger != NULL)
+  {
+    csv_logger->Flush();
+    delete csv_logger;
+  }
+  if (csv_log_file != NULL)
+    fclose(csv_log_file);
+  csv_logger = NULL;
+  csv_log_file = NULL;
+  csv_log_working = false;
+}
+
+void pfs_deinit_csv_log()
+{
+  csv_lock.Lock();
+  pfs_deinit_csv_log_impl();
+  csv_lock.Unlock();
+}
+
 /*
   This is a development tool to investigate memory statistics,
   do not use in production.
@@ -5461,10 +5715,68 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
       pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(state->m_parent_prepared_stmt);
 
+      int cpylen = 0;
+      pfs->m_user_name[0] = 0;
+      pfs->m_user_name_length = 0;
+      if (NAME_LEN <= thread->m_username_length)
+        cpylen = NAME_LEN - 1;
+      else
+        cpylen = thread->m_username_length;
+      strncpy(pfs->m_user_name, thread->m_username, cpylen);
+      pfs->m_user_name[cpylen] = 0;
+      pfs->m_user_name_length = cpylen;
+
+      cpylen = 0;
+      pfs->m_host_name[0] = 0;
+      pfs->m_host_name_length = 0;
+      if (NAME_LEN <= thread->m_hostname_length)
+        cpylen = NAME_LEN - 1;
+      else
+        cpylen = thread->m_hostname_length;
+      strncpy(pfs->m_host_name, thread->m_hostname, cpylen);
+      pfs->m_host_name[cpylen] = 0;
+      pfs->m_host_name_length = cpylen;
+
       if (thread->m_flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
       if (thread->m_flag_events_statements_history_long)
         insert_events_statements_history_long(pfs);
+
+      if (pfs_log_csv())
+      {
+        char buffer[64 * 1024];
+        int timer_type = TIMER_TYPE_NONE;
+
+        if (state->m_timer == my_timer_nanoseconds)
+        {
+          timer_type = TIMER_TYPE_NANO;
+        }
+        else if (state->m_timer == my_timer_microseconds)
+        {
+          timer_type = TIMER_TYPE_MICRO;
+        }
+        else if (state->m_timer == my_timer_milliseconds)
+        {
+          timer_type = TIMER_TYPE_MILLI;
+        }
+        else if (state->m_timer == my_timer_ticks)
+        {
+          timer_type = TIMER_TYPE_TICKS;
+        }
+        else if (state->m_timer == my_timer_cycles)
+        {
+          timer_type = TIMER_TYPE_CYCLE;
+        }
+        else
+        {
+          timer_type = TIMER_TYPE_NONE;
+        }
+
+        int row_len = events_statements_2_csv(pfs, buffer
+                                              , sizeof(buffer), timer_type);
+        if (row_len)
+          pfs_csv_log(buffer, row_len);
+      }
 
       DBUG_ASSERT(thread->m_events_statements_count > 0);
       thread->m_events_statements_count--;
