@@ -77,10 +77,24 @@ bool Connection_handler_manager::valid_connection_count()
 {
   bool connection_accepted= true;
   mysql_mutex_lock(&LOCK_connection_count);
-  if (connection_count > max_connections)
+  if (reserved_connections < max_connections)
   {
-    connection_accepted= false;
-    m_connection_errors_max_connection++;
+    if ((connection_count + reserved_connections) > max_connections)
+    {
+      //如果当前连接数与保留连接数之和大于最大连接数，则说明当前连入可能处于
+      //超载状态，后续MySQL将会根据连入用户的权限级别判断，是否可以进一步连接
+      connection_accepted= false;
+      m_connection_errors_max_connection++;
+    }
+  }
+  else
+  {
+    //如果reserved connection数量大于max connection，该配置无效
+    if (connection_count > max_connections)
+    {
+      connection_accepted= false;
+      m_connection_errors_max_connection++;
+    }
   }
   mysql_mutex_unlock(&LOCK_connection_count);
   return connection_accepted;
