@@ -2152,6 +2152,19 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
   return false;
 }
 
+static bool update_cached_long_query_total_time(sys_var *self, THD *thd,
+                                                enum_var_type type)
+{
+  if (type == OPT_SESSION)
+     thd->variables.long_query_total_time=
+     double2ulonglong(thd->variables.long_query_total_time_double * 1e6);
+  else
+     global_system_variables.long_query_total_time=
+     double2ulonglong(
+       global_system_variables.long_query_total_time_double * 1e6);
+  return false;
+}
+
 static Sys_var_double Sys_long_query_time(
        "long_query_time",
        "Log all queries that have taken more than long_query_time seconds "
@@ -2161,6 +2174,17 @@ static Sys_var_double Sys_long_query_time(
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
+
+static Sys_var_double Sys_long_query_total_time(
+  "long_query_total_time",
+        "Log all queries that have taken more than long_query_total_time seconds "
+        "total means lock time and execution time"
+        "to execute to file. The argument will be treated as a decimal value "
+  "with microsecond precision",
+  SESSION_VAR(long_query_total_time_double),
+  CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+  ON_UPDATE(update_cached_long_query_total_time));
 
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4845,6 +4869,20 @@ static Sys_var_mybool Sys_general_log(
        GLOBAL_VAR(opt_general_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));
+
+static bool update_slow_query_total_log(sys_var *self, THD *thd,
+                                        enum_var_type type)
+{
+  return false;
+}
+static Sys_var_mybool Sys_slow_query_total_log(
+  "slow_query_total_log",
+        "slow_query_total_log depends on slow_query_log."
+        "Only when slow_query_log is set to on, setting of this variable will "
+  "have effect",
+  GLOBAL_VAR(opt_slow_log_total), CMD_LINE(OPT_ARG),
+  DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+  ON_UPDATE(update_slow_query_total_log));
 
 static bool fix_slow_log_state(sys_var *self, THD *thd, enum_var_type type)
 {

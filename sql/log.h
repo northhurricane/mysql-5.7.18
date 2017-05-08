@@ -174,7 +174,8 @@ class File_query_log
 */
   bool write_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
                   const char *user_host, size_t user_host_len,
-                  ulonglong query_utime, ulonglong lock_utime, bool is_command,
+                  ulonglong query_utime, ulonglong lock_utime,
+                  ulonglong exec_utime, bool is_command,
                   const char *sql_text, size_t sql_text_len);
 
 private:
@@ -245,7 +246,8 @@ public:
   virtual bool log_slow(THD *thd, ulonglong current_utime,
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
+                        ulonglong lock_utime, ulonglong exec_utime,
+                        bool is_command,
                         const char *sql_text, size_t sql_text_len)= 0;
 
   /**
@@ -290,7 +292,8 @@ public:
   virtual bool log_slow(THD *thd, ulonglong current_utime,
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
+                        ulonglong lock_utime, ulonglong exec_utime,
+                        bool is_command,
                         const char *sql_text, size_t sql_text_len);
 
   /** @see Log_event_handler::log_general(). */
@@ -332,7 +335,8 @@ public:
   virtual bool log_slow(THD *thd, ulonglong current_utime,
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
+                        ulonglong lock_utime, ulonglong exec_utime,
+                        bool is_command,
                         const char *sql_text, size_t sql_text_len);
 
   /**
