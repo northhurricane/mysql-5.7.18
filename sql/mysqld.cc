@@ -302,7 +302,7 @@ LEX_STRING opt_init_connect, opt_init_slave;
 /* Global variables */
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
-bool opt_general_log, opt_slow_log, opt_general_log_raw;
+bool opt_general_log, opt_slow_log, opt_slow_log_total, opt_general_log_raw;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
@@ -7808,6 +7808,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   global_system_variables.long_query_time= (ulonglong)
     (global_system_variables.long_query_time_double * 1e6);
+  global_system_variables.long_query_total_time= (ulonglong)
+    (global_system_variables.long_query_total_time_double * 1e6);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;

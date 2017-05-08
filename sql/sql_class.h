@@ -427,6 +427,7 @@ typedef struct system_variables
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
+  ulonglong long_query_total_time;
   my_bool end_markers_in_json;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
@@ -545,6 +546,7 @@ typedef struct system_variables
   my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
+  double long_query_total_time_double;
 
   my_bool pseudo_slave_mode;
 
@@ -3214,6 +3216,9 @@ public:
   {
     ulonglong end_utime_of_query= current_utime();
     if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+      server_status|= SERVER_QUERY_WAS_SLOW;
+    if (opt_slow_log_total &&
+        (end_utime_of_query > start_utime + variables.long_query_total_time))
       server_status|= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void)

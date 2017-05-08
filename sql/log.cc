@@ -835,11 +835,12 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                                 ulonglong query_start_arg,
                                 const char *user_host,
                                 size_t user_host_len, ulonglong query_utime,
-                                ulonglong lock_utime, bool is_command,
+                                ulonglong lock_utime, ulonglong exec_utime,
+                                bool is_command,
                                 const char *sql_text, size_t sql_text_len)
 {
   char buff[80], *end;
-  char query_time_buff[22+7], lock_time_buff[22+7];
+  char query_time_buff[22+7], lock_time_buff[22+7], exec_time_buff[22+7];
   size_t buff_len;
   end= buff;
 
@@ -868,12 +869,15 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   /* For slow query log */
   sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
   sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
+  sprintf(exec_time_buff, "%.6f", ulonglong2double(exec_utime)/1000000.0);
   if (my_b_printf(&log_file,
                   "# Query_time: %s  Lock_time: %s"
-                  " Rows_sent: %lu  Rows_examined: %lu\n",
+                  " Rows_sent: %lu  Rows_examined: %lu"
+                  " Execution_time: %s\n",
                   query_time_buff, lock_time_buff,
                   (ulong) thd->get_sent_row_count(),
-                  (ulong) thd->get_examined_row_count()) == (uint) -1)
+                  (ulong) thd->get_examined_row_count(),
+                  exec_time_buff) == (uint) -1)
     goto err;
   if (thd->db().str && strcmp(thd->db().str, db))
   {						// Database changed
@@ -1083,7 +1087,9 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                         const char *user_host,
                                         size_t user_host_len,
                                         ulonglong query_utime,
-                                        ulonglong lock_utime, bool is_command,
+                                        ulonglong lock_utime,
+                                        ulonglong exec_utime,
+                                        bool is_command,
                                         const char *sql_text,
                                         size_t sql_text_len)
 {
@@ -1296,6 +1302,7 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                          size_t user_host_len,
                                          ulonglong query_utime,
                                          ulonglong lock_utime,
+                                         ulonglong exec_utime,
                                          bool is_command,
                                          const char *sql_text,
                                          size_t sql_text_len)
@@ -1307,7 +1314,8 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
   thd->push_internal_handler(&error_handler);
   bool retval= mysql_slow_log.write_slow(thd, current_utime, query_start_arg,
                                          user_host, user_host_len,
-                                         query_utime, lock_utime, is_command,
+                                         query_utime, lock_utime, exec_utime,
+                                         is_command,
                                          sql_text, sql_text_len);
   thd->pop_internal_handler();
   return retval;
@@ -1376,11 +1384,13 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   sctx_ip.length ? sctx_ip.str : "", "]",
                                   NullS) - user_host_buff);
   ulonglong current_utime= thd->current_utime();
-  ulonglong query_utime, lock_utime;
+  ulonglong query_utime, lock_utime, exec_utime;
   if (thd->start_utime)
   {
     query_utime= (current_utime - thd->start_utime);
     lock_utime=  (thd->utime_after_lock - thd->start_utime);
+    exec_utime= query_utime - lock_utime;
+    exec_utime= 0;
   }
   else
   {
@@ -1404,7 +1414,8 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
                                            (thd->start_time.tv_sec * 1000000) +
                                            thd->start_time.tv_usec,
                                            user_host_buff, user_host_len,
-                                           query_utime, lock_utime, is_command,
+                                           query_utime, lock_utime, exec_utime,
+                                           is_command,
                                            query, query_length);
   }
 
