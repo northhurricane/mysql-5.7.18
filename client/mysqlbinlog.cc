@@ -348,6 +348,7 @@ static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static my_bool opt_secure_auth= TRUE;
+static my_bool opt_flashback= FALSE;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name= 0;
@@ -1651,7 +1652,17 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto err;
       }
 
-      ev->print(result_file, print_event_info);
+      if ((ev_type == binary_log::WRITE_ROWS_EVENT ||
+           ev_type == binary_log::DELETE_ROWS_EVENT ||
+           ev_type == binary_log::UPDATE_ROWS_EVENT) && opt_flashback)
+      {
+        //flashback only for these 3 DML operation
+        ev->print_flashback(result_file, print_event_info);
+      }
+      else
+      {
+        ev->print(result_file, print_event_info);
+      }
       print_event_info->have_unflushed_events= TRUE;
       /* Flush head,body and footer cache to result_file */
       if (stmt_end)
@@ -1937,6 +1948,9 @@ static struct my_option my_long_options[] =
   {"verbose", 'v', "Reconstruct pseudo-SQL statements out of row events. "
                    "-v -v adds comments on column data types.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"flashback", 'B', "Reconstruct flashback-SQL statements out of row events. "
+   "-B -B adds comments on column data types.",
+   &opt_flashback, &opt_flashback, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
@@ -2210,6 +2224,9 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
   case OPT_STOP_NEVER:
     /* wait-for-data implicitly sets to-last-log */
     to_last_remote_log= 1;
+    break;
+  case 'B':
+    opt_flashback = TRUE;
     break;
   case '?':
     usage();

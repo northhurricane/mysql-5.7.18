@@ -574,7 +574,7 @@ protected:
   bool write_header(IO_CACHE* file, size_t data_length);
   bool write_footer(IO_CACHE* file);
   my_bool need_checksum();
-
+  bool is_print_flashback;
 
 public:
   /*
@@ -792,6 +792,12 @@ public:
                                    read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
+  void print_flashback(FILE* file,
+                       PRINT_EVENT_INFO* print_event_info)
+  {
+    is_print_flashback = true;
+    print(file, print_event_info);
+  }
   void print_timestamp(IO_CACHE* file, time_t* ts);
   void print_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
