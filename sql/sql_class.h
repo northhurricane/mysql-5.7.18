@@ -1425,6 +1425,11 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
 
 class Modification_plan;
 
+#ifdef __linux
+#else
+typedef int pid_t;
+#endif
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -2640,6 +2645,8 @@ public:
   */
 private:
   my_thread_id  m_thread_id;
+  pid_t m_lwpid;
+
 public:
   /**
     Assign a value to m_thread_id by calling
@@ -2647,6 +2654,10 @@ public:
   */
   void set_new_thread_id();
   my_thread_id thread_id() const { return m_thread_id; }
+
+  void set_lwpid(pid_t pid) {m_lwpid = pid; }
+  pid_t lwpid() const { return m_lwpid; }
+
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
