@@ -1,0 +1,19 @@
+ctrip MySQL 5.7.17 change log
+
+performance schema功能增强，events_statements系列表中增加host&user的记录。增加对events_statements事件的写盘功能
+
+增加reserved-connections的配置项，在max-connections指定的连接数中预留reserved-connections的空间。在连接数接近max-connections时，保留reserved-connections个连接空间给超级用户。
+
+增加slow的时间记录选项。将锁等待时间计入slow log
+
+show processlist中增加连接的线程信息
+
+开发mysql flash back的后续文档生成工具mysqlfbtool，用于将flashback后的binlog文件生成SQL文件
+
+修改mysqlbinlog工具，针对增删改语句的记录生成回滚操作语句
+
+在binlog中，对增删改增加invoker的信息。也就是记录语句执行者所在的主机和用户名
+
+审计插件移植与修改
+
+
