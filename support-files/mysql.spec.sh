@@ -105,7 +105,7 @@
 Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        5.7.17
+Version:        5.7.18
 Release:        1%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, 2016, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-5.7/%{src_dir}.tar.gz
