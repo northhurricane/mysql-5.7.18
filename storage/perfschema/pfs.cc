@@ -5449,6 +5449,15 @@ void pfs_start_statement_v1(PSI_statement_locker *locker,
     if (db_len > 0)
       memcpy(pfs->m_current_schema_name, db, db_len);
     pfs->m_current_schema_name_length= db_len;
+
+#if defined(__linux__)
+    //CPU usage
+    int r = 0;
+    struct rusage usage;
+    r = getrusage(RUSAGE_THREAD, &usage);
+    pfs->start_ru_utime = usage.ru_utime;
+    pfs->start_ru_stime = usage.ru_stime;
+#endif
   }
 }
 
@@ -5736,6 +5745,17 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       strncpy(pfs->m_host_name, thread->m_hostname, cpylen);
       pfs->m_host_name[cpylen] = 0;
       pfs->m_host_name_length = cpylen;
+
+#if defined(__linux__)
+    //CPU usage
+      int r = 0;
+      struct rusage usage;
+
+      r = getrusage(RUSAGE_THREAD, &usage);
+
+      pfs->end_ru_utime = usage.ru_utime;
+      pfs->end_ru_stime = usage.ru_stime;
+#endif
 
       if (thread->m_flag_events_statements_history)
         insert_events_statements_history(thread, pfs);

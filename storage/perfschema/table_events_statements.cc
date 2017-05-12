@@ -248,12 +248,22 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("CLIENT_HOST") },
     { C_STRING_WITH_LEN("varchar(128)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("RU_UTIME") },
+    { C_STRING_WITH_LEN("biging") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("RU_STIME") },
+    { C_STRING_WITH_LEN("bigint") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{43 , field_types };
+{45 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -408,6 +418,21 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_host_name_length = statement->m_host_name_length;
   if (m_row.m_host_name_length > 0)
     memcpy(m_row.m_host_name, statement->m_host_name, m_row.m_host_name_length);
+
+  m_row.m_ru_utime = 0;
+  m_row.m_ru_stime = 0;
+#if defined(__linux__)
+  m_row.m_ru_utime =
+  (statement->end_ru_utime.tv_sec * 1000000 + statement->end_ru_utime.tv_usec)
+  - statement->start_ru_utime.tv_sec * 1000000
+  - statement->start_ru_utime.tv_usec;
+
+  m_row.m_ru_stime =
+  (statement->end_ru_stime.tv_sec * 1000000 + statement->end_ru_stime.tv_usec)
+  - statement->start_ru_stime.tv_sec * 1000000 
+  - statement->start_ru_stime.tv_usec;
+#endif
+  
 
   safe_source_file= statement->m_source_file;
   if (unlikely(safe_source_file == NULL))
@@ -693,6 +718,12 @@ int table_events_statements_common::read_row_values(TABLE *table,
                                  m_row.m_host_name_length);
         else
           f->set_null();
+        break;
+      case 43: /* RU_UTIME */
+        set_field_ulonglong(f, m_row.m_ru_utime);
+        break;
+      case 44: /* RU_STIME */
+        set_field_ulonglong(f, m_row.m_ru_stime);
         break;
       default:
         DBUG_ASSERT(false);

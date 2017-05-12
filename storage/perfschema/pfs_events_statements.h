@@ -39,11 +39,18 @@ struct PFS_events_statements : public PFS_events
   char m_object_name[NAME_LEN];
   uint m_object_name_length;
 
+  /** User name & Host name */
   char m_user_name[NAME_LEN];
   uint m_user_name_length;
   char m_host_name[NAME_LEN];
   uint m_host_name_length;
 
+  /** CPU usage start user time*/
+  struct timeval start_ru_utime;  /* user CPU time used */
+  struct timeval start_ru_stime; /* system CPU time used */
+  struct timeval end_ru_utime;  /* user CPU time used */
+  struct timeval end_ru_stime; /* system CPU time used */
+  
   /** Database name. */
   char m_current_schema_name[NAME_LEN];
   /** Length of @c m_current_schema_name. */

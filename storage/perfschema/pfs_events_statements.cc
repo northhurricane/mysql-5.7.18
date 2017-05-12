@@ -645,6 +645,26 @@ int events_statements_2_csv(PFS_events_statements *statement
     sprintf(buffer + pos, "%s", "NULL");
     pos += strlen(buffer + pos);
   }
+  /* CPU user usage*/
+  ulonglong utime = 0;
+  utime =
+  (statement->end_ru_utime.tv_sec * 1000000 + statement->end_ru_utime.tv_usec)
+  - statement->start_ru_utime.tv_sec * 1000000 
+  - statement->start_ru_utime.tv_usec;
+  sprintf(buffer + pos, "%lld", utime);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* CPU system usage*/
+  utime = 0;
+  utime =
+  (statement->end_ru_stime.tv_sec * 1000000 + statement->end_ru_stime.tv_usec)
+  - statement->start_ru_stime.tv_sec * 1000000 
+  - statement->start_ru_stime.tv_usec;
+  sprintf(buffer + pos, "%lld", utime);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
   /* end */
   DBUG_ASSERT(pos < buffer_size);
   strcpy(buffer + pos, "\r\n");

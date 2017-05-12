@@ -93,6 +93,11 @@ struct row_events_statements
   /** Length in bytes of @c m_host_name. */
   uint m_host_name_length;
 
+  /** CPU usage user time*/
+  ulonglong m_ru_utime;
+  /** CPU usage system time*/
+  ulonglong m_ru_stime;
+
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Column MYSQL_ERRNO. */
