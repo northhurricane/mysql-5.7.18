@@ -427,6 +427,7 @@ typedef struct system_variables
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
+  ulonglong long_query_total_time;
   my_bool end_markers_in_json;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
@@ -545,6 +546,7 @@ typedef struct system_variables
   my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
+  double long_query_total_time_double;
 
   my_bool pseudo_slave_mode;
 
@@ -1424,6 +1426,11 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
 }
 
 class Modification_plan;
+
+#ifdef __linux
+#else
+typedef int pid_t;
+#endif
 
 /**
   @class THD
@@ -2640,6 +2647,8 @@ public:
   */
 private:
   my_thread_id  m_thread_id;
+  pid_t m_lwpid;
+
 public:
   /**
     Assign a value to m_thread_id by calling
@@ -2647,6 +2656,10 @@ public:
   */
   void set_new_thread_id();
   my_thread_id thread_id() const { return m_thread_id; }
+
+  void set_lwpid(pid_t pid) {m_lwpid = pid; }
+  pid_t lwpid() const { return m_lwpid; }
+
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
@@ -3203,6 +3216,9 @@ public:
   {
     ulonglong end_utime_of_query= current_utime();
     if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+      server_status|= SERVER_QUERY_WAS_SLOW;
+    if (opt_slow_log_total &&
+        (end_utime_of_query > start_utime + variables.long_query_total_time))
       server_status|= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void)

@@ -60,6 +60,15 @@ IF(UNIX)
     INSTALL(FILES magic DESTINATION ${inst_location} COMPONENT SupportFiles)
   ENDIF()
 
+  # -----------------------------------------------------------------------------
+  # Copy scripts from 5.6 to make .spec files automatically --by jiangyx 20170109
+  # -----------------------------------------------------------------------------
+  SET(SPECFILENAME "mysql.${VERSION}.spec")
+  CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
+  SET(SPECFILENAME "mysql.spec")
+  CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
+  # -----------------------------------------------------------------------------
+
   INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
   
   SET(bindir ${prefix}/${INSTALL_BINDIR})

@@ -302,7 +302,7 @@ LEX_STRING opt_init_connect, opt_init_slave;
 /* Global variables */
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
-bool opt_general_log, opt_slow_log, opt_general_log_raw;
+bool opt_general_log, opt_slow_log, opt_slow_log_total, opt_general_log_raw;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
@@ -476,6 +476,7 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong reserved_connections = RESERVED_CONNECTIONS_DEFAULT;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
@@ -7807,6 +7808,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   global_system_variables.long_query_time= (ulonglong)
     (global_system_variables.long_query_time_double * 1e6);
+  global_system_variables.long_query_total_time= (ulonglong)
+    (global_system_variables.long_query_total_time_double * 1e6);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
@@ -7851,6 +7854,7 @@ static void set_server_version(void)
 {
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);
+  end= my_stpcpy(end, "-ctrip");
 #ifdef EMBEDDED_LIBRARY
   end= my_stpcpy(end, "-embedded");
 #endif

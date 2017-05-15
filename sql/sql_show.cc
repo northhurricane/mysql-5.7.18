@@ -2146,6 +2146,8 @@ public:
   { }
 
   my_thread_id thread_id;
+  ulong pthread_self;
+  pid_t lwpid;
   time_t start_time;
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
@@ -2228,6 +2230,8 @@ public:
 
     /* ID */
     thd_info->thread_id= inspect_thd->thread_id();
+    thd_info->pthread_self = inspect_thd->real_id;
+    thd_info->lwpid = inspect_thd->lwpid();
 
     /* USER */
     if (inspect_sctx_user.str)
@@ -2337,6 +2341,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
+  field_list.push_back(new Item_int(NAME_STRING("Thd_id")
+                                    , 0, MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Lwpid")
+                                    , 0, MY_INT64_NUM_DECIMAL_DIGITS));
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
@@ -2372,6 +2380,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     protocol->store(thd_info->state_info, system_charset_info);
     protocol->store(thd_info->query_string.str(),
                     thd_info->query_string.charset());
+    protocol->store((ulonglong) thd_info->pthread_self);
+    protocol->store((ulonglong) thd_info->lwpid);
     if (protocol->end_row())
       break; /* purecov: inspected */
   }
