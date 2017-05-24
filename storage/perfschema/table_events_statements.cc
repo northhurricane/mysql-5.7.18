@@ -258,12 +258,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("RU_STIME") },
     { C_STRING_WITH_LEN("bigint") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("TRX_ID") },
+    { C_STRING_WITH_LEN("bigint") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{45 , field_types };
+{46 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -432,6 +437,7 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   - statement->start_ru_stime.tv_sec * 1000000 
   - statement->start_ru_stime.tv_usec;
 #endif
+  m_row.m_trx_id = statement->trx_id;
   
 
   safe_source_file= statement->m_source_file;
@@ -724,6 +730,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 44: /* RU_STIME */
         set_field_ulonglong(f, m_row.m_ru_stime);
+        break;
+      case 45: /* TRX_ID */
+        set_field_ulonglong(f, m_row.m_trx_id);
         break;
       default:
         DBUG_ASSERT(false);

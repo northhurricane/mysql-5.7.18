@@ -50,6 +50,8 @@ struct PFS_events_statements : public PFS_events
   struct timeval start_ru_stime; /* system CPU time used */
   struct timeval end_ru_utime;  /* user CPU time used */
   struct timeval end_ru_stime; /* system CPU time used */
+
+  ulonglong trx_id;
   
   /** Database name. */
   char m_current_schema_name[NAME_LEN];

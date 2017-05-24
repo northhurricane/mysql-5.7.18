@@ -1322,7 +1322,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "CLIENT_USER VARCHAR(128),"
   "CLIENT_HOST VARCHAR(128),"
   "RU_UTIME BIGINT unsigned,"
-  "RU_STIME BIGINT unsigned"
+  "RU_STIME BIGINT unsigned,"
+  "TRX_ID BIGINT unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1379,7 +1380,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "CLIENT_USER VARCHAR(128),"
   "CLIENT_HOST VARCHAR(128),"
   "RU_UTIME BIGINT unsigned,"
-  "RU_STIME BIGINT unsigned"
+  "RU_STIME BIGINT unsigned,"
+  "TRX_ID BIGINT unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1436,7 +1438,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "CLIENT_USER VARCHAR(128),"
   "CLIENT_HOST VARCHAR(128),"
   "RU_UTIME BIGINT unsigned,"
-  "RU_STIME BIGINT unsigned"
+  "RU_STIME BIGINT unsigned,"
+  "TRX_ID BIGINT unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

@@ -665,6 +665,11 @@ int events_statements_2_csv(PFS_events_statements *statement
   pos += strlen(buffer + pos);
   buffer[pos] = '|';
   pos++;
+  /* transaction id*/
+  sprintf(buffer + pos, "%lld", statement->trx_id);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
   /* end */
   DBUG_ASSERT(pos < buffer_size);
   strcpy(buffer + pos, "\r\n");

@@ -98,6 +98,9 @@ struct row_events_statements
   /** CPU usage system time*/
   ulonglong m_ru_stime;
 
+  /** transaction id*/
+  ulonglong m_trx_id;
+
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Column MYSQL_ERRNO. */

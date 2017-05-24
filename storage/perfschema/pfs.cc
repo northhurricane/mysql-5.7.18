@@ -5651,6 +5651,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PFS_program *pfs_program= NULL;
   PFS_prepared_stmt *pfs_prepared_stmt= NULL;
 
+  ulonglong trx_id = 0;
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
@@ -5658,6 +5659,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     event_name_array= thread->write_instr_class_statements_stats();
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
+    trx_id = thread[0].m_transaction_current.m_trxid;
 
     if (flags & STATE_FLAG_DIGEST)
     {
@@ -5745,6 +5747,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       strncpy(pfs->m_host_name, thread->m_hostname, cpylen);
       pfs->m_host_name[cpylen] = 0;
       pfs->m_host_name_length = cpylen;
+
+      pfs->trx_id = trx_id;
 
 #if defined(__linux__)
     //CPU usage
