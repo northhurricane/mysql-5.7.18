@@ -37,6 +37,7 @@ static char *opt_host = NULL;
 static uint opt_mysql_port=0;
 static char *opt_mysql_unix_port=0;
 static char *opt_user = NULL;
+static char *opt_db = NULL;
 static char *opt_password = NULL;
 static char *opt_op = NULL;
 static char *opt_data_dir = NULL;
@@ -67,6 +68,8 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", &opt_user,
    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"db", 'D', "porting database.", &opt_db,
+   &opt_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -90,23 +93,15 @@ struct table_struct
 };
 typedef table_struct table_t;
 
-#define MAX_TABLE_DICT_SIZE (1024)
-struct table_dict_struct
+#define MAX_TABLE_BUFFER_SIZE (1024)
+struct table_buffer_struct
 {
   int number;
-  table_t tables[MAX_TABLE_DICT_SIZE];
-  table_dict_struct() {number = 0;}
+  table_t tables[MAX_TABLE_BUFFER_SIZE];
+  table_buffer_struct() {number = 0;}
 };
-typedef table_dict_struct table_dict_t;
-
-#define DEFAULTS_LINE_BUFFER_SIZE (8 * 1024 * 1024)
-
-char user_buffer[256] = {0};
-const int user_buffer_len = sizeof(user_buffer);
-char host_buffer[512] = {0};
-const int host_buffer_len = sizeof(host_buffer);
-
-table_dict_t table_dict;
+typedef table_buffer_struct table_buffer_t;
+table_buffer_t table_buffer;
 
 #define CTRIP_WELCOME_COPYRIGHT_NOTICE(first_year) \
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR) ? \
@@ -149,22 +144,65 @@ static void usage(int version)
   my_print_variables(my_long_options);
 }
 
+list<char*> option_tables;
+
+void
+get_option_tables(const char *tables)
+{
+  if (opt_tables != NULL || strlen(tables) > 0)
+  {
+    int len = 0;
+    int table_count = 0;
+    const char *table = tables;
+    const char *tail = tables;
+    while (*tail != 0)
+    {
+      if (*tail == ',')
+      {
+        strncpy(table_buffer.tables[table_count].name, table, len);
+        table_buffer.tables[table_count].name[len] = 0;
+        table_buffer.number++;
+        option_tables.push_back(table_buffer.tables[table_count].name);
+        table_count++;
+        len = 0;
+        table = tail + 1;
+      }
+      else
+      {
+        len++;
+      }
+      tail++;
+    }
+    if (len != 0)
+    {
+      strncpy(table_buffer.tables[table_count].name, table, len);
+      table_buffer.tables[table_count].name[len] = 0;
+      table_buffer.number++;
+      option_tables.push_back(table_buffer.tables[table_count].name);
+      len = 0;
+    }
+  }
+}
+
 my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch(optid) {
+  case 't':
+    get_option_tables(opt_tables);
+    break;
   case 'p':
     tty_password= 1;
     break;
   case 'o':
     if (strcasecmp(opt_op, "export") == 0)
     {
-      op = OP_IMPORT;
-    }
-    else if (strcasecmp(opt_op, "export") == 0)
-    {
       op = OP_EXPORT;
+    }
+    else if (strcasecmp(opt_op, "import") == 0)
+    {
+      op = OP_IMPORT;
     }
     else
     {
@@ -185,7 +223,7 @@ static int get_options(int argc, char **argv)
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (argc != 1)
+  if (argc != 0)
   {
     usage(0);
     exit(1);
@@ -381,7 +419,202 @@ sql_connect()
   return 0;
 }
 
+//tables to export or import
+static list<char*> tables;
 
+char buffer[1024 * 32];
+
+bool
+get_tables_from_db()
+{
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "show tables");
+  mysql_query(&mysql, buffer);
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    return false;
+  }
+  else
+  {
+    int table_count = 0;
+    while ((row=mysql_fetch_row(result)))
+    {
+      char *table_name = strdup_root(&hash_mem_root, (char*) row[0]);
+      strcpy(table_buffer.tables[table_count].name, table_name);
+      table_buffer.number++;
+      tables.push_back(table_buffer.tables[table_count].name);
+      table_count++;
+    }
+    mysql_free_result(result);
+  }
+
+  return true;
+}
+
+bool
+get_tables_from_option()
+{
+  return true;
+}
+
+bool
+get_tables()
+{
+  if (option_tables.empty())
+    return get_tables_from_db();
+  else
+    return get_tables_from_option();
+}
+
+bool
+export_check(string *err)
+{
+  return true;
+}
+
+bool
+export_single_table(const char *table_name)
+{
+  int r = 0;
+  //锁定表，并生成.cfg文件
+  sprintf(buffer, "FLUSH TABLES %s FOR EXPORT;", table_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+    return false;
+  
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "show create table %s", table_name);
+  if ((r = mysql_query(&mysql, buffer)) != 0)
+    return false;
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    return false;
+  }
+  else
+  {
+    row=mysql_fetch_row(result);
+    char *table_sql = strdup_root(&hash_mem_root, (char*) row[1]);
+    char table_file[512];
+    sprintf(table_file, "%s/%s.def", opt_file_dir, table_name);
+    FILE *f = fopen(table_file, "w");
+    fprintf(f, "%s", table_sql);
+    fclose(f);
+    mysql_free_result(result);
+  }
+
+  //文件拷贝
+  sprintf(buffer, "cp %s/%s.* %s", opt_data_dir, table_name, opt_file_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+
+  //清除锁，否则在下一次的flush将会报告错误
+  sprintf(buffer, "UNLOCK TABLES;");
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+    return false;
+
+  return true;
+}
+
+bool
+export_tables(string *err)
+{
+  list<char*>::iterator iter;
+  iter = tables.begin();
+  char *table_name = NULL;
+  while (iter != tables.end())
+  {
+    table_name = *iter;
+    bool succ;
+    succ = export_single_table(table_name);
+    iter++;
+  }
+  //删除.frm文件，防止在迁移时覆盖原有的frm文件
+  sprintf(buffer, "rm %s/*.frm", opt_file_dir);
+  system(buffer);
+  return true;
+}
+
+void
+export_clean()
+{
+  sprintf(buffer, "UNLOCK TABLES;");
+  system("echo abc");
+}
+
+bool
+do_export()
+{
+  string err;
+  bool succ = true;
+  switch (0)
+  {
+  case 0:
+    succ = export_check(&err);
+    if (!succ)
+      break;
+    succ = export_tables(&err);
+    if (!succ)
+      break;
+    break;
+  }
+  if (!succ)
+  {
+    cout << err << endl;
+  }
+
+  export_clean();
+  return succ;
+}
+
+bool
+import_check(string *err)
+{
+  return true;
+}
+
+bool
+do_import()
+{
+  string err;
+  bool succ = true;
+  switch (0)
+  {
+  case 0:
+    succ = import_check(&err);
+    if (!succ)
+      break;
+    break;
+  }
+  if (!succ)
+    cout << err << endl;
+  return succ;
+}
+
+bool
+set_database(string *err)
+{
+  sprintf(buffer, "use %s", opt_db);
+  if (mysql_query(&mysql, buffer))
+    return false;
+  return true;
+}
+
+bool
+args_check(string *err)
+{
+  //database must be setted
+  if (opt_db == NULL || strlen(opt_db) == 0)
+  {
+    err->append("database must be setted");
+    return false;
+  }
+  //to do:check opt_data_dir/opt_file_dir existed
+  return true;
+}
 
 int main(int argc,char *argv[])
 {
@@ -397,7 +630,33 @@ int main(int argc,char *argv[])
     exit(1);
   }
 
+  string err;
+  bool succ = args_check(&err);
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
+
   sql_connect();
+  succ = set_database(&err);
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
+
+  succ = get_tables();
+  if (!succ)
+  {
+    printf("failed when process porting tables.\n");
+    exit(1);
+  }
+
+  if (op == OP_EXPORT)
+    do_export();
+  else
+    do_import();
 
   return 0;
 }
