@@ -13,6 +13,7 @@
 #include <string.h>
 #include <assert.h>
 #include <list>
+#include <dirent.h>
 
 #include "mysql.h"
 using namespace std;
@@ -419,7 +420,9 @@ sql_connect()
   return 0;
 }
 
-//tables to export or import
+//tables to export or import。
+//该list保存的内容分两种情况，当未指定导入/导出表时，该列表保存的是database中
+//的表，全部进行导出/导入。如果指定指定倒入导出表时，则记录指定的表
 static list<char*> tables;
 
 char buffer[1024 * 32];
@@ -576,6 +579,125 @@ import_check(string *err)
   return true;
 }
 
+table_buffer_t file_table_buffer;
+//在给定的opt_file_dir中获取文件数，通过合tables变量的组合，确定倒入的表
+list<char*> file_tables;
+
+bool
+import_get_file_tables(string *err)
+{
+  int table_count = 0;
+  
+  struct dirent *ptr;
+  DIR *dir;
+  dir=opendir(opt_file_dir);
+  while((ptr=readdir(dir))!=NULL)
+  {
+    //跳过'.'和'..'两个目录
+    if(ptr->d_name[0] == '.')
+      continue;
+    //printf("%s\n",ptr->d_name);
+    if (strstr(ptr->d_name, ".ibd") != NULL)
+    {
+      int len = strlen(ptr->d_name);
+      strncpy(file_table_buffer.tables[table_count].name
+              , ptr->d_name, len - 4);
+      table_buffer.number++;
+      file_tables.push_back(file_table_buffer.tables[table_count].name);
+      table_count++;
+    }
+  }
+  closedir(dir);
+  return true;
+}
+
+bool
+import_single_table(const char *table_name)
+{
+  list<char*>::iterator iter;
+  iter = tables.begin();
+  char *db_table_name = NULL;
+  bool table_exist = false;
+  while (iter != tables.end())
+  {
+    db_table_name = *iter;
+    if (strcasecmp(table_name, db_table_name) == 0)
+    {
+      table_exist = true;
+      break;
+    }
+    iter++;
+  }
+  bool do_it = false;
+  if (table_exist)
+  {
+    //是否覆盖原有表
+    do_it = true;
+  }
+  else
+  {
+    //判断是否为指定表倒入
+    if (opt_tables != NULL && strlen(opt_tables) > 0)
+    {
+      //参数中指定倒入的表，而file tables不在这个列表之内
+      //do nothing
+    }
+    else
+    {
+      //未指定倒入表，所以是整库导入，导入当前的文件表
+      //在数据库中创建该表
+      int r = 0;
+      sprintf(buffer, "%s/%s%s", opt_file_dir, table_name, ".def");
+      FILE *f = fopen(buffer, "r");
+      fread(buffer, 1, sizeof(buffer), f);
+      fclose(f);
+      r = mysql_query(&mysql, buffer);
+      if (r != 0)
+        return false;
+      do_it = true;
+    }
+  }
+  if (do_it)
+  {
+    int r = 0;
+    //锁定表，并生成.cfg文件
+    sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
+    r = mysql_query(&mysql, buffer);
+    if (r != 0)
+      return false;
+
+    //文件拷贝
+    sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
+    r = system(buffer);
+    if (r != 0)
+      return false;
+
+    //锁定表，并生成.cfg文件
+    sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
+    r = mysql_query(&mysql, buffer);
+    if (r != 0)
+      return false;
+  }
+  
+  return true;
+}
+
+bool
+import_tables(string *err)
+{
+  list<char*>::iterator iter;
+  iter = file_tables.begin();
+  char *table_name = NULL;
+  while (iter != file_tables.end())
+  {
+    table_name = *iter;
+    bool succ;
+    succ = import_single_table(table_name);
+    iter++;
+  }
+  return true;
+}
+
 bool
 do_import()
 {
@@ -587,6 +709,10 @@ do_import()
     succ = import_check(&err);
     if (!succ)
       break;
+    succ = import_get_file_tables(&err);
+    if (!succ)
+      break;
+    succ = import_tables(&err);
     break;
   }
   if (!succ)
