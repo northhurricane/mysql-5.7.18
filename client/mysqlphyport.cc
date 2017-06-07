@@ -545,8 +545,6 @@ export_tables(string *err)
 void
 export_clean()
 {
-  sprintf(buffer, "UNLOCK TABLES;");
-  system("echo abc");
 }
 
 bool
@@ -565,11 +563,6 @@ do_export()
       break;
     break;
   }
-  if (!succ)
-  {
-    cout << err << endl;
-  }
-
   export_clean();
   return succ;
 }
@@ -716,8 +709,6 @@ do_import()
     succ = import_tables(&err);
     break;
   }
-  if (!succ)
-    cout << err << endl;
   return succ;
 }
 
@@ -797,9 +788,14 @@ int main(int argc,char *argv[])
   }
 
   if (op == OP_EXPORT)
-    do_export();
+    succ = do_export();
   else
-    do_import();
+    succ = do_import();
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
 
   return 0;
 }
