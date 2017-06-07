@@ -74,7 +74,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"operation", 'o', "Export or import operation.", &opt_op,
+  {"operation", 'o', "Valid value is export or import.", &opt_op,
    &opt_op, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd', "MySQL table data directory.", &opt_data_dir,
    &opt_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -403,11 +403,12 @@ sql_connect()
   while (true)
   {
     int error = sql_real_connect(opt_host, opt_user, opt_password);
-    if (error > 0)
+    if (error != 0)
     {
       if (try_count > MAX_RECONNECT_TIME)
       {
-        printf("fail to connect. retry %d times", MAX_RECONNECT_TIME);
+        printf("fail to connect. retry %d times\n", MAX_RECONNECT_TIME);
+        printf("%s\n", mysql_error(&mysql));
         exit (-1);
       }
       try_count++;
@@ -725,7 +726,12 @@ set_database(string *err)
 {
   sprintf(buffer, "use %s", opt_db);
   if (mysql_query(&mysql, buffer))
+  {
+    err->append("Error in setting database ");
+    err->append(opt_db);
+    err->append(".");
     return false;
+  }
   return true;
 }
 
@@ -735,10 +741,21 @@ args_check(string *err)
   //database must be setted
   if (opt_db == NULL || strlen(opt_db) == 0)
   {
-    err->append("database must be setted");
+    err->append("MySQL database must be setted");
     return false;
   }
   //to do:check opt_data_dir/opt_file_dir existed
+  if (opt_data_dir == NULL || strlen(opt_data_dir) == 0)
+  {
+    err->append("datadir must be setted");
+    return false;
+  }
+  if (opt_file_dir == NULL || strlen(opt_file_dir) == 0)
+  {
+    err->append("filedir must be setted");
+    return false;
+  }
+
   return true;
 }
 
@@ -752,7 +769,7 @@ int main(int argc,char *argv[])
   }
   if (op == OP_INVALID)
   {
-    printf("invalid operation input.export or import");
+    printf("invalid operation input.Valid value is export or import");
     exit(1);
   }
 
