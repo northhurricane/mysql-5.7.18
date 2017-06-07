@@ -535,16 +535,31 @@ export_tables(string *err)
   list<char*>::iterator iter;
   iter = tables.begin();
   char *table_name = NULL;
+  int exported_table_count = 0;
   while (iter != tables.end())
   {
     table_name = *iter;
     bool succ;
     succ = export_single_table(table_name);
+    if (succ)
+    {
+      exported_table_count++;
+      printf("table %s exported\n", table_name);
+    }
+    else
+    {
+      printf("table %s exporting failed\n", table_name);
+    }
     iter++;
   }
-  //删除.frm文件，防止在迁移时覆盖原有的frm文件
-  sprintf(buffer, "rm %s/*.frm", opt_file_dir);
-  system(buffer);
+  printf("totaly %d tables exported.\n", exported_table_count);
+  
+  if (tables.size())
+  {
+    //删除.frm文件，防止在迁移时覆盖原有的frm文件
+    sprintf(buffer, "rm %s/*.frm", opt_file_dir);
+    system(buffer);
+  }
   return true;
 }
 
@@ -667,7 +682,7 @@ import_single_table(const char *table_name)
       return false;
 
     //文件拷贝
-    //普通表的拷贝
+    //普通表/以及.def文件的拷贝
     sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
     r = system(buffer);
     if (r != 0)
@@ -678,9 +693,19 @@ import_single_table(const char *table_name)
     if (r != 0)
       return false;
 
-    //锁定表，并生成.cfg文件
+    //导入数据文件
     sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
     r = mysql_query(&mysql, buffer);
+    if (r != 0)
+      return false;
+    //清除工具所用的.def文件
+    sprintf(buffer, "rm %s/%s.def", opt_data_dir, table_name);
+    r = system(buffer);
+    if (r != 0)
+      return false;
+    //清除工具所用的.def文件
+    sprintf(buffer, "rm %s/%s*.cfg", opt_data_dir, table_name);
+    r = system(buffer);
     if (r != 0)
       return false;
   }
