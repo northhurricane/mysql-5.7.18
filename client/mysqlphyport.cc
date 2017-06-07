@@ -509,7 +509,13 @@ export_single_table(const char *table_name)
   }
 
   //文件拷贝
+  //普通表的拷贝
   sprintf(buffer, "cp %s/%s.* %s", opt_data_dir, table_name, opt_file_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+  //分区表的拷贝
+  sprintf(buffer, "cp %s/%s#P#* %s", opt_data_dir, table_name, opt_file_dir);
   r = system(buffer);
   if (r != 0)
     return false;
@@ -591,7 +597,7 @@ import_get_file_tables(string *err)
     if(ptr->d_name[0] == '.')
       continue;
     //printf("%s\n",ptr->d_name);
-    if (strstr(ptr->d_name, ".ibd") != NULL)
+    if (strstr(ptr->d_name, ".def") != NULL)
     {
       int len = strlen(ptr->d_name);
       strncpy(file_table_buffer.tables[table_count].name
@@ -661,7 +667,13 @@ import_single_table(const char *table_name)
       return false;
 
     //文件拷贝
+    //普通表的拷贝
     sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
+    r = system(buffer);
+    if (r != 0)
+      return false;
+    //分区表
+    sprintf(buffer, "cp %s/%s#P#* %s", opt_file_dir, table_name, opt_data_dir);
     r = system(buffer);
     if (r != 0)
       return false;
