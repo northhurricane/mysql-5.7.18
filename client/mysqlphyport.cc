@@ -87,7 +87,7 @@ static struct my_option my_long_options[] =
   {"lvname", 'l', "lvm name.", &opt_lv_name,
    &opt_lv_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lvsize", 's', "lvm size in GiB.", &opt_lv_size,
-   &opt_lv_size, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+   &opt_lv_size, 0, GET_UINT, REQUIRED_ARG, 128, 0, 0, 0, 0,
    0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -586,7 +586,9 @@ export_snapshot_copy(string *err)
   case 0:
     sprintf(buffer, "sudo mount %s/dbbackup /data-backup", lv_pdir);
     r = system(buffer);
-    sprintf(buffer, "sudo mount -o %s/dbbackup /dbbackup", lv_pdir);
+    if (r == 0) //mount success
+      break;
+    sprintf(buffer, "sudo mount -o nouuid %s/dbbackup /data-backup", lv_pdir);
     r = system(buffer);
     if (r != 0)
       return false;
@@ -594,7 +596,7 @@ export_snapshot_copy(string *err)
   }
 
   //拷贝数据
-  sprintf(buffer, "cp %s %s", opt_data_dir, opt_file_dir);
+  sprintf(buffer, "cp %s/* %s", opt_data_dir, opt_file_dir);
   r = system(buffer);
   if (r != 0)
     return false;
@@ -965,6 +967,8 @@ int main(int argc,char *argv[])
   }
 
   string err;
+  export_snapshot_copy(&err);
+  
   bool succ = args_check(&err);
   if (!succ)
   {
