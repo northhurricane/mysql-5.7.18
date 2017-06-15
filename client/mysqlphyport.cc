@@ -43,8 +43,10 @@ static char *opt_password = NULL;
 static char *opt_op = NULL;
 static char *opt_data_dir = NULL;
 static char *opt_file_dir = NULL;
-static char *opt_tables = NULL;
+//static char *opt_tables = NULL;
 static port_op_t op = OP_INVALID;
+static uint opt_lv_size = 128;
+static char *opt_lv_name = NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -80,8 +82,13 @@ static struct my_option my_long_options[] =
    &opt_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"filedir", 'f', "Directory to store ported type file.", &opt_file_dir,
    &opt_file_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"tables", 't', "Port tables.", &opt_tables,
-   &opt_tables, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  /*  {"tables", 't', "Port tables.", &opt_tables,
+      &opt_tables, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},*/
+  {"lvname", 'l', "lvm name.", &opt_lv_name,
+   &opt_lv_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lvsize", 's', "lvm size in GiB.", &opt_lv_size,
+   &opt_lv_size, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+   0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -147,7 +154,7 @@ static void usage(int version)
 
 list<char*> option_tables;
 
-void
+/*void
 get_option_tables(const char *tables)
 {
   if (opt_tables != NULL || strlen(tables) > 0)
@@ -183,16 +190,16 @@ get_option_tables(const char *tables)
       len = 0;
     }
   }
-}
+  }*/
 
 my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch(optid) {
-  case 't':
+    /*  case 't':
     get_option_tables(opt_tables);
-    break;
+    break;*/
   case 'p':
     tty_password= 1;
     break;
@@ -428,6 +435,7 @@ static list<char*> tables;
 
 char buffer[1024 * 32];
 
+
 bool
 get_tables_from_db()
 {
@@ -477,6 +485,130 @@ export_check(string *err)
   return true;
 }
 
+static int export_show_master_status(string *err)
+{
+  MYSQL_ROW row;
+  MYSQL_RES *result;
+  mysql_query(&mysql, "SHOW MASTER STATUS");
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  sprintf(buffer, "%s/master.info", opt_file_dir);
+  FILE *master_info = fopen(buffer, "w+");
+  row= mysql_fetch_row(result);
+  if (row && row[0] && row[1])
+  {
+    /* SHOW MASTER STATUS reports file and position */
+    fprintf(master_info,
+                  "\n--\n-- Position to start replication or point-in-time "
+                  "recovery from\n--\n\n");
+    fprintf(master_info,
+            "CHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
+            row[0], row[1]);
+  }
+  mysql_free_result(result);
+  fflush(master_info);
+  fclose(master_info);
+  return true;
+}
+
+static bool export_flush_tables_with_read_lock(string *err)
+{
+  /*
+    flush tables with read lock
+    锁定数据库，确保数据的一致性
+  */
+  int r = mysql_query(&mysql, "FLUSH TABLES");
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  r = mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK");
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  r = mysql_query(&mysql, "set global read_only=1;");
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+
+  r = mysql_query(&mysql, "set global super_read_only=1;");
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  return true;
+}
+
+/*
+  该部分存在可能的问题，lvcreate中关联的目录是按照携程现有的目录结构所设计。在
+  更加通用的环境下，目录的适配没有进行验证。该部分是应该被重点关注改进的。
+  dbbackup是我们内部使用目录，是否需要进行灵活性配置，或者将用户屏蔽于该细节
+  之外，能否将用户屏蔽于该细节之外？
+  /data-backup目录也是如同dbbackup一样，是固定目录
+ */
+bool
+export_snapshot_copy(string *err)
+{
+  //创建逻辑卷的快照（-s表示快照的意思）
+  sprintf(buffer, "sudo lvcreate -L%dG -s -n dbbackup %s"
+          , opt_lv_size, opt_lv_name);
+  int r = system(buffer);
+  if (r != 0)
+    return false;
+
+  //进行快照的加载
+  char lv_pdir[256];
+  char *index = opt_lv_name;
+  char *last_pos = opt_lv_name;
+  while (*index != 0)
+  {
+    if ( *index == '/' && (*(index + 1) != 0) )
+    {
+      last_pos = index;
+    }
+    index++;
+  }
+  int lv_pdir_len = last_pos - opt_lv_name;
+  strncpy(lv_pdir, opt_lv_name, lv_pdir_len);
+
+  //加载
+  switch (0)
+  {
+  case 0:
+    sprintf(buffer, "sudo mount %s/dbbackup /data-backup", lv_pdir);
+    r = system(buffer);
+    sprintf(buffer, "sudo mount -o %s/dbbackup /dbbackup", lv_pdir);
+    r = system(buffer);
+    if (r != 0)
+      return false;
+    break;
+  }
+
+  //拷贝数据
+  sprintf(buffer, "cp %s %s", opt_data_dir, opt_file_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+  sprintf(buffer, "rm %s/*.frm", opt_file_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+  sprintf(buffer, "lvremove -f %s/dbbackup", lv_pdir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+  return true;
+}
+
 bool
 export_single_table(const char *table_name)
 {
@@ -508,6 +640,7 @@ export_single_table(const char *table_name)
     mysql_free_result(result);
   }
 
+  /*
   //文件拷贝
   //普通表的拷贝
   sprintf(buffer, "cp %s/%s.* %s", opt_data_dir, table_name, opt_file_dir);
@@ -519,8 +652,16 @@ export_single_table(const char *table_name)
   r = system(buffer);
   if (r != 0)
     return false;
-
+  */
   //清除锁，否则在下一次的flush将会报告错误
+  sprintf(buffer, "cp %s/%s.cfg %s", opt_data_dir, table_name, opt_file_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+  sprintf(buffer, "cp %s/%s.def %s", opt_data_dir, table_name, opt_file_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
   sprintf(buffer, "UNLOCK TABLES;");
   r = mysql_query(&mysql, buffer);
   if (r != 0)
@@ -560,12 +701,23 @@ export_tables(string *err)
     sprintf(buffer, "rm %s/*.frm", opt_file_dir);
     system(buffer);
   }
+  bool succ = export_snapshot_copy(err);
+  if (!succ)
+    return false;
   return true;
 }
 
 void
 export_clean()
 {
+  int r = mysql_query(&mysql, "set global read_only=0;");
+  if (r != 0)
+  {
+  }
+  r = mysql_query(&mysql, "set global super_read_only=0;");
+  if (r != 0)
+  {
+  }
 }
 
 bool
@@ -576,6 +728,12 @@ do_export()
   switch (0)
   {
   case 0:
+    succ = export_flush_tables_with_read_lock(&err);
+    if (!succ)
+      break;
+    succ = export_show_master_status(&err);
+    if (!succ)
+      break;
     succ = export_check(&err);
     if (!succ)
       break;
@@ -652,12 +810,12 @@ import_single_table(const char *table_name)
   else
   {
     //判断是否为指定表倒入
-    if (opt_tables != NULL && strlen(opt_tables) > 0)
+    /*if (opt_tables != NULL && strlen(opt_tables) > 0)
     {
       //参数中指定倒入的表，而file tables不在这个列表之内
       //do nothing
     }
-    else
+    else*/
     {
       //未指定倒入表，所以是整库导入，导入当前的文件表
       //在数据库中创建该表
@@ -781,6 +939,11 @@ args_check(string *err)
   if (opt_file_dir == NULL || strlen(opt_file_dir) == 0)
   {
     err->append("filedir must be setted");
+    return false;
+  }
+  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
+  {
+    err->append("lvname must be setted");
     return false;
   }
 
