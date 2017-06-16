@@ -47,6 +47,7 @@ static char *opt_file_dir = NULL;
 static port_op_t op = OP_INVALID;
 static uint opt_lv_size = 128;
 static char *opt_lv_name = NULL;
+static char *opt_mount_dir = NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -87,8 +88,10 @@ static struct my_option my_long_options[] =
   {"lvname", 'l', "lvm name.", &opt_lv_name,
    &opt_lv_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lvsize", 's', "lvm size in GiB.", &opt_lv_size,
-   &opt_lv_size, 0, GET_UINT, REQUIRED_ARG, 128, 0, 0, 0, 0,
+   &opt_lv_size, 0, GET_UINT, REQUIRED_ARG, 64, 0, 0, 0, 0,
    0},
+  {"mount", 'm', "mount lvm dir.", &opt_mount_dir,
+   &opt_mount_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -584,11 +587,12 @@ export_snapshot_copy(string *err)
   switch (0)
   {
   case 0:
-    sprintf(buffer, "sudo mount %s/dbbackup /data-backup", lv_pdir);
+    sprintf(buffer, "sudo mount %s/dbbackup %s", lv_pdir, opt_mount_dir);
     r = system(buffer);
     if (r == 0) //mount success
       break;
-    sprintf(buffer, "sudo mount -o nouuid %s/dbbackup /data-backup", lv_pdir);
+    sprintf(buffer, "sudo mount -o nouuid %s/dbbackup %s"
+            , lv_pdir, opt_mount_dir);
     r = system(buffer);
     if (r != 0)
       return false;
@@ -604,6 +608,8 @@ export_snapshot_copy(string *err)
   r = system(buffer);
   if (r != 0)
     return false;
+  sprintf(buffer, "unmount %s", opt_mount_dir);
+  r = system(buffer);
   sprintf(buffer, "lvremove -f %s/dbbackup", lv_pdir);
   r = system(buffer);
   if (r != 0)
