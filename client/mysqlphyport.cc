@@ -602,15 +602,12 @@ export_snapshot_copy(string *err)
   //拷贝数据
   sprintf(buffer, "cp %s/* %s", opt_data_dir, opt_file_dir);
   r = system(buffer);
-  if (r != 0)
-    return false;
   sprintf(buffer, "rm %s/*.frm", opt_file_dir);
   r = system(buffer);
-  if (r != 0)
-    return false;
-  sprintf(buffer, "unmount %s", opt_mount_dir);
+  //umount/lvremove
+  sprintf(buffer, "sudo umount %s", opt_mount_dir);
   r = system(buffer);
-  sprintf(buffer, "lvremove -f %s/dbbackup", lv_pdir);
+  sprintf(buffer, "sudo lvremove -f %s/dbbackup", lv_pdir);
   r = system(buffer);
   if (r != 0)
     return false;
@@ -973,7 +970,6 @@ int main(int argc,char *argv[])
   }
 
   string err;
-  export_snapshot_copy(&err);
   
   bool succ = args_check(&err);
   if (!succ)
