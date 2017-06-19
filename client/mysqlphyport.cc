@@ -700,7 +700,7 @@ export_tables(string *err)
     }
     iter++;
   }
-  printf("totaly %d tables exported.\n", exported_table_count);
+  printf("totally %d tables exported.\n", exported_table_count);
   
   if (tables.size())
   {
@@ -879,17 +879,50 @@ import_single_table(const char *table_name)
 }
 
 bool
+import_start_binlog_repl()
+{
+  int r = 0;
+  sprintf(buffer, "%s/master.info", opt_file_dir);
+  FILE *f = fopen(buffer, "r");
+  if (f == NULL)
+    return false;
+  fread(buffer, 1, sizeof(buffer), f);
+  fclose(f);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+    return false;
+  return true;
+}
+
+bool
 import_tables(string *err)
 {
+  bool succ;
+
   list<char*>::iterator iter;
   iter = file_tables.begin();
   char *table_name = NULL;
   while (iter != file_tables.end())
   {
     table_name = *iter;
-    bool succ;
     succ = import_single_table(table_name);
+    if (!succ)
+      break;
+    
+    printf(buffer, "table %s imported.\n", table_name);
     iter++;
+  }
+  if (!succ)
+  {
+    sprintf(buffer, "table %s failed importing.\n", table_name);
+    err->append(buffer);
+    return false;
+  }
+
+  succ = import_start_binlog_repl();
+  if (!succ)
+  {
+    err->append("failed start master binlog replication.\n");
   }
   return true;
 }
