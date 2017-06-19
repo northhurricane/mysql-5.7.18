@@ -48,6 +48,7 @@ static port_op_t op = OP_INVALID;
 static uint opt_lv_size = 128;
 static char *opt_lv_name = NULL;
 static char *opt_mount_dir = NULL;
+static char *opt_lv_data_dir = NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -92,6 +93,9 @@ static struct my_option my_long_options[] =
    0},
   {"mount", 'm', "mount lvm dir.", &opt_mount_dir,
    &opt_mount_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lvmdata", 'L', "Mounted lvm MySQL data dir from which data copied",
+   &opt_lv_data_dir,
+   &opt_lv_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -600,7 +604,7 @@ export_snapshot_copy(string *err)
   }
 
   //拷贝数据
-  sprintf(buffer, "cp %s/* %s", opt_data_dir, opt_file_dir);
+  sprintf(buffer, "cp %s/* %s", opt_lv_data_dir, opt_file_dir);
   r = system(buffer);
   sprintf(buffer, "rm %s/*.frm", opt_file_dir);
   r = system(buffer);
@@ -658,15 +662,13 @@ export_single_table(const char *table_name)
   if (r != 0)
     return false;
   */
-  //清除锁，否则在下一次的flush将会报告错误
+  //拷贝cfg文件
   sprintf(buffer, "cp %s/%s.cfg %s", opt_data_dir, table_name, opt_file_dir);
   r = system(buffer);
   if (r != 0)
     return false;
-  sprintf(buffer, "cp %s/%s.def %s", opt_data_dir, table_name, opt_file_dir);
-  r = system(buffer);
-  if (r != 0)
-    return false;
+
+  //清除锁，否则在下一次的flush将会报告错误
   sprintf(buffer, "UNLOCK TABLES;");
   r = mysql_query(&mysql, buffer);
   if (r != 0)
