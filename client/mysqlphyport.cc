@@ -49,6 +49,7 @@ static uint opt_lv_size = 128;
 static char *opt_lv_name = NULL;
 static char *opt_mount_dir = NULL;
 static char *opt_lv_data_dir = NULL;
+static char *opt_owner = NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -96,6 +97,8 @@ static struct my_option my_long_options[] =
   {"lvmdata", 'L', "Mounted lvm MySQL data dir from which data copied",
    &opt_lv_data_dir,
    &opt_lv_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"owner", 'O', "change files' ownership to owner",
+   &opt_owner, &opt_owner, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -855,8 +858,19 @@ import_single_table(const char *table_name)
     //分区表
     sprintf(buffer, "cp %s/%s#P#* %s", opt_file_dir, table_name, opt_data_dir);
     r = system(buffer);
-    if (r != 0)
+
+    //修改文件的所有者
+    if (opt_owner != NULL)
+    {
+      sprintf(buffer, "chown %s %s/%s.*"
+              , opt_owner, opt_data_dir, table_name);
+      r = system(buffer);
+      if (r != 0)
       return false;
+      sprintf(buffer, "chown %s %s/%s#P#*"
+              , opt_owner, opt_data_dir, table_name);
+      r = system(buffer);
+    }
 
     //导入数据文件
     sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
@@ -907,9 +921,14 @@ import_tables(string *err)
     table_name = *iter;
     succ = import_single_table(table_name);
     if (!succ)
+    {
+      printf(buffer, "table %s importing failed.\n", table_name);
       break;
-    
-    printf(buffer, "table %s imported.\n", table_name);
+    }
+    else
+    {
+      printf(buffer, "table %s imported.\n", table_name);
+    }
     iter++;
   }
   if (!succ)
@@ -962,6 +981,18 @@ set_database(string *err)
 }
 
 bool
+args_export_check(string *err)
+{
+  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
+  {
+    err->append("lvname must be setted");
+    return false;
+  }
+
+  return true;
+}
+
+bool
 args_check(string *err)
 {
   //database must be setted
@@ -981,10 +1012,15 @@ args_check(string *err)
     err->append("filedir must be setted");
     return false;
   }
-  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
+  bool succ = true;
+  if (op == OP_EXPORT)
   {
-    err->append("lvname must be setted");
-    return false;
+    succ = args_export_check(err);
+    if (!succ)
+      return false;
+  }
+  else
+  {
   }
 
   return true;
