@@ -188,7 +188,6 @@ int ha_redisrpl::write_row(uchar * buf)
   DBUG_ENTER("ha_redisrpl::write_row");
 
   const char *table_name = table->alias;
-  fprintf(stdout, "%s", table_name);
   char buffer[1024 *64];
   char key_buffer[1024];
   char field_buffer[256];
@@ -237,7 +236,41 @@ int ha_redisrpl::update_row(const uchar *old_data, uchar *new_data)
   THD *thd= ha_thd();
   if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
+  const char *table_name = table->alias;
+
+  char buffer[1024 *64];
+  char key_buffer[1024];
+  char field_buffer[256];
+  char data_buffer[65536];
+  char value_buffer[1024];
+
+  bool is_first = true;
+  //打印各列的数据类型
+  Field *field = NULL;
+  for (Field ** field_it = table->field ; (field = *field_it) ; field_it++)
+  {
+    if (is_first)
+    {
+      String value(value_buffer, sizeof(value_buffer),
+                   field->charset());
+
+      field->val_str(&value,&value);
+      memcpy(data_buffer, value.ptr(), value.length());
+      data_buffer[value.length()] = 0;
+      sprintf(field_buffer, "%s", data_buffer);
+      is_first = false;
+    }
+    else
+    {
+      sprintf(key_buffer, "%s:%s", table_name, field->field_name);
+      sprintf(buffer, "hdel %s %s", key_buffer, field_buffer);
+      hiredis_command(ctx, buffer);
+    }
+  }
+
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
+  DBUG_RETURN(0);
 }
 
 int ha_redisrpl::delete_row(const uchar *buf)
@@ -246,6 +279,40 @@ int ha_redisrpl::delete_row(const uchar *buf)
   THD *thd= ha_thd();
   if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
+  my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
+
+  const char *table_name = table->alias;
+  char buffer[1024 *64];
+  char key_buffer[1024];
+  char field_buffer[256];
+  char data_buffer[65536];
+  char value_buffer[1024];
+
+  bool is_first = true;
+  //打印各列的数据类型
+  Field *field = NULL;
+  for (Field ** field_it = table->field ; (field = *field_it) ; field_it++)
+  {
+    if (is_first)
+    {
+      String value(value_buffer, sizeof(value_buffer),
+                   field->charset());
+
+      field->val_str(&value,&value);
+      memcpy(data_buffer, value.ptr(), value.length());
+      data_buffer[value.length()] = 0;
+      sprintf(field_buffer, "%s", data_buffer);
+      is_first = false;
+    }
+    else
+    {
+      sprintf(key_buffer, "%s:%s", table_name, field->field_name);
+      sprintf(buffer, "hdel %s %s", key_buffer, field_buffer);
+      hiredis_command(ctx, buffer);
+    }
+  }
+
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 

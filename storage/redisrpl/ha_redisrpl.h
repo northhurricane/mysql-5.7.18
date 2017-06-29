@@ -42,8 +42,9 @@ public:
   ~ha_redisrpl()
   {
   }
-  /* The name that will be used for display purposes */
-  const char *table_type() const { return "BLACKHOLE"; }
+  /* The name that will be used for display purposes.
+     Affect show create table */
+  const char *table_type() const { return "REDISRPL"; }
   /*
     The name of the index type that will be used for display
     don't implement this method unless you really have indexes
