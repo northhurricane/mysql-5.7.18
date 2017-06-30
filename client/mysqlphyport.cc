@@ -1,8 +1,5 @@
 #include "client_priv.h"
 #include "my_default.h"
-/*#include <m_ctype.h>
-#include <stdarg.h>
-#include <my_dir.h>*/
 #include <mysqld_error.h>
 #include "welcome_copyright_notice.h"
 
@@ -43,13 +40,14 @@ static char *opt_password = NULL;
 static char *opt_op = NULL;
 static char *opt_data_dir = NULL;
 static char *opt_file_dir = NULL;
-//static char *opt_tables = NULL;
 static port_op_t op = OP_INVALID;
 static uint opt_lv_size = 128;
 static char *opt_lv_name = NULL;
 static char *opt_mount_dir = NULL;
 static char *opt_lv_data_dir = NULL;
 static char *opt_owner = NULL;
+static my_bool opt_repl = 1;
+static my_bool opt_force = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -99,6 +97,12 @@ static struct my_option my_long_options[] =
    &opt_lv_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"owner", 'O', "change files' ownership to owner",
    &opt_owner, &opt_owner, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"replication", 'R', "Start replication in importing.",
+   &opt_repl, &opt_repl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"force", 'F', "Start replication in importing.",
+   &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -524,6 +528,45 @@ static int export_show_master_status(string *err)
   return true;
 }
 
+static bool export_set_server_read_only(string *err)
+{
+  int r = 0;
+  r = mysql_query(&mysql, "set global read_only=1;");
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+
+  r = mysql_query(&mysql, "set global super_read_only=1;");
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  return true;
+}
+
+static bool export_restore_server_writable(string *err)
+{
+  char err_buffer[2048];
+  int r = mysql_query(&mysql, "set global read_only=0;");
+  if (r != 0)
+  {
+    strcpy(err_buffer, mysql_error(&mysql));
+    err->append(err_buffer);
+    return false;
+  }
+  r = mysql_query(&mysql, "set global super_read_only=0;");
+  if (r != 0)
+  {
+    strcpy(err_buffer, mysql_error(&mysql));
+    err->append(err_buffer);
+    return false;
+  }
+  return true;
+}
+
 static bool export_flush_tables_with_read_lock(string *err)
 {
   /*
@@ -542,19 +585,9 @@ static bool export_flush_tables_with_read_lock(string *err)
     err->append(mysql_error(&mysql));
     return false;
   }
-  r = mysql_query(&mysql, "set global read_only=1;");
-  if (r != 0)
-  {
-    err->append(mysql_error(&mysql));
-    return false;
-  }
-
-  r = mysql_query(&mysql, "set global super_read_only=1;");
-  if (r != 0)
-  {
-    err->append(mysql_error(&mysql));
-    return false;
-  }
+  bool succ = export_set_server_read_only(err);
+  if (!succ)
+    return succ;
   return true;
 }
 
@@ -564,7 +597,7 @@ static bool export_flush_tables_with_read_lock(string *err)
   dbbackup是我们内部使用目录，是否需要进行灵活性配置，或者将用户屏蔽于该细节
   之外，能否将用户屏蔽于该细节之外？
   /data-backup目录也是如同dbbackup一样，是固定目录
- */
+*/
 bool
 export_snapshot_copy(string *err)
 {
@@ -611,6 +644,10 @@ export_snapshot_copy(string *err)
   r = system(buffer);
   sprintf(buffer, "rm %s/*.frm", opt_file_dir);
   r = system(buffer);
+
+  //恢复写状态
+  export_restore_server_writable(err);
+
   //umount/lvremove
   sprintf(buffer, "sudo umount %s", opt_mount_dir);
   r = system(buffer);
@@ -647,24 +684,16 @@ export_single_table(const char *table_name)
     char table_file[512];
     sprintf(table_file, "%s/%s.def", opt_file_dir, table_name);
     FILE *f = fopen(table_file, "w");
+    if (f == NULL)
+    {
+      printf("failed opening file %s", table_file);
+      return false;
+    }
     fprintf(f, "%s", table_sql);
     fclose(f);
     mysql_free_result(result);
   }
 
-  /*
-  //文件拷贝
-  //普通表的拷贝
-  sprintf(buffer, "cp %s/%s.* %s", opt_data_dir, table_name, opt_file_dir);
-  r = system(buffer);
-  if (r != 0)
-    return false;
-  //分区表的拷贝
-  sprintf(buffer, "cp %s/%s#P#* %s", opt_data_dir, table_name, opt_file_dir);
-  r = system(buffer);
-  if (r != 0)
-    return false;
-  */
   //拷贝cfg文件
   sprintf(buffer, "cp %s/%s.cfg %s", opt_data_dir, table_name, opt_file_dir);
   r = system(buffer);
@@ -704,30 +733,16 @@ export_tables(string *err)
     iter++;
   }
   printf("totally %d tables exported.\n", exported_table_count);
-  
-  if (tables.size())
-  {
-    //删除.frm文件，防止在迁移时覆盖原有的frm文件
-    sprintf(buffer, "rm %s/*.frm", opt_file_dir);
-    system(buffer);
-  }
+
   bool succ = export_snapshot_copy(err);
   if (!succ)
     return false;
   return true;
 }
 
-void
+static void
 export_clean()
 {
-  int r = mysql_query(&mysql, "set global read_only=0;");
-  if (r != 0)
-  {
-  }
-  r = mysql_query(&mysql, "set global super_read_only=0;");
-  if (r != 0)
-  {
-  }
 }
 
 bool
@@ -851,31 +866,41 @@ import_single_table(const char *table_name)
   bool do_it = false;
   if (table_exist)
   {
-    //是否覆盖原有表
-    do_it = true;
+    if (opt_force != 1)
+    {
+      //询问是否覆盖原有表
+      string answer;
+      cout << "table " << table_name << " existed. Import it?(y/n)" << endl;
+      cin >> answer;
+      if (strcasecmp("y", answer.c_str()) == 0 ||
+          strcasecmp("yes", answer.c_str()) == 0)
+      {
+        do_it = true;
+      }
+      else
+      {
+        cout << "skip table " << table_name << " import." << endl;
+      }
+    }
   }
   else
   {
-    //判断是否为指定表倒入
-    /*if (opt_tables != NULL && strlen(opt_tables) > 0)
+    //未指定倒入表，所以是整库导入，导入当前的文件表
+    //在数据库中创建该表
+    int r = 0;
+    sprintf(buffer, "%s/%s%s", opt_file_dir, table_name, ".def");
+    FILE *f = fopen(buffer, "r");
+    if (f == NULL)
     {
-      //参数中指定倒入的表，而file tables不在这个列表之内
-      //do nothing
+      printf("failed opening file %s", buffer);
+      return false;
     }
-    else*/
-    {
-      //未指定倒入表，所以是整库导入，导入当前的文件表
-      //在数据库中创建该表
-      int r = 0;
-      sprintf(buffer, "%s/%s%s", opt_file_dir, table_name, ".def");
-      FILE *f = fopen(buffer, "r");
-      fread(buffer, 1, sizeof(buffer), f);
-      fclose(f);
-      r = mysql_query(&mysql, buffer);
-      if (r != 0)
-        return false;
-      do_it = true;
-    }
+    fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+    r = mysql_query(&mysql, buffer);
+    if (r != 0)
+      return false;
+    do_it = true;
   }
   if (do_it)
   {
@@ -912,36 +937,52 @@ import_single_table(const char *table_name)
     r = system(buffer);
     if (r != 0)
       return false;
-    //清除工具所用的.cfg文件
-    //sprintf(buffer, "rm %s/%s*.cfg", opt_data_dir, table_name);
-    //r = system(buffer);
-    //if (r != 0)
-    //  return false;
   }
   
   return true;
 }
 
+/*
+  进行主从复制的开启。
+*/
 bool
-import_start_binlog_repl()
+import_start_binlog_repl(string *err)
 {
   int r = 0;
   sprintf(buffer, "%s/master.info", opt_file_dir);
   FILE *f = fopen(buffer, "r");
   if (f == NULL)
+  {
+    err->append("File master.info does not exist.");
     return false;
+  }
   fread(buffer, 1, sizeof(buffer), f);
   fclose(f);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
+  {
+    strcpy(buffer, mysql_error(&mysql));
+    err->append(buffer);
     return false;
+  }
+  sprintf(buffer, "start slave;");
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    strcpy(buffer, mysql_error(&mysql));
+    err->append(buffer);
+    return false;
+  }
   return true;
 }
 
+/*
+  导入表数据
+*/
 bool
 import_tables(string *err)
 {
-  bool succ;
+  bool succ = true;
 
   list<char*>::iterator iter;
   iter = file_tables.begin();
@@ -961,21 +1002,24 @@ import_tables(string *err)
     }
     iter++;
   }
-  if (!succ)
-  {
-    sprintf(buffer, "table %s failed importing.\n", table_name);
-    err->append(buffer);
-    return false;
-  }
 
-  succ = import_start_binlog_repl();
-  if (!succ)
+  //启动复制分发
+  if (opt_repl)
   {
-    err->append("failed start master binlog replication.\n");
+    succ = import_start_binlog_repl(err);
+    if (!succ)
+    {
+      printf("%s", err->c_str());
+    }
   }
   return true;
 }
 
+/*
+  import database
+  导入操作依赖于导出的.def/.cfg/.ibd文件，导入操作会根据.def文件，确定需要导入
+  的数据表。
+*/
 bool
 do_import()
 {
@@ -996,15 +1040,18 @@ do_import()
   return succ;
 }
 
+/*
+  Setting database
+*/
 bool
 set_database(string *err)
 {
   sprintf(buffer, "use %s", opt_db);
   if (mysql_query(&mysql, buffer))
   {
-    err->append("Error in setting database ");
-    err->append(opt_db);
-    err->append(".");
+    sprintf(buffer, "Error in setting database %s.", opt_db);
+    err->append(buffer);
+    err->append(mysql_error(&mysql));
     return false;
   }
   return true;
@@ -1025,13 +1072,11 @@ args_export_check(string *err)
 bool
 args_check(string *err)
 {
-  //database must be setted
   if (opt_db == NULL || strlen(opt_db) == 0)
   {
     err->append("MySQL database must be setted");
     return false;
   }
-  //to do:check opt_data_dir/opt_file_dir existed
   if (opt_data_dir == NULL || strlen(opt_data_dir) == 0)
   {
     err->append("datadir must be setted");
@@ -1051,6 +1096,7 @@ args_check(string *err)
   }
   else
   {
+    //do nothing
   }
 
   return true;
