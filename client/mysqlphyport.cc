@@ -795,6 +795,43 @@ import_get_file_tables(string *err)
 }
 
 bool
+import_do_cp_n_alter(const char *table_name)
+{
+  int r = 0;
+
+  //文件拷贝
+  //普通表/以及.def文件的拷贝
+  sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
+  r = system(buffer);
+  if (r != 0)
+    return false;
+  //分区表
+  sprintf(buffer, "cp %s/%s#P#* %s", opt_file_dir, table_name, opt_data_dir);
+  r = system(buffer);
+
+  //修改文件的所有者
+  if (opt_owner != NULL)
+  {
+    sprintf(buffer, "chown %s %s/%s.*"
+            , opt_owner, opt_data_dir, table_name);
+    r = system(buffer);
+    if (r != 0)
+      return false;
+    sprintf(buffer, "chown %s %s/%s#P#*"
+            , opt_owner, opt_data_dir, table_name);
+    r = system(buffer);
+  }
+
+  //导入数据文件
+  sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+    return false;
+
+  return true;
+}
+
+bool
 import_single_table(const char *table_name)
 {
   list<char*>::iterator iter;
@@ -849,44 +886,37 @@ import_single_table(const char *table_name)
     if (r != 0)
       return false;
 
-    //文件拷贝
-    //普通表/以及.def文件的拷贝
-    sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
-    r = system(buffer);
-    if (r != 0)
-      return false;
-    //分区表
-    sprintf(buffer, "cp %s/%s#P#* %s", opt_file_dir, table_name, opt_data_dir);
-    r = system(buffer);
-
-    //修改文件的所有者
-    if (opt_owner != NULL)
+    bool succ = true;
+    succ = import_do_cp_n_alter(table_name);
+    if (!succ)
     {
-      sprintf(buffer, "chown %s %s/%s.*"
-              , opt_owner, opt_data_dir, table_name);
-      r = system(buffer);
-      if (r != 0)
-      return false;
-      sprintf(buffer, "chown %s %s/%s#P#*"
-              , opt_owner, opt_data_dir, table_name);
-      r = system(buffer);
+      char err_buffer[2048];
+      strcpy(err_buffer, mysql_error(&mysql));
+      //导出文件与的元信息不一致
+      if (strstr(err_buffer, "and the meta-data file has 0x1"))
+      {
+        sprintf(buffer, "ALTER TABLE %s row_format=compact;", table_name);
+        r = mysql_query(&mysql, buffer);
+        if (r != 0)
+        {
+          return false;
+        }
+        succ = import_do_cp_n_alter(table_name);
+        if (!succ)
+          return succ;
+      }
     }
 
-    //导入数据文件
-    sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
-    r = mysql_query(&mysql, buffer);
-    if (r != 0)
-      return false;
     //清除工具所用的.def文件
     sprintf(buffer, "rm %s/%s.def", opt_data_dir, table_name);
     r = system(buffer);
     if (r != 0)
       return false;
-    //清除工具所用的.def文件
-    sprintf(buffer, "rm %s/%s*.cfg", opt_data_dir, table_name);
-    r = system(buffer);
-    if (r != 0)
-      return false;
+    //清除工具所用的.cfg文件
+    //sprintf(buffer, "rm %s/%s*.cfg", opt_data_dir, table_name);
+    //r = system(buffer);
+    //if (r != 0)
+    //  return false;
   }
   
   return true;
