@@ -454,7 +454,6 @@ static list<char*> tables;
 
 char buffer[1024 * 32];
 
-
 bool
 get_tables_from_db()
 {
@@ -502,6 +501,55 @@ bool
 export_check(string *err)
 {
   return true;
+}
+
+/*
+  For data consistency, we must stop slave SQL_THREAD to prevent DML SQL.
+*/
+bool export_stop_slave_sql(string *err)
+{
+  //check slave current status
+  sprintf(buffer, "SHOW SLAVE STATUS");
+  int r = 0;
+  if ((r = mysql_query(&mysql, buffer)) != 0)
+  {
+    return false;
+  }
+
+  MYSQL_RES *result = NULL;
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    return false;
+  }
+
+  MYSQL_ROW row= mysql_fetch_row(result);
+  //result set is empty
+  if (row == NULL)
+  {
+    mysql_free_result(result);
+    return true;
+  }
+
+  //check SQL_THREAD status
+  if (row[11])
+  {
+    if (!strcmp(row[11],"No"))
+    {
+      //SQL_THREAD is not running
+      mysql_free_result(result);
+      return true;
+    }
+  }
+  mysql_free_result(result);
+
+  //stop SQL_THREAD
+  sprintf(buffer, "STOP SLAVE SQL_THREAD");
+  if ((r = mysql_query(&mysql, buffer)) != 0)
+  {
+    return false;
+  }
+
+  return(true);
 }
 
 static int export_show_master_status(string *err)
