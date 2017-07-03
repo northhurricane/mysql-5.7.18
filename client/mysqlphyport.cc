@@ -48,6 +48,7 @@ static char *opt_lv_data_dir = NULL;
 static char *opt_owner = NULL;
 static my_bool opt_repl = 1;
 static my_bool opt_force = 0;
+static my_bool opt_copyonly = 1;
 
 static struct my_option my_long_options[] =
 {
@@ -100,8 +101,12 @@ static struct my_option my_long_options[] =
   {"replication", 'R', "Start replication in importing.",
    &opt_repl, &opt_repl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"force", 'F', "Start replication in importing.",
+  {"force", 'F', "Remove existed table data when import.",
    &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"copyonly", 'c', "When exporting, copy files without lvm actions. "
+   "Server will be writable after files copied.",
+   &opt_copyonly, &opt_copyonly, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -501,6 +506,7 @@ export_check(string *err)
 
 static int export_show_master_status(string *err)
 {
+  bool succ = true;
   MYSQL_ROW row;
   MYSQL_RES *result;
   mysql_query(&mysql, "SHOW MASTER STATUS");
@@ -511,21 +517,30 @@ static int export_show_master_status(string *err)
   }
   sprintf(buffer, "%s/master.info", opt_file_dir);
   FILE *master_info = fopen(buffer, "w+");
-  row= mysql_fetch_row(result);
-  if (row && row[0] && row[1])
+  if (master_info == NULL)
   {
-    /* SHOW MASTER STATUS reports file and position */
-    fprintf(master_info,
-                  "\n--\n-- Position to start replication or point-in-time "
-                  "recovery from\n--\n\n");
-    fprintf(master_info,
-            "CHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-            row[0], row[1]);
+    err->append("failed open file ");
+    err->append(buffer);
+    succ = false;
+  }
+  else
+  {
+    row= mysql_fetch_row(result);
+    if (row && row[0] && row[1])
+    {
+      /* SHOW MASTER STATUS reports file and position */
+      fprintf(master_info,
+              "\n--\n-- Position to start replication or point-in-time "
+              "recovery from\n--\n\n");
+      fprintf(master_info,
+              "CHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
+              row[0], row[1]);
+    }
+    fflush(master_info);
+    fclose(master_info);
   }
   mysql_free_result(result);
-  fflush(master_info);
-  fclose(master_info);
-  return true;
+  return succ;
 }
 
 static bool export_set_server_read_only(string *err)
@@ -602,11 +617,17 @@ bool
 export_snapshot_copy(string *err)
 {
   //创建逻辑卷的快照（-s表示快照的意思）
-  sprintf(buffer, "sudo lvcreate -L%dG -s -n dbbackup %s"
+  sprintf(buffer, "sudo lvcreate -L%dG -s -n dbbackup %s > /dev/null 2>&1"
           , opt_lv_size, opt_lv_name);
+  cout << buffer << endl;
   int r = system(buffer);
   if (r != 0)
+  {
+    err->append("failed executing ");
+    err->append(buffer);
     return false;
+  }
+  cout << "Create logical volumn successfully." << endl;
 
   //进行快照的加载
   char lv_pdir[256];
@@ -627,35 +648,82 @@ export_snapshot_copy(string *err)
   switch (0)
   {
   case 0:
-    sprintf(buffer, "sudo mount %s/dbbackup %s", lv_pdir, opt_mount_dir);
+    sprintf(buffer, "sudo mount %s/dbbackup %s > /dev/null 2>&1"
+            , lv_pdir, opt_mount_dir);
+    cout << buffer << endl;
     r = system(buffer);
     if (r == 0) //mount success
       break;
-    sprintf(buffer, "sudo mount -o nouuid %s/dbbackup %s"
+    sprintf(buffer, "sudo mount -o nouuid %s/dbbackup %s > /dev/null 2>&1"
             , lv_pdir, opt_mount_dir);
+    cout << buffer << endl;
     r = system(buffer);
     if (r != 0)
+    {
+      err->append("failed executing ");
+      err->append(buffer);
       return false;
+    }
     break;
   }
+  cout << "mount logical volumn successfully." << endl;
 
   //拷贝数据
-  sprintf(buffer, "cp %s/* %s", opt_lv_data_dir, opt_file_dir);
+  sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
+          , opt_lv_data_dir, opt_file_dir);
+  cout << buffer << endl;
   r = system(buffer);
-  sprintf(buffer, "rm %s/*.frm", opt_file_dir);
+  sprintf(buffer, "rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
+  cout << buffer << endl;
   r = system(buffer);
+  cout << "Copy snapshot successfully." << endl;
 
   //恢复写状态
   export_restore_server_writable(err);
 
   //umount/lvremove
-  sprintf(buffer, "sudo umount %s", opt_mount_dir);
+  sprintf(buffer, "sudo umount %s > /dev/null 2>&1", opt_mount_dir);
+  cout << buffer << endl;
   r = system(buffer);
-  sprintf(buffer, "sudo lvremove -f %s/dbbackup", lv_pdir);
+  if (r == 0)
+    cout << "umount logical volumn successfully." << endl;
+  else
+    cout << "umount logical volumn failed" << endl;
+  sprintf(buffer, "sudo lvremove -f %s/dbbackup > /dev/null 2>&1", lv_pdir);
+  cout << buffer << endl;
   r = system(buffer);
-  if (r != 0)
-    return false;
+  if (r == 0)
+    cout << "Romove logical volumn successfully." << endl;
+  else
+    cout << "Romove logical volumn failed." << endl;
   return true;
+}
+
+bool
+export_copyonly(string *err)
+{
+  //拷贝数据
+  bool succ = true;
+  sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
+          , opt_data_dir, opt_file_dir);
+  cout << buffer << endl;
+  int r = system(buffer);
+  if (r != 0)
+  {
+    err->append("Failed copy data files.");
+    succ = false;
+  }
+  else
+  {
+    sprintf(buffer, "rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
+    cout << buffer << endl;
+    r = system(buffer);
+    cout << "Copy only successfully." << endl;
+  }
+
+  //恢复写状态
+  export_restore_server_writable(err);
+  return succ;
 }
 
 bool
@@ -695,7 +763,9 @@ export_single_table(const char *table_name)
   }
 
   //拷贝cfg文件
-  sprintf(buffer, "cp %s/%s.cfg %s", opt_data_dir, table_name, opt_file_dir);
+  sprintf(buffer, "cp %s/%s.cfg %s > /dev/null 2>&1"
+          , opt_data_dir, table_name, opt_file_dir);
+  cout << buffer << endl;
   r = system(buffer);
   if (r != 0)
     return false;
@@ -734,7 +804,11 @@ export_tables(string *err)
   }
   printf("totally %d tables exported.\n", exported_table_count);
 
-  bool succ = export_snapshot_copy(err);
+  bool succ = true;
+  if (!opt_copyonly)
+    succ = export_snapshot_copy(err);
+  else
+    succ = export_copyonly(err);
   if (!succ)
     return false;
   return true;
@@ -816,24 +890,30 @@ import_do_cp_n_alter(const char *table_name)
 
   //文件拷贝
   //普通表/以及.def文件的拷贝
-  sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
+  sprintf(buffer, "cp %s/%s.* %s > /dev/null 2>&1"
+          , opt_file_dir, table_name, opt_data_dir);
+  cout << buffer << endl;
   r = system(buffer);
   if (r != 0)
     return false;
   //分区表
-  sprintf(buffer, "cp %s/%s#P#* %s", opt_file_dir, table_name, opt_data_dir);
+  sprintf(buffer, "cp %s/%s#P#* %s > /dev/null 2>&1"
+          , opt_file_dir, table_name, opt_data_dir);
+  cout << buffer << endl;
   r = system(buffer);
 
   //修改文件的所有者
   if (opt_owner != NULL)
   {
-    sprintf(buffer, "chown %s %s/%s.*"
+    sprintf(buffer, "chown %s %s/%s.* > /dev/null 2>&1"
             , opt_owner, opt_data_dir, table_name);
+    cout << buffer << endl;
     r = system(buffer);
     if (r != 0)
       return false;
-    sprintf(buffer, "chown %s %s/%s#P#*"
+    sprintf(buffer, "chown %s %s/%s#P#* > /dev/null 2>&1"
             , opt_owner, opt_data_dir, table_name);
+    cout << buffer << endl;
     r = system(buffer);
   }
 
@@ -933,7 +1013,9 @@ import_single_table(const char *table_name)
     }
 
     //清除工具所用的.def文件
-    sprintf(buffer, "rm %s/%s.def", opt_data_dir, table_name);
+    sprintf(buffer, "rm %s/%s.def  > /dev/null 2>&1"
+            , opt_data_dir, table_name);
+    cout << buffer << endl;
     r = system(buffer);
     if (r != 0)
       return false;
@@ -1060,10 +1142,23 @@ set_database(string *err)
 bool
 args_export_check(string *err)
 {
-  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
+  if (opt_copyonly != 1)
   {
-    err->append("lvname must be setted");
-    return false;
+    if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
+    {
+      err->append("lvname must be setted.");
+      return false;
+    }
+    if (opt_mount_dir == NULL || strlen(opt_mount_dir) == 0)
+    {
+      err->append("mout must be setted.");
+      return false;
+    }
+    if (opt_lv_data_dir == NULL || strlen(opt_lv_data_dir) == 0)
+    {
+      err->append("lvmdata must be setted.");
+      return false;
+    }
   }
 
   return true;
