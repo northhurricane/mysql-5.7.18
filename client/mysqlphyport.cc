@@ -118,7 +118,7 @@ struct table_struct
 };
 typedef table_struct table_t;
 
-#define MAX_TABLE_BUFFER_SIZE (1024)
+#define MAX_TABLE_BUFFER_SIZE (1024 * 64)
 struct table_buffer_struct
 {
   int number;
