@@ -402,15 +402,15 @@ sql_connect()
   return 0;
 }
 
-//tables to export or import。
-//该list保存的内容分两种情况，当未指定导入/导出表时，该列表保存的是database中
-//的表，全部进行导出/导入。如果指定指定倒入导出表时，则记录指定的表
+/*记录数据库中的表。
+导出时，按照该列表逐个导出表数据。
+导入时，参照该列表确认是否存在导入表在数据库中。
+*/
 static list<char*> tables;
-
-char buffer[1024 * 32];
+char buffer[1024 * 1024];
 
 bool
-get_tables_from_db()
+get_tables_from_db(string *err)
 {
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
@@ -426,10 +426,18 @@ get_tables_from_db()
     while ((row=mysql_fetch_row(result)))
     {
       char *table_name = strdup_root(&hash_mem_root, (char*) row[0]);
-      strcpy(table_buffer.tables[table_count].name, table_name);
-      table_buffer.number++;
-      tables.push_back(table_buffer.tables[table_count].name);
       table_count++;
+      if (table_count > MAX_TABLE_BUFFER_SIZE)
+      {
+        sprintf(buffer, "max tables can be processed is %d. Tables in current "
+                "database exceed the limit of mysqlphyport. "
+                , MAX_TABLE_BUFFER_SIZE);
+        mysql_free_result(result);
+        return false;
+      }
+      table_buffer.number++;
+      strcpy(table_buffer.tables[table_count].name, table_name);
+      tables.push_back(table_buffer.tables[table_count].name);
     }
     mysql_free_result(result);
   }
@@ -438,9 +446,9 @@ get_tables_from_db()
 }
 
 bool
-get_tables()
+get_tables(string *err)
 {
-  return get_tables_from_db();
+  return get_tables_from_db(err);
 }
 
 bool
@@ -1222,10 +1230,10 @@ int main(int argc,char *argv[])
     exit(1);
   }
 
-  succ = get_tables();
+  succ = get_tables(&err);
   if (!succ)
   {
-    printf("failed when getting databases tables.\n");
+    cout << err << endl;
     exit(1);
   }
 
