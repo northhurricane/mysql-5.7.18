@@ -84,8 +84,6 @@ static struct my_option my_long_options[] =
    &opt_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"filedir", 'f', "Directory to store ported type file.", &opt_file_dir,
    &opt_file_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  /*  {"tables", 't', "Port tables.", &opt_tables,
-      &opt_tables, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},*/
   {"lvname", 'l', "lvm name.", &opt_lv_name,
    &opt_lv_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lvsize", 's', "lvm size in GiB.", &opt_lv_size,
@@ -99,14 +97,14 @@ static struct my_option my_long_options[] =
   {"owner", 'O', "change files' ownership to owner",
    &opt_owner, &opt_owner, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replication", 'R', "Start replication in importing.",
-   &opt_repl, &opt_repl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_repl, &opt_repl, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"force", 'F', "Remove existed table data when import.",
    &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"copyonly", 'c', "When exporting, copy files without lvm actions. "
    "Server will be writable after files copied.",
-   &opt_copyonly, &opt_copyonly, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_copyonly, &opt_copyonly, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -171,54 +169,11 @@ static void usage(int version)
   my_print_variables(my_long_options);
 }
 
-list<char*> option_tables;
-
-/*void
-get_option_tables(const char *tables)
-{
-  if (opt_tables != NULL || strlen(tables) > 0)
-  {
-    int len = 0;
-    int table_count = 0;
-    const char *table = tables;
-    const char *tail = tables;
-    while (*tail != 0)
-    {
-      if (*tail == ',')
-      {
-        strncpy(table_buffer.tables[table_count].name, table, len);
-        table_buffer.tables[table_count].name[len] = 0;
-        table_buffer.number++;
-        option_tables.push_back(table_buffer.tables[table_count].name);
-        table_count++;
-        len = 0;
-        table = tail + 1;
-      }
-      else
-      {
-        len++;
-      }
-      tail++;
-    }
-    if (len != 0)
-    {
-      strncpy(table_buffer.tables[table_count].name, table, len);
-      table_buffer.tables[table_count].name[len] = 0;
-      table_buffer.number++;
-      option_tables.push_back(table_buffer.tables[table_count].name);
-      len = 0;
-    }
-  }
-  }*/
-
 my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch(optid) {
-    /*  case 't':
-    get_option_tables(opt_tables);
-    break;*/
   case 'p':
     tty_password= 1;
     break;
@@ -483,18 +438,9 @@ get_tables_from_db()
 }
 
 bool
-get_tables_from_option()
-{
-  return true;
-}
-
-bool
 get_tables()
 {
-  if (option_tables.empty())
-    return get_tables_from_db();
-  else
-    return get_tables_from_option();
+  return get_tables_from_db();
 }
 
 bool
@@ -1279,7 +1225,7 @@ int main(int argc,char *argv[])
   succ = get_tables();
   if (!succ)
   {
-    printf("failed when process porting tables.\n");
+    printf("failed when getting databases tables.\n");
     exit(1);
   }
 
