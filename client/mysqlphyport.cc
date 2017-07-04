@@ -418,6 +418,9 @@ get_tables_from_db(string *err)
   mysql_query(&mysql, buffer);
   if (!(result = mysql_store_result(&mysql)))
   {
+    err->append("failed when get tables from database.");
+    strcpy(buffer, mysql_error(&mysql));
+    err->append(buffer);
     return false;
   }
   else
@@ -432,6 +435,7 @@ get_tables_from_db(string *err)
         sprintf(buffer, "max tables can be processed is %d. Tables in current "
                 "database exceed the limit of mysqlphyport. "
                 , MAX_TABLE_BUFFER_SIZE);
+        err->append(buffer);
         mysql_free_result(result);
         return false;
       }
@@ -873,12 +877,20 @@ import_get_file_tables(string *err)
     //printf("%s\n",ptr->d_name);
     if (strstr(ptr->d_name, ".def") != NULL)
     {
+      table_count++;
+      if (table_count > MAX_TABLE_BUFFER_SIZE)
+      {
+        sprintf(buffer, "max tables can be processed is %d. Tables in current "
+                "database exceed the limit of mysqlphyport. "
+                , MAX_TABLE_BUFFER_SIZE);
+        err->append(buffer);
+        return false;
+      }
       int len = strlen(ptr->d_name);
       strncpy(file_table_buffer.tables[table_count].name
               , ptr->d_name, len - 4);
       table_buffer.number++;
       file_tables.push_back(file_table_buffer.tables[table_count].name);
-      table_count++;
     }
   }
   closedir(dir);
