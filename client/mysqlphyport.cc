@@ -49,6 +49,8 @@ static char *opt_owner = NULL;
 static my_bool opt_repl = 1;
 static my_bool opt_force = 0;
 static my_bool opt_copyonly = 1;
+static my_bool opt_ignore = 1;
+static my_bool opt_verbose = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -106,8 +108,16 @@ static struct my_option my_long_options[] =
    "Server will be writable after files copied.",
    &opt_copyonly, &opt_copyonly, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
+  {"ignore", 'i', "Ignore error.",
+   &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"verbose", 'v', "Print more process infomation.",
+   &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+char buffer[1024 * 1024];
 
 typedef char table_name_t[256];
 typedef char db_name_t[256];
@@ -399,6 +409,14 @@ sql_connect()
       break;
     }
   }
+
+  sprintf(buffer, "set names utf8mb4");
+  int r = 0;
+  if ((r = mysql_query(&mysql, buffer)) != 0)
+  {
+    cout << mysql_error(&mysql);
+  }
+
   return 0;
 }
 
@@ -407,7 +425,6 @@ sql_connect()
 导入时，参照该列表确认是否存在导入表在数据库中。
 */
 static list<char*> tables;
-char buffer[1024 * 1024];
 
 bool
 get_tables_from_db(string *err)
@@ -625,7 +642,8 @@ export_snapshot_copy(string *err)
   //创建逻辑卷的快照（-s表示快照的意思）
   sprintf(buffer, "sudo lvcreate -L%dG -s -n dbbackup %s > /dev/null 2>&1"
           , opt_lv_size, opt_lv_name);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   int r = system(buffer);
   if (r != 0)
   {
@@ -656,13 +674,15 @@ export_snapshot_copy(string *err)
   case 0:
     sprintf(buffer, "sudo mount %s/dbbackup %s > /dev/null 2>&1"
             , lv_pdir, opt_mount_dir);
-    cout << buffer << endl;
+    if (opt_verbose)
+      cout << buffer << endl;
     r = system(buffer);
     if (r == 0) //mount success
       break;
     sprintf(buffer, "sudo mount -o nouuid %s/dbbackup %s > /dev/null 2>&1"
             , lv_pdir, opt_mount_dir);
-    cout << buffer << endl;
+    if (opt_verbose)
+      cout << buffer << endl;
     r = system(buffer);
     if (r != 0)
     {
@@ -677,10 +697,12 @@ export_snapshot_copy(string *err)
   //拷贝数据
   sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
           , opt_lv_data_dir, opt_file_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
   sprintf(buffer, "rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
   cout << "Copy snapshot successfully." << endl;
 
@@ -689,14 +711,16 @@ export_snapshot_copy(string *err)
 
   //umount/lvremove
   sprintf(buffer, "sudo umount %s > /dev/null 2>&1", opt_mount_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
   if (r == 0)
     cout << "umount logical volumn successfully." << endl;
   else
     cout << "umount logical volumn failed" << endl;
   sprintf(buffer, "sudo lvremove -f %s/dbbackup > /dev/null 2>&1", lv_pdir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
   if (r == 0)
     cout << "Romove logical volumn successfully." << endl;
@@ -712,7 +736,8 @@ export_copyonly(string *err)
   bool succ = true;
   sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
           , opt_data_dir, opt_file_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   int r = system(buffer);
   if (r != 0)
   {
@@ -722,7 +747,8 @@ export_copyonly(string *err)
   else
   {
     sprintf(buffer, "rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
-    cout << buffer << endl;
+    if (opt_verbose)
+      cout << buffer << endl;
     r = system(buffer);
     cout << "Copy only successfully." << endl;
   }
@@ -771,7 +797,8 @@ export_single_table(const char *table_name)
   //拷贝cfg文件
   sprintf(buffer, "cp %s/%s.cfg %s > /dev/null 2>&1"
           , opt_data_dir, table_name, opt_file_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
   if (r != 0)
     return false;
@@ -866,10 +893,16 @@ import_get_file_tables(string *err)
 {
   int table_count = 0;
   
-  struct dirent *ptr;
-  DIR *dir;
+  struct dirent *ptr = NULL;
+  DIR *dir = NULL;
   dir=opendir(opt_file_dir);
-  while((ptr=readdir(dir))!=NULL)
+  if (dir == NULL)
+  {
+    sprintf(buffer, "Directory %s does not exist.", opt_file_dir);
+    err->append(buffer);
+    return false;
+  }
+  while((ptr=readdir(dir)) != NULL)
   {
     //跳过'.'和'..'两个目录
     if(ptr->d_name[0] == '.')
@@ -904,30 +937,34 @@ import_do_cp_n_alter(const char *table_name)
 
   //文件拷贝
   //普通表/以及.def文件的拷贝
-  sprintf(buffer, "cp %s/%s.* %s > /dev/null 2>&1"
+  sprintf(buffer, "sudo cp %s/%s.* %s > /dev/null 2>&1"
           , opt_file_dir, table_name, opt_data_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
   if (r != 0)
     return false;
   //分区表
-  sprintf(buffer, "cp %s/%s#P#* %s > /dev/null 2>&1"
+  sprintf(buffer, "sudo cp %s/%s#P#* %s > /dev/null 2>&1"
           , opt_file_dir, table_name, opt_data_dir);
-  cout << buffer << endl;
+  if (opt_verbose)
+    cout << buffer << endl;
   r = system(buffer);
 
   //修改文件的所有者
   if (opt_owner != NULL)
   {
-    sprintf(buffer, "chown %s %s/%s.* > /dev/null 2>&1"
+    sprintf(buffer, "sudo chown %s %s/%s.* > /dev/null 2>&1"
             , opt_owner, opt_data_dir, table_name);
-    cout << buffer << endl;
+    if (opt_verbose)
+      cout << buffer << endl;
     r = system(buffer);
     if (r != 0)
       return false;
-    sprintf(buffer, "chown %s %s/%s#P#* > /dev/null 2>&1"
+    sprintf(buffer, "sudo chown %s %s/%s#P#* > /dev/null 2>&1"
             , opt_owner, opt_data_dir, table_name);
-    cout << buffer << endl;
+    if (opt_verbose)
+      cout << buffer << endl;
     r = system(buffer);
   }
 
@@ -940,23 +977,31 @@ import_do_cp_n_alter(const char *table_name)
   return true;
 }
 
+static
 bool
-import_single_table(const char *table_name)
+import_check_table_exist(const char *table_name)
 {
   list<char*>::iterator iter;
-  iter = tables.begin();
   char *db_table_name = NULL;
   bool table_exist = false;
+  iter = tables.begin();
   while (iter != tables.end())
   {
     db_table_name = *iter;
-    if (strcasecmp(table_name, db_table_name) == 0)
+    if (strcmp(table_name, db_table_name) == 0)
     {
       table_exist = true;
       break;
     }
     iter++;
   }
+  return table_exist;
+}
+
+bool
+import_single_table(const char *table_name)
+{
+  bool table_exist = import_check_table_exist(table_name);
   bool do_it = false;
   if (table_exist)
   {
@@ -989,6 +1034,7 @@ import_single_table(const char *table_name)
       printf("failed opening file %s", buffer);
       return false;
     }
+    memset(buffer, 0, sizeof(buffer));
     fread(buffer, 1, sizeof(buffer), f);
     fclose(f);
     r = mysql_query(&mysql, buffer);
@@ -1027,12 +1073,11 @@ import_single_table(const char *table_name)
     }
 
     //清除工具所用的.def文件
-    sprintf(buffer, "rm %s/%s.def  > /dev/null 2>&1"
+    sprintf(buffer, "sudo rm %s/%s.def  > /dev/null 2>&1"
             , opt_data_dir, table_name);
-    cout << buffer << endl;
+    if (opt_verbose)
+      cout << buffer << endl;
     r = system(buffer);
-    if (r != 0)
-      return false;
   }
   
   return true;
@@ -1052,6 +1097,7 @@ import_start_binlog_repl(string *err)
     err->append("File master.info does not exist.");
     return false;
   }
+  memset(buffer, 0, sizeof(buffer));
   fread(buffer, 1, sizeof(buffer), f);
   fclose(f);
   r = mysql_query(&mysql, buffer);
@@ -1089,12 +1135,15 @@ import_tables(string *err)
     succ = import_single_table(table_name);
     if (!succ)
     {
-      printf(buffer, "table %s importing failed.\n", table_name);
-      break;
+      sprintf(buffer, "table %s importing failed.\n", table_name);
+      cout << buffer << endl;
+      if (opt_ignore != 1)
+        break;
     }
     else
     {
-      printf(buffer, "table %s imported.\n", table_name);
+      sprintf(buffer, "table %s imported.\n", table_name);
+      cout << buffer << endl;
     }
     iter++;
   }
