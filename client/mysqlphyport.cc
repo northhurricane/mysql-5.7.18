@@ -59,6 +59,14 @@ static my_bool opt_copyonly = 1;
 static my_bool opt_ignore = 1;
 static my_bool opt_verbose = 0;
 
+//server instance read_only variable value
+static bool status_read_only = false;
+//server instance supper_read_only variable value
+static bool status_supper_read_only = false;
+//server slave SQL_THREAD status
+static bool status_sql_thread_running = false;
+
+
 static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -525,6 +533,7 @@ bool export_stop_slave_sql(string *err)
   mysql_free_result(result);
 
   //stop SQL_THREAD
+  status_sql_thread_running = true;
   sprintf(buffer, "STOP SLAVE SQL_THREAD");
   if ((r = mysql_query(&mysql, buffer)) != 0)
   {
@@ -532,6 +541,21 @@ bool export_stop_slave_sql(string *err)
   }
 
   return(true);
+}
+
+bool
+export_start_slave_sql()
+{
+  if (status_sql_thread_running)
+  {
+    sprintf(buffer, "START SLAVE SQL_THREAD");
+    if (mysql_query(&mysql, buffer) != 0)
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 static int export_show_master_status(string *err)
@@ -576,38 +600,99 @@ static int export_show_master_status(string *err)
 static bool export_set_server_read_only(string *err)
 {
   int r = 0;
-  r = mysql_query(&mysql, "set global read_only=1;");
-  if (r != 0)
+
+  MYSQL_ROW row;
+  MYSQL_RES *result = NULL;
+
+  if (mysql_query(&mysql, "show global variables like 'read_only';") ||
+    !(result = mysql_store_result(&mysql)))
   {
     err->append(mysql_error(&mysql));
     return false;
   }
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      status_read_only = true;
+    }
+  }
+  else
+  {
+    status_read_only = true;
+  }
+  mysql_free_result(result);
+  if (!status_read_only)
+  {
+    r = mysql_query(&mysql, "set global read_only=1;");
+    if (r != 0)
+    {
+      err->append(mysql_error(&mysql));
+      return false;
+    }
+  }
 
-  r = mysql_query(&mysql, "set global super_read_only=1;");
-  if (r != 0)
+  result  = NULL;
+  //super_read_only intruduced in 5.7.18. For lower version, 
+  if (mysql_query(&mysql, "show global variables like 'supper_read_only';") ||
+      !(result = mysql_store_result(&mysql)))
   {
     err->append(mysql_error(&mysql));
     return false;
+  }
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      status_supper_read_only = true;
+    }
+  }
+  else
+  {
+    status_supper_read_only = true;
+  }
+  mysql_free_result(result);
+  if (!status_supper_read_only)
+  {
+    r = mysql_query(&mysql, "set global super_read_only=1;");
+    if (r != 0)
+    {
+      err->append(mysql_error(&mysql));
+      return false;
+    }
   }
   return true;
 }
 
+/*
+restore the original value for read_only and super_read_only variable
+*/
 static bool export_restore_server_writable(string *err)
 {
   char err_buffer[2048];
-  int r = mysql_query(&mysql, "set global read_only=0;");
-  if (r != 0)
+  int r = 0;
+  bool succ;
+  if (!status_read_only)
   {
-    strcpy(err_buffer, mysql_error(&mysql));
-    err->append(err_buffer);
-    return false;
+    r = mysql_query(&mysql, "set global read_only=0;");
+    if (r != 0)
+    {
+      strcpy(err_buffer, mysql_error(&mysql));
+      err->append(err_buffer);
+      succ = false;
+    }
   }
-  r = mysql_query(&mysql, "set global super_read_only=0;");
-  if (r != 0)
+  if (!status_supper_read_only)
   {
-    strcpy(err_buffer, mysql_error(&mysql));
-    err->append(err_buffer);
-    return false;
+    r = mysql_query(&mysql, "set global super_read_only=0;");
+    if (r != 0)
+    {
+      strcpy(err_buffer, mysql_error(&mysql));
+      err->append(err_buffer);
+      succ = false;
+    }
   }
   return true;
 }
@@ -630,9 +715,6 @@ static bool export_flush_tables_with_read_lock(string *err)
     err->append(mysql_error(&mysql));
     return false;
   }
-  bool succ = export_set_server_read_only(err);
-  if (!succ)
-    return succ;
   return true;
 }
 
@@ -701,6 +783,9 @@ export_snapshot_copy(string *err)
   }
   cout << "mount logical volumn successfully." << endl;
 
+  //恢复写状态
+  export_restore_server_writable(err);
+
   //拷贝数据
   sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
           , opt_lv_data_dir, opt_file_dir);
@@ -712,9 +797,6 @@ export_snapshot_copy(string *err)
     cout << buffer << endl;
   r = system(buffer);
   cout << "Copy snapshot successfully." << endl;
-
-  //恢复写状态
-  export_restore_server_writable(err);
 
   //umount/lvremove
   sprintf(buffer, "sudo umount %s > /dev/null 2>&1", opt_mount_dir);
@@ -741,7 +823,7 @@ export_copyonly(string *err)
 {
   //拷贝数据
   bool succ = true;
-  sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
+  sprintf(buffer, "sudo cp %s/* %s > /dev/null 2>&1"
           , opt_data_dir, opt_file_dir);
   if (opt_verbose)
     cout << buffer << endl;
@@ -753,7 +835,7 @@ export_copyonly(string *err)
   }
   else
   {
-    sprintf(buffer, "rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
+    sprintf(buffer, "sudo rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
     if (opt_verbose)
       cout << buffer << endl;
     r = system(buffer);
@@ -762,26 +844,25 @@ export_copyonly(string *err)
 
   //恢复写状态
   export_restore_server_writable(err);
+
   return succ;
 }
 
 bool
-export_single_table(const char *table_name)
+export_single_table(const char *table_name, string *err)
 {
   int r = 0;
-  //锁定表，并生成.cfg文件
-  sprintf(buffer, "FLUSH TABLES %s FOR EXPORT;", table_name);
-  r = mysql_query(&mysql, buffer);
-  if (r != 0)
-    return false;
-  
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
   sprintf(buffer , "show create table %s", table_name);
   if ((r = mysql_query(&mysql, buffer)) != 0)
+  {
+    err->append(mysql_error(&mysql));
     return false;
+  }
   if (!(result = mysql_store_result(&mysql)))
   {
+    err->append("failed getting table defination.");
     return false;
   }
   else
@@ -801,6 +882,15 @@ export_single_table(const char *table_name)
     mysql_free_result(result);
   }
 
+  //锁定表，并生成.cfg文件
+  sprintf(buffer, "FLUSH TABLES %s FOR EXPORT;", table_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  
   //拷贝cfg文件
   sprintf(buffer, "cp %s/%s.cfg %s > /dev/null 2>&1"
           , opt_data_dir, table_name, opt_file_dir);
@@ -808,13 +898,19 @@ export_single_table(const char *table_name)
     cout << buffer << endl;
   r = system(buffer);
   if (r != 0)
-    return false;
+  {
+    err->append("failed ");
+    err->append(buffer);
+  }
 
   //清除锁，否则在下一次的flush将会报告错误
   sprintf(buffer, "UNLOCK TABLES;");
   r = mysql_query(&mysql, buffer);
   if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
     return false;
+  }
 
   return true;
 }
@@ -822,6 +918,10 @@ export_single_table(const char *table_name)
 bool
 export_tables(string *err)
 {
+  bool succ = export_set_server_read_only(err);
+  if (!succ)
+    return succ;
+
   list<char*>::iterator iter;
   iter = tables.begin();
   char *table_name = NULL;
@@ -830,7 +930,8 @@ export_tables(string *err)
   {
     table_name = *iter;
     bool succ;
-    succ = export_single_table(table_name);
+    err->clear();
+    succ = export_single_table(table_name, err);
     if (succ)
     {
       exported_table_count++;
@@ -838,25 +939,25 @@ export_tables(string *err)
     }
     else
     {
-      printf("table %s exporting failed\n", table_name);
+      printf("table %s exporting failed.%s\n", table_name, err->c_str());
     }
     iter++;
   }
   printf("totally %d tables exported.\n", exported_table_count);
 
-  bool succ = true;
+  succ = true;
+  cout << "starting copy files." << endl;
   if (!opt_copyonly)
     succ = export_snapshot_copy(err);
   else
     succ = export_copyonly(err);
-  if (!succ)
-    return false;
-  return true;
-}
 
-static void
-export_clean()
-{
+  if (!succ)
+  {
+    cerr << err << endl;
+    return false;
+  }
+  return true;
 }
 
 bool
@@ -870,10 +971,13 @@ do_export()
     succ = export_flush_tables_with_read_lock(&err);
     if (!succ)
       break;
+    succ = export_check(&err);
+    if (!succ)
+      break;
     succ = export_show_master_status(&err);
     if (!succ)
       break;
-    succ = export_check(&err);
+    succ = export_stop_slave_sql(&err);
     if (!succ)
       break;
     succ = export_tables(&err);
@@ -881,7 +985,7 @@ do_export()
       break;
     break;
   }
-  export_clean();
+  export_start_slave_sql();
   return succ;
 }
 
@@ -1132,6 +1236,7 @@ bool
 import_tables(string *err)
 {
   bool succ = true;
+  int count = 0;
 
   list<char*>::iterator iter;
   iter = file_tables.begin();
@@ -1142,18 +1247,21 @@ import_tables(string *err)
     succ = import_single_table(table_name);
     if (!succ)
     {
-      sprintf(buffer, "table %s importing failed.\n", table_name);
+      sprintf(buffer, "table %s importing failed.", table_name);
       cout << buffer << endl;
       if (opt_ignore != 1)
         break;
     }
     else
     {
-      sprintf(buffer, "table %s imported.\n", table_name);
+      sprintf(buffer, "table %s imported.", table_name);
+      count++;
       cout << buffer << endl;
     }
     iter++;
   }
+
+  cout << count << " tables imported." << endl;
 
   //启动复制分发
   if (opt_repl)
