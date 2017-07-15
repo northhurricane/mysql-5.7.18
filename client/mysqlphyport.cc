@@ -823,7 +823,7 @@ export_copyonly(string *err)
 {
   //拷贝数据
   bool succ = true;
-  sprintf(buffer, "sudo cp %s/* %s > /dev/null 2>&1"
+  sprintf(buffer, "cp %s/* %s > /dev/null 2>&1"
           , opt_data_dir, opt_file_dir);
   if (opt_verbose)
     cout << buffer << endl;
@@ -968,6 +968,9 @@ do_export()
   switch (0)
   {
   case 0:
+    succ = export_stop_slave_sql(&err);
+    if (!succ)
+      break;
     succ = export_flush_tables_with_read_lock(&err);
     if (!succ)
       break;
@@ -975,9 +978,6 @@ do_export()
     if (!succ)
       break;
     succ = export_show_master_status(&err);
-    if (!succ)
-      break;
-    succ = export_stop_slave_sql(&err);
     if (!succ)
       break;
     succ = export_tables(&err);
