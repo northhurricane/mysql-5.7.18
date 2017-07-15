@@ -194,6 +194,7 @@ int ha_redisrpl::write_row(uchar * buf)
   char data_buffer[65536];
   char value_buffer[1024];
 
+  my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
   bool is_first = true;
   //打印各列的数据类型
   Field *field = NULL;
@@ -226,6 +227,7 @@ int ha_redisrpl::write_row(uchar * buf)
       hiredis_command(ctx, buffer);
     }
   }
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
 
   DBUG_RETURN(table->next_number_field ? update_auto_increment() : 0);
 }
