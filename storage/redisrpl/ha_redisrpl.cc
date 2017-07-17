@@ -22,6 +22,39 @@
 #include <dlfcn.h>
 #include "hiredis.h"
 
+
+void
+ha_redisrpl::statistic()
+{
+  //全部信息为测试信息
+  stats.records = 100;
+  stats.deleted = 0;
+  stats.mean_rec_length = 20;
+  stats.create_time = 0;
+  stats.check_time = 0;
+  stats.update_time = 0;
+  stats.block_size = 0;
+  //
+  stats.data_file_length = 10000000;
+  stats.index_file_length = 10000000;
+
+  //仿照
+  stats.data_file_length = 327680;
+  stats.max_data_file_length = 0;
+  stats.index_file_length = 163840;
+  stats.max_index_file_length = (ulonglong)1024 * 1024 * 1024 * 4;
+  stats.delete_length = 0;
+  stats.auto_increment_value = 0;
+  stats.records = 100;
+  stats.deleted = 0;
+  stats.mean_rec_length = 40;
+  stats.create_time = 0;
+  stats.check_time = 0;
+  stats.update_time = 0;
+  stats.block_size = 16384;
+  stats.mrr_length_per_rec = 14;
+}
+
 //////////////////////////////////////////
 typedef redisContext* (*redisConnect_func_t)(const char *ip, int port);
 typedef void *(*redisCommand_func_t)(redisContext *c, const char *format, ...);
@@ -364,10 +397,7 @@ void ha_redisrpl::position(const uchar *record)
 int ha_redisrpl::info(uint flag)
 {
   DBUG_ENTER("ha_redisrpl::info");
-
-  memset(&stats, 0, sizeof(stats));
-  if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= 1;
+  statistic();
   DBUG_RETURN(0);
 }
 
@@ -430,8 +460,82 @@ int ha_redisrpl::index_read_map(uchar * buf, const uchar * key,
   MYSQL_INDEX_READ_ROW_DONE(rc);
   table->status= rc ? STATUS_NOT_FOUND : 0;
   DBUG_RETURN(rc);
+  }
+
+int
+ha_redisrpl::multi_range_read_init(RANGE_SEQ_IF* seq,
+                              void* seq_init_param,
+                              uint  n_ranges,
+                              uint  mode,
+                              HANDLER_BUFFER*   buf)
+{
+  return(ds_mrr.dsmrr_init(this, seq, seq_init_param,
+                           n_ranges, mode, buf));
 }
 
+int
+ha_redisrpl::multi_range_read_next(char **range_info)
+{
+  return(ds_mrr.dsmrr_next(range_info));
+}
+
+int
+ha_redisrpl::index_init(uint idx, bool sorted)
+{
+  DBUG_ENTER("ha_redisrpl::index_init");
+
+  DBUG_RETURN(0);
+}
+
+int
+ha_redisrpl::index_end()
+{
+  DBUG_ENTER("ha_redisrpl::index_end");
+  DBUG_RETURN(0);
+}
+
+int
+ha_redisrpl::index_read(uchar * buf, const uchar * key, uint key_len,
+                   enum ha_rkey_function find_flag)
+{
+  DBUG_ENTER("ha_cfl::index_read");
+  int rc = 0;
+  /*  my_bitmap_map *old_map;
+
+  DBUG_ASSERT(table->key_info != NULL);
+  //KEY *index = table->key_info + active_index;
+
+  //获取过滤条件
+  struct timeval tv;
+  cfl_dt_t cdt;
+  my_timestamp_from_binary(&tv, key, 6);
+  cfl_tv2cdt(cdt, tv);
+  cfl_dti_t dti;
+  dti = cfl_t2i(&cdt);
+  //构造查询结果
+  isearch_.key = dti;
+  isearch_.key_cmp = my_key_func2cfl_key_cmp(find_flag);
+  //检查输入内容是否接受
+  if (isearch_.key_cmp == KEY_INVALID)
+  {
+    rc= HA_ERR_WRONG_COMMAND;
+    DBUG_RETURN(rc);
+  }
+
+  old_map= dbug_tmp_use_all_columns(table, table->write_set);
+
+  //rc = locate_cursor();
+  rc = cfl_cursor_locate(cfl_table_->GetStorage(), table->field
+                         , cursor_, isearch_);
+  if (HA_READ_KEY_EXACT == find_flag && HA_ERR_END_OF_FILE != rc)
+  {
+    rc = index_next(buf);
+  }
+
+  dbug_tmp_restore_column_map(table->write_set, old_map);*/
+
+  DBUG_RETURN(rc);
+}
 
 int ha_redisrpl::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
                                  key_part_map keypart_map,

@@ -27,7 +27,8 @@ struct st_blackhole_share {
   char table_name[1];
 };
 
-
+#define REDISRPL_MAX_KEY 1
+#define REDISRPL_MAX_KEY_LENGTH 8
 /*
   Class definition for the blackhole storage engine
   "Dumbest named feature ever"
@@ -60,17 +61,21 @@ public:
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY);
+    return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+            | HA_READ_RANGE | HA_KEYREAD_ONLY
+            | HA_DO_INDEX_COND_PUSHDOWN);
   }
   /* The following defines can be increased if necessary */
 #define BLACKHOLE_MAX_KEY	64		/* Max allowed keys */
 #define BLACKHOLE_MAX_KEY_SEG	16		/* Max segments for key */
 #define BLACKHOLE_MAX_KEY_LENGTH 1000
-  uint max_supported_keys()          const { return BLACKHOLE_MAX_KEY; }
-  uint max_supported_key_length()    const { return BLACKHOLE_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
+  uint max_supported_keys()          const { return REDISRPL_MAX_KEY; }
+  uint max_supported_key_length()    const { return REDISRPL_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const
+  { return BLACKHOLE_MAX_KEY_LENGTH; }
+  uint max_supported_key_parts() const
+  {return 1; }
+
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int truncate();
@@ -83,6 +88,12 @@ public:
                          key_part_map keypart_map,
                          enum ha_rkey_function find_flag);
   int index_read_last_map(uchar * buf, const uchar * key, key_part_map keypart_map);
+
+  int index_init(uint index, bool sorted);
+  int index_end();
+  int index_read(uchar * buf, const uchar * key, uint key_len,
+                 enum ha_rkey_function find_flag);
+
   int index_next(uchar * buf);
   int index_prev(uchar * buf);
   int index_first(uchar * buf);
@@ -95,8 +106,17 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
+
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode,
+                            HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
 private:
   virtual int write_row(uchar *buf);
   virtual int update_row(const uchar *old_data, uchar *new_data);
   virtual int delete_row(const uchar *buf);
+  void statistic();
+
+  /** The multi range read session object */
+  DsMrr_impl ds_mrr;
 };
