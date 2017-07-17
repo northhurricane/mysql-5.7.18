@@ -65,7 +65,8 @@ static bool status_read_only = false;
 static bool status_supper_read_only = false;
 //server slave SQL_THREAD status
 static bool status_sql_thread_running = false;
-
+//server version
+static char svr_version[64];
 
 static struct my_option my_long_options[] =
 {
@@ -433,6 +434,46 @@ sql_connect()
   }
 
   return 0;
+}
+
+static bool
+get_server_version(string *err)
+{
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "select version();");
+  mysql_query(&mysql, buffer);
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    err->append("failed when get tables from database.");
+    strcpy(buffer, mysql_error(&mysql));
+    err->append(buffer);
+    return false;
+  }
+  else
+  {
+    row=mysql_fetch_row(result);
+    if (row == NULL)
+    {
+      err->append("failed get version.");
+      mysql_free_result(result);
+      return false;
+    }
+    const char *version = row[0];
+    const char *pos = version;
+    unsigned int idx = 0;
+    while (pos[0] != '-' && idx < sizeof(svr_version))
+    {
+      svr_version[idx] = pos[0];
+      idx++;
+      pos++;
+    }
+    svr_version[idx] = 0;
+
+    mysql_free_result(result);
+  }
+
+  return true;
 }
 
 /*记录数据库中的表。
@@ -1109,10 +1150,116 @@ import_check_table_exist(const char *table_name)
   return table_exist;
 }
 
+static bool
+table_is_partition()
+{
+  return false;
+}
+
+bool
+import_single_table_partition_single(string *err)
+{
+  const char *table_name = NULL;
+  const char *ptable_name = NULL;
+  char ntable_name[2048] = {0};
+
+  sprintf(ntable_name, "%s_%s", table_name, ptable_name);
+
+  sprintf(buffer, "create table %s like %s;", ntable_name, table_name);
+  int r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+  }
+
+  sprintf(buffer, "alter table %s REMOVE PARTITIONING;", ntable_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+  }
+
+  sprintf(buffer, "alter table %s discard tablespace;", ntable_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+  }
+
+  sprintf(buffer, "cp %s/%s#P#%s.ibd %s/%s.ibd",
+          opt_file_dir, table_name, ptable_name, opt_data_dir, ntable_name);
+  r = system(buffer);
+  if (r != 0)
+  {
+    err->append("failed executing ");
+    err->append(buffer);
+    return false;
+  }
+  
+  sprintf(buffer, "sudo chown %s %s/%s.* > /dev/null 2>&1"
+          , opt_owner, opt_data_dir, ntable_name);
+  r = system(buffer);
+  if (r != 0)
+  {
+    err->append("failed executing ");
+    err->append(buffer);
+    return false;
+  }
+
+  sprintf(buffer, "alter table %s import tablespace;", ntable_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+  }
+
+  sprintf(buffer, "ALTER TABLE %s EXCHANGE PARTITION %s WITH TABLE %s;",
+          table_name, ptable_name, ntable_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+  }
+
+  sprintf(buffer, "drop table %s;", ntable_name);
+  r = mysql_query(&mysql, buffer);
+  if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
+  }
+
+  return true;
+}
+
+bool
+import_single_table_partition(string *err)
+{
+  list<char*> ptables;
+  list<char*>::iterator iter;
+  iter = ptables.begin();
+  char *ptable_name = NULL;
+  bool succ = true;
+  while (iter != file_tables.end())
+  {
+    ptable_name = *iter;
+    succ = import_single_table_partition_single(err);
+    if (!succ)
+    {
+      sprintf(buffer, "table %s importing failed.", ptable_name);
+      cerr << buffer << endl;
+      break;
+    }
+    iter++;
+  }
+  ptables.clear();
+  return succ;
+}
+
 bool
 import_single_table(const char *table_name)
 {
   bool table_exist = import_check_table_exist(table_name);
+  bool partition_table = false;
   bool do_it = false;
   if (table_exist)
   {
@@ -1153,16 +1300,25 @@ import_single_table(const char *table_name)
       return false;
     do_it = true;
   }
+
+  bool succ = true;
+  partition_table = table_is_partition();
+  if (partition_table && strstr(svr_version, "5.6"))
+  {
+    //    succ = import_single_table_56_partition();
+    if (!succ)
+      return succ;
+  }
+
   if (do_it)
   {
     int r = 0;
-    //锁定表，并生成.cfg文件
+    //去掉表空间
     sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
     r = mysql_query(&mysql, buffer);
     if (r != 0)
       return false;
 
-    bool succ = true;
     succ = import_do_cp_n_alter(table_name);
     if (!succ)
     {
@@ -1399,6 +1555,13 @@ int main(int argc,char *argv[])
   }
 
   sql_connect();
+  succ = get_server_version(&err);
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
+
   succ = set_database(&err);
   if (!succ)
   {
