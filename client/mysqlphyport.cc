@@ -471,9 +471,14 @@ get_server_version(string *err)
     svr_version[idx] = 0;
 
     mysql_free_result(result);
-  }
 
-  return true;
+    if (strstr(svr_version, "5.7") || strstr(svr_version, "5.6"))
+      return true;
+
+    err->append("unsupportted version ");
+    err->append(version);
+    return false;
+  }
 }
 
 /*记录数据库中的表。
@@ -1151,16 +1156,27 @@ import_check_table_exist(const char *table_name)
 }
 
 static bool
-table_is_partition()
+partition_special_operation()
 {
+  //5.6的分区表全部需要特殊处理
+  if (strstr(svr_version, "5.6"))
+    return true;
+
+  //5.7.4之后的版本可以直接进行import tablespace
+  if (strstr(svr_version, "5.7"))
+  {
+    if (svr_version[5] == '.' && svr_version[4] < '5')
+      return true;
+  }
+
   return false;
 }
 
 bool
-import_single_table_partition_single(string *err)
+import_single_table_partition_single(const char* table_name,
+                                     const char* ptable_name,
+                                     string *err)
 {
-  const char *table_name = NULL;
-  const char *ptable_name = NULL;
   char ntable_name[2048] = {0};
 
   sprintf(ntable_name, "%s_%s", table_name, ptable_name);
@@ -1231,35 +1247,123 @@ import_single_table_partition_single(string *err)
   return true;
 }
 
-bool
-import_single_table_partition(string *err)
+#define FIRST_PARTITION_KEY "(PARTITION"
+#define PARTITION_KEY "PARTITION"
+
+table_buffer_t ptables_buffer;
+
+/*
+  This function only process partition table name in char a-z A-Z and _
+*/
+static void
+get_partition_tables_from_defination(char *defination
+                                     , list<char*> *ptable_names)
 {
-  list<char*> ptables;
+  int table_count = 0;
+
+  DBUG_ASSERT(ptable_names->empty() == true);
+  ptables_buffer.number = 0;
+  char *ptable_name = strstr(defination, FIRST_PARTITION_KEY);
+  int ptable_name_len = 0;
+  if (ptable_name == NULL)
+    return ;
+
+  char *ptable_name_end = NULL;
+  ptable_name += strlen(FIRST_PARTITION_KEY);
+  while (ptable_name[0] != 0)
+  {
+    if (('A' <= ptable_name[0] && ptable_name[0] <= 'Z')
+        || ('a' <= ptable_name[0] && ptable_name[0] <= 'z')
+        || '_' == ptable_name[0])
+      break;
+    ptable_name++;
+  }
+  ptable_name_end = ptable_name;
+  while (ptable_name_end[0] != 0)
+  {
+    if (!(('A' <= ptable_name_end[0] && ptable_name_end[0] <= 'Z')
+          || ('a' <= ptable_name_end[0] && ptable_name_end[0] <= 'z')
+          || '_' == ptable_name_end[0]))
+      break;
+    ptable_name++;
+  }
+  ptable_name_len = ptable_name - ptable_name_end;
+  strncpy(ptables_buffer.tables[table_count].name
+          , ptable_name, ptable_name_len);
+  ptables_buffer.tables[table_count].name[ptable_name_len] = 0;
+  ptable_names->push_back(ptables_buffer.tables[table_count].name);
+
+  ptable_name = strstr(ptable_name, PARTITION_KEY);
+  while (ptable_name != NULL)
+  {
+    ptable_name += strlen(PARTITION_KEY);
+    while (ptable_name[0] != 0)
+    {
+      if (('A' <= ptable_name[0] && ptable_name[0] <= 'Z')
+          || ('a' <= ptable_name[0] && ptable_name[0] <= 'z')
+          || '_' == ptable_name[0])
+        break;
+      ptable_name++;
+    }
+    ptable_names->push_back(ptable_name);
+    ptable_name = strstr(ptable_name, PARTITION_KEY);
+  }
+}
+
+static bool
+get_partition_tables(const char* table_name, list<char*> *ptable_names
+                     , string *err)
+{
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "show create table %s;", table_name);
+  mysql_query(&mysql, buffer);
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    err->append("failed when get partition tables.");
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  else
+  {
+    row = mysql_fetch_row(result);
+    if (row == NULL)
+    {
+      err->append("failed when get partition tables.");
+      mysql_free_result(result);
+      return false;
+    }
+    char *table_defination = row[1];
+    get_partition_tables_from_defination(table_defination, ptable_names);
+    mysql_free_result(result);
+  }
+  return true;
+}
+
+bool
+import_single_table_partition(const char *table_name, list<char*> ptables
+                              , string *err)
+{
   list<char*>::iterator iter;
   iter = ptables.begin();
   char *ptable_name = NULL;
-  bool succ = true;
+  bool succ;
   while (iter != file_tables.end())
   {
     ptable_name = *iter;
-    succ = import_single_table_partition_single(err);
+    succ = import_single_table_partition_single(NULL, ptable_name, err);
     if (!succ)
-    {
-      sprintf(buffer, "table %s importing failed.", ptable_name);
-      cerr << buffer << endl;
       break;
-    }
+
     iter++;
   }
-  ptables.clear();
   return succ;
 }
 
 bool
-import_single_table(const char *table_name)
+import_single_table(const char *table_name, string *err)
 {
   bool table_exist = import_check_table_exist(table_name);
-  bool partition_table = false;
   bool do_it = false;
   if (table_exist)
   {
@@ -1297,21 +1401,32 @@ import_single_table(const char *table_name)
     fclose(f);
     r = mysql_query(&mysql, buffer);
     if (r != 0)
+    {
+      err->append(mysql_error(&mysql));
       return false;
+    }
     do_it = true;
-  }
-
-  bool succ = true;
-  partition_table = table_is_partition();
-  if (partition_table && strstr(svr_version, "5.6"))
-  {
-    //    succ = import_single_table_56_partition();
-    if (!succ)
-      return succ;
   }
 
   if (do_it)
   {
+    bool succ = true;
+    bool is_partition_table = false;
+    list<char*> ptable_names;
+    succ = get_partition_tables(table_name, &ptable_names, err);
+    if (!succ)
+    {
+      return false;
+    }
+
+    is_partition_table = !ptable_names.empty();
+    if (is_partition_table && partition_special_operation())
+    {
+      succ = import_single_table_partition(table_name, ptable_names, err);
+      if (!succ)
+        return succ;
+    }
+
     int r = 0;
     //去掉表空间
     sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
@@ -1400,7 +1515,7 @@ import_tables(string *err)
   while (iter != file_tables.end())
   {
     table_name = *iter;
-    succ = import_single_table(table_name);
+    succ = import_single_table(table_name, err);
     if (!succ)
     {
       sprintf(buffer, "table %s importing failed.", table_name);
