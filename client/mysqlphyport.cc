@@ -22,6 +22,12 @@ Created 05/07/2017 Jiangy Yuxiang
 #include "mysql.h"
 using namespace std;
 
+static void
+stop_for_dbg()
+{
+  cout << "";
+}
+
 //operation of 
 enum port_op
 {
@@ -67,6 +73,10 @@ static bool status_supper_read_only = false;
 static bool status_sql_thread_running = false;
 //server version
 static char svr_version[64];
+//server lower_case
+static bool svr_lower_case_file_system = false;
+static int svr_lower_case_table_names = 1;
+
 
 static struct my_option my_long_options[] =
 {
@@ -240,12 +250,6 @@ static int get_options(int argc, char **argv)
     opt_password= get_tty_password(NullS);
 
   return(0);
-}
-
-void
-stop_for_dbg()
-{
-  printf("stop_for_dbg\n");
 }
 
 static void
@@ -481,6 +485,58 @@ get_server_version(string *err)
   }
 }
 
+static bool
+get_svr_lower_case(string *err)
+{
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "show global variables like 'lower_case%%';");
+  mysql_query(&mysql, buffer);
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    err->append("failed when get tables from database.");
+    strcpy(buffer, mysql_error(&mysql));
+    err->append(buffer);
+    return false;
+  }
+  else
+  {
+    int count = 0;
+    while ((row=mysql_fetch_row(result)))
+    {
+      if (strcmp(row[0], "lower_case_file_system") == 0)
+      {
+        if (strcmp(row[1], "OFF") == 0)
+          svr_lower_case_file_system = false;
+        else
+          svr_lower_case_file_system = true;
+        count++;
+      }
+      else if (strcmp(row[0], "lower_case_table_names") == 0)
+      {
+        if (row[1][0] == '0')
+          svr_lower_case_table_names = 0;
+        else if (row[1][0] == '1')
+          svr_lower_case_table_names = 1;
+        else if (row[1][0] == '2')
+          svr_lower_case_table_names = 2;
+        else
+        {
+          err->append("lower_case_table_names unkonw value.");
+          err->append(row[0]);
+          return false;
+        }
+        count++;
+      }
+      else
+      {
+        cout << "Unprocessed variable " << row[0] << endl;
+      }
+    }
+  }
+  return true;
+}
+
 /*记录数据库中的表。
 导出时，按照该列表逐个导出表数据。
 导入时，参照该列表确认是否存在导入表在数据库中。
@@ -492,7 +548,7 @@ get_tables_from_db(string *err)
 {
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
-  sprintf(buffer , "show tables");
+  sprintf(buffer , "show tables;");
   mysql_query(&mysql, buffer);
   if (!(result = mysql_store_result(&mysql)))
   {
@@ -1180,6 +1236,26 @@ import_single_table_partition_single(const char* table_name,
   char ntable_name[2048] = {0};
 
   sprintf(ntable_name, "%s_%s", table_name, ptable_name);
+  if (svr_lower_case_table_names == 0)
+  {
+    //do nothing now
+  }
+  else if (svr_lower_case_table_names == 1)
+  {
+    if (svr_lower_case_file_system == false)
+    {
+      int len = strlen(ntable_name);
+      for (int i = 0; i < len; i++)
+      {
+        char nc = tolower(ntable_name[i]);
+        ntable_name[i] = nc;
+      }
+    }
+  }
+  else
+  {
+    //do nothing now
+  }
 
   sprintf(buffer, "create table %s like %s;", ntable_name, table_name);
   int r = mysql_query(&mysql, buffer);
@@ -1202,7 +1278,7 @@ import_single_table_partition_single(const char* table_name,
     err->append(mysql_error(&mysql));
   }
 
-  sprintf(buffer, "cp %s/%s#P#%s.ibd %s/%s.ibd",
+  sprintf(buffer, "sudo cp %s/%s#P#%s.ibd %s/%s.ibd",
           opt_file_dir, table_name, ptable_name, opt_data_dir, ntable_name);
   r = system(buffer);
   if (r != 0)
@@ -1260,9 +1336,10 @@ get_partition_tables_from_defination(char *defination
                                      , list<char*> *ptable_names)
 {
   int table_count = 0;
-
   DBUG_ASSERT(ptable_names->empty() == true);
   ptables_buffer.number = 0;
+
+  //first
   char *ptable_name = strstr(defination, FIRST_PARTITION_KEY);
   int ptable_name_len = 0;
   if (ptable_name == NULL)
@@ -1270,44 +1347,58 @@ get_partition_tables_from_defination(char *defination
 
   char *ptable_name_end = NULL;
   ptable_name += strlen(FIRST_PARTITION_KEY);
-  while (ptable_name[0] != 0)
-  {
-    if (('A' <= ptable_name[0] && ptable_name[0] <= 'Z')
-        || ('a' <= ptable_name[0] && ptable_name[0] <= 'z')
-        || '_' == ptable_name[0])
-      break;
+  while (ptable_name[0] == ' ')
     ptable_name++;
-  }
   ptable_name_end = ptable_name;
   while (ptable_name_end[0] != 0)
   {
-    if (!(('A' <= ptable_name_end[0] && ptable_name_end[0] <= 'Z')
-          || ('a' <= ptable_name_end[0] && ptable_name_end[0] <= 'z')
-          || '_' == ptable_name_end[0]))
+    if (('A' <= ptable_name_end[0] && ptable_name_end[0] <= 'Z')
+        || ('a' <= ptable_name_end[0] && ptable_name_end[0] <= 'z')
+        || ('0' <= ptable_name_end[0] && ptable_name_end[0] <= '9')
+        || '_' == ptable_name_end[0])
+      ptable_name_end++;
+    else
       break;
-    ptable_name++;
   }
-  ptable_name_len = ptable_name - ptable_name_end;
+  ptable_name_len = ptable_name_end - ptable_name;
   strncpy(ptables_buffer.tables[table_count].name
           , ptable_name, ptable_name_len);
   ptables_buffer.tables[table_count].name[ptable_name_len] = 0;
   ptable_names->push_back(ptables_buffer.tables[table_count].name);
+  table_count++;
 
-  ptable_name = strstr(ptable_name, PARTITION_KEY);
+  //rest
+  ptable_name = strstr(ptable_name_end, PARTITION_KEY);
   while (ptable_name != NULL)
   {
     ptable_name += strlen(PARTITION_KEY);
-    while (ptable_name[0] != 0)
-    {
-      if (('A' <= ptable_name[0] && ptable_name[0] <= 'Z')
-          || ('a' <= ptable_name[0] && ptable_name[0] <= 'z')
-          || '_' == ptable_name[0])
-        break;
+    while (ptable_name[0] == ' ')
       ptable_name++;
+    ptable_name_end = ptable_name;
+    while (ptable_name_end[0] != 0)
+    {
+      if (('A' <= ptable_name_end[0] && ptable_name_end[0] <= 'Z')
+          || ('a' <= ptable_name_end[0] && ptable_name_end[0] <= 'z')
+          || ('0' <= ptable_name_end[0] && ptable_name_end[0] <= '9')
+          || '_' == ptable_name_end[0])
+        ptable_name_end++;
+      else
+        break;
     }
-    ptable_names->push_back(ptable_name);
-    ptable_name = strstr(ptable_name, PARTITION_KEY);
+    if (table_count == 30)
+    {
+      stop_for_dbg();
+    }
+    ptable_name_len = ptable_name_end - ptable_name;
+    strncpy(ptables_buffer.tables[table_count].name
+            , ptable_name, ptable_name_len);
+    ptables_buffer.tables[table_count].name[ptable_name_len] = 0;
+    ptable_names->push_back(ptables_buffer.tables[table_count].name);
+    table_count++;
+
+    ptable_name = strstr(ptable_name_end, PARTITION_KEY);
   }
+  ptables_buffer.number = table_count;
 }
 
 static bool
@@ -1348,10 +1439,15 @@ import_single_table_partition(const char *table_name, list<char*> ptables
   iter = ptables.begin();
   char *ptable_name = NULL;
   bool succ;
-  while (iter != file_tables.end())
+  while (iter != ptables.end())
   {
     ptable_name = *iter;
-    succ = import_single_table_partition_single(NULL, ptable_name, err);
+    if (strcasecmp(ptable_name, "pmax") == 0)
+    {
+      stop_for_dbg();
+    }
+
+    succ = import_single_table_partition_single(table_name, ptable_name, err);
     if (!succ)
       break;
 
@@ -1419,38 +1515,42 @@ import_single_table(const char *table_name, string *err)
       return false;
     }
 
+    int r = 0;
     is_partition_table = !ptable_names.empty();
     if (is_partition_table && partition_special_operation())
     {
+      //partition table and need special operation
       succ = import_single_table_partition(table_name, ptable_names, err);
       if (!succ)
         return succ;
     }
-
-    int r = 0;
-    //去掉表空间
-    sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
-    r = mysql_query(&mysql, buffer);
-    if (r != 0)
-      return false;
-
-    succ = import_do_cp_n_alter(table_name);
-    if (!succ)
+    else
     {
-      char err_buffer[2048];
-      strcpy(err_buffer, mysql_error(&mysql));
-      //导出文件与的元信息不一致
-      if (strstr(err_buffer, "and the meta-data file has 0x1"))
+      //normal operation
+      //去掉表空间
+      sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
+      r = mysql_query(&mysql, buffer);
+      if (r != 0)
+        return false;
+
+      succ = import_do_cp_n_alter(table_name);
+      if (!succ)
       {
-        sprintf(buffer, "ALTER TABLE %s row_format=compact;", table_name);
-        r = mysql_query(&mysql, buffer);
-        if (r != 0)
+        char err_buffer[2048];
+        strcpy(err_buffer, mysql_error(&mysql));
+        //导出文件与的元信息不一致
+        if (strstr(err_buffer, "and the meta-data file has 0x1"))
         {
-          return false;
+          sprintf(buffer, "ALTER TABLE %s row_format=compact;", table_name);
+          r = mysql_query(&mysql, buffer);
+          if (r != 0)
+          {
+            return false;
+          }
+          succ = import_do_cp_n_alter(table_name);
+          if (!succ)
+            return succ;
         }
-        succ = import_do_cp_n_alter(table_name);
-        if (!succ)
-          return succ;
       }
     }
 
@@ -1671,6 +1771,12 @@ int main(int argc,char *argv[])
 
   sql_connect();
   succ = get_server_version(&err);
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
+  succ = get_svr_lower_case(&err);
   if (!succ)
   {
     cout << err << endl;
