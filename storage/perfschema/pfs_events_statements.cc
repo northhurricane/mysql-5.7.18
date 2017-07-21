@@ -645,6 +645,8 @@ int events_statements_2_csv(PFS_events_statements *statement
     sprintf(buffer + pos, "%s", "NULL");
     pos += strlen(buffer + pos);
   }
+  buffer[pos] = '|';
+  pos++;
   /* CPU user usage*/
   ulonglong utime = 0;
   utime =
@@ -663,8 +665,6 @@ int events_statements_2_csv(PFS_events_statements *statement
   - statement->start_ru_stime.tv_usec;
   sprintf(buffer + pos, "%lld", utime);
   pos += strlen(buffer + pos);
-  buffer[pos] = '|';
-  pos++;
   /* end */
   DBUG_ASSERT(pos < buffer_size);
   strcpy(buffer + pos, "\r\n");
