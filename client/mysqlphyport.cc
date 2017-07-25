@@ -979,9 +979,35 @@ export_single_table(const char *table_name, string *err)
       printf("failed opening file %s", table_file);
       return false;
     }
-    fprintf(f, "%s", table_sql);
-    fclose(f);
+    fprintf(f, "%s;\n", table_sql);
     mysql_free_result(result);
+
+    bool succ = true;
+    sprintf(buffer , "show table status like '%s';", table_name);
+    if ((r = mysql_query(&mysql, buffer)) != 0)
+    {
+      err->append(mysql_error(&mysql));
+      succ = false;
+    }
+
+    if (succ)
+    {
+      if (!(result = mysql_store_result(&mysql)))
+      {
+        err->append("failed getting table row_format.");
+        succ = false;
+      }
+      else
+      {
+        row=mysql_fetch_row(result);
+        sprintf(buffer , "alter table %s row_format=%s;", table_name, row[3]);
+        fprintf(f, "%s\n", buffer);
+      }
+      mysql_free_result(result);
+    }
+    fclose(f);
+    if (!succ)
+      return succ;
   }
 
   //锁定表，并生成.cfg文件
@@ -1504,9 +1530,9 @@ import_single_table(const char *table_name, string *err)
     do_it = true;
   }
 
+  bool succ = true;
   if (do_it)
   {
-    bool succ = true;
     bool is_partition_table = false;
     list<char*> ptable_names;
     succ = get_partition_tables(table_name, &ptable_names, err);
@@ -1534,7 +1560,9 @@ import_single_table(const char *table_name, string *err)
         return false;
 
       succ = import_do_cp_n_alter(table_name);
-      if (!succ)
+      //for cfg schema match. Do "alter table format" when create table, so
+      //no longer need this
+      /*if (!succ)
       {
         char err_buffer[2048];
         strcpy(err_buffer, mysql_error(&mysql));
@@ -1551,7 +1579,7 @@ import_single_table(const char *table_name, string *err)
           if (!succ)
             return succ;
         }
-      }
+      }*/
     }
 
     //清除工具所用的.def文件
@@ -1562,7 +1590,7 @@ import_single_table(const char *table_name, string *err)
     r = system(buffer);
   }
   
-  return true;
+  return succ;
 }
 
 /*
