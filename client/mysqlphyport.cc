@@ -592,6 +592,30 @@ get_tables(string *err)
 bool
 export_check(string *err)
 {
+  if (access(opt_file_dir, F_OK) != 0)
+  {
+    cout << opt_file_dir << " not exist.Create it(y/n)" << endl;
+    string answer;
+    cin >> answer;
+    if (strcasecmp("y", answer.c_str()) == 0 ||
+        strcasecmp("yes", answer.c_str()) == 0)
+    {
+      sprintf(buffer, "mkdir %s", opt_file_dir);
+      if (opt_verbose)
+        cout << buffer << endl;
+      int r = system(buffer);
+      if (r)
+      {
+        err->append("failed create director ");
+        err->append(opt_file_dir);
+        return false;
+      }
+    }
+    else
+    {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -1096,13 +1120,13 @@ do_export()
   switch (0)
   {
   case 0:
+    succ = export_check(&err);
+    if (!succ)
+      break;
     succ = export_stop_slave_sql(&err);
     if (!succ)
       break;
     succ = export_flush_tables_with_read_lock(&err);
-    if (!succ)
-      break;
-    succ = export_check(&err);
     if (!succ)
       break;
     succ = export_show_master_status(&err);
@@ -1527,6 +1551,18 @@ import_single_table(const char *table_name, string *err)
       err->append(mysql_error(&mysql));
       return false;
     }
+    /*
+      query has 2 or more than 2 sql, must call this to reuse connection
+      https://dev.mysql.com/doc/refman/5.7/en/commands-out-of-sync.html
+      https://dev.mysql.com/doc/refman/5.7/en/c-api-multiple-queries.html
+    */
+    do {
+      MYSQL_RES *result = mysql_use_result(&mysql);
+      if (result)
+        mysql_free_result(result);
+      r = mysql_next_result(&mysql);
+    } while (r == 0);
+
     do_it = true;
   }
 
