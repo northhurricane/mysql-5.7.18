@@ -486,6 +486,49 @@ get_server_version(string *err)
 }
 
 static bool
+get_svr_read_only(string *err)
+{
+  MYSQL_ROW row;
+  MYSQL_RES *result = NULL;
+
+  if (mysql_query(&mysql, "show global variables like 'read_only';") ||
+    !(result = mysql_store_result(&mysql)))
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      status_read_only = true;
+    }
+  }
+  mysql_free_result(result);
+
+  result  = NULL;
+  //super_read_only intruduced in 5.7.18. For lower version, 
+  if (mysql_query(&mysql, "show global variables like 'supper_read_only';") ||
+      !(result = mysql_store_result(&mysql)))
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      status_supper_read_only = true;
+    }
+  }
+  mysql_free_result(result);
+
+  return true;
+}
+
+static bool
 get_svr_lower_case(string *err)
 {
   MYSQL_RES *result = NULL;
@@ -1141,9 +1184,33 @@ do_export()
   return succ;
 }
 
+static bool
+import_check_read_only(string *err)
+{
+  bool succ;
+  succ = get_svr_read_only(err);
+  if (!succ)
+    return succ;
+
+  if (status_read_only)
+  {
+    cout << "Server is read only." << endl;
+    err->append("Server is read only.");
+    return false;
+  }
+
+  return true;
+}
+
 bool
 import_check(string *err)
 {
+  bool succ = true;
+
+  succ = import_check_read_only(err);
+  if (!succ)
+    return succ;
+
   return true;
 }
 
