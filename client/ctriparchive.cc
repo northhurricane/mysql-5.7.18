@@ -56,6 +56,10 @@ static my_bool opt_verbose = 0;
 
 //server version
 static char svr_version[64];
+//server instance read_only variable value
+static bool status_read_only = false;
+//server instance supper_read_only variable value
+static bool status_supper_read_only = false;
 
 static struct my_option my_long_options[] =
 {
@@ -427,6 +431,49 @@ get_server_version(string *err)
   }
 }
 
+static bool
+get_svr_read_only(string *err)
+{
+  MYSQL_ROW row;
+  MYSQL_RES *result = NULL;
+
+  if (mysql_query(&mysql, "show global variables like 'read_only';") ||
+    !(result = mysql_store_result(&mysql)))
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      status_read_only = true;
+    }
+  }
+  mysql_free_result(result);
+
+  result  = NULL;
+  //super_read_only intruduced in 5.7.18. For lower version, 
+  if (mysql_query(&mysql, "show global variables like 'supper_read_only';") ||
+      !(result = mysql_store_result(&mysql)))
+  {
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      status_supper_read_only = true;
+    }
+  }
+  mysql_free_result(result);
+
+  return true;
+}
+
 /*记录数据库中的表。
 导出时，按照该列表逐个导出表数据。
 导入时，参照该列表确认是否存在导入表在数据库中。
@@ -628,6 +675,12 @@ int main(int argc,char *argv[])
 
   sql_connect();
   succ = get_server_version(&err);
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
+  succ = get_svr_read_only(&err);
   if (!succ)
   {
     cout << err << endl;
