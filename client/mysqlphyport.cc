@@ -1156,6 +1156,18 @@ export_tables(string *err)
     cerr << err << endl;
     return false;
   }
+
+  //修改文件的所有者
+  if (opt_owner != NULL)
+  {
+    sprintf(buffer, "sudo chown -R %s %s > /dev/null 2>&1"
+            , opt_owner, opt_file_dir);
+    if (opt_verbose)
+      cout << buffer << endl;
+    int r = system(buffer);
+    if (r != 0)
+      cout << cerr << "";
+  }
   return true;
 }
 
