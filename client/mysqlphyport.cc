@@ -63,6 +63,7 @@ static my_bool opt_repl = 1;
 static my_bool opt_force = 0;
 static my_bool opt_copyonly = 1;
 static my_bool opt_ignore = 1;
+static my_bool opt_cfg_check = 0;
 static my_bool opt_verbose = 0;
 
 //server instance read_only variable value
@@ -136,6 +137,9 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"ignore", 'i', "Ignore error.",
    &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"cfgcheck", 'C', "Import with .cfg check.",
+   &opt_cfg_check, &opt_cfg_check, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"verbose", 'v', "Print more process infomation.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -1023,7 +1027,7 @@ export_single_table(const char *table_name, string *err)
   int r = 0;
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
-  sprintf(buffer , "show create table %s", table_name);
+  sprintf(buffer , "show create table `%s`", table_name);
   if ((r = mysql_query(&mysql, buffer)) != 0)
   {
     err->append(mysql_error(&mysql));
@@ -1269,11 +1273,21 @@ import_do_cp_n_alter(const char *table_name)
   //普通表/以及.def文件的拷贝
   sprintf(buffer, "sudo cp %s/%s.* %s > /dev/null 2>&1"
           , opt_file_dir, table_name, opt_data_dir);
+
   if (opt_verbose)
     cout << buffer << endl;
   r = system(buffer);
   if (r != 0)
     return false;
+  if (!opt_cfg_check)
+  {
+    sprintf(buffer, "sudo rm %s/*.cfg > /dev/null 2>&1"
+            , opt_data_dir);
+    if (opt_verbose)
+      cout << buffer << endl;
+    r = system(buffer);
+  }
+
   //分区表
   sprintf(buffer, "sudo cp %s/%s#P#* %s > /dev/null 2>&1"
           , opt_file_dir, table_name, opt_data_dir);
