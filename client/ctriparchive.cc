@@ -4,7 +4,6 @@
 features
 1、batch delete table rows.
 2、log deleted rows to file
-3、
 
 Created 05/07/2017 Jiangy Yuxiang
 *******************************************************/
@@ -89,7 +88,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"clause", 'c', "Where clause for batch delete.", &opt_clause,
+  {"clause", 'c', "Clause using for filter data.", &opt_clause,
    &opt_clause, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Print more process infomation.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -563,18 +562,26 @@ args_check(string *err)
 
 static bool
 batch_delete_table(MYSQL *mysql, const char *table_name
+                   , const char * primary_colname
                    , const char *where_clause
-                   ,int *del_count, string *err)
+                   , int *del_count, string *err)
 {
   char buffer[4096];
-  char *primary_key_colname = NULL;
+  char where_buffer[4096] = {0};
+
+  DBUG_ASSERT(del_count != NULL);
+
+  if (where_clause != NULL)
+  {
+    sprintf(where_buffer, " where %s", where_clause);
+  }
 
   if (opt_backup)
-    sprintf(buffer, "select * from %s limit %d;"
-            , table_name, opt_batch_number);
+    sprintf(buffer, "select * from `%s` %s limit %d;"
+            , table_name, where_buffer, opt_batch_number);
   else
-    sprintf(buffer, "select %s where %s limit %d;"
-            , primary_key_colname, where_clause, opt_batch_number);
+    sprintf(buffer, "select %s from `%s` %s limit %d;"
+            , primary_colname, table_name, where_buffer, opt_batch_number);
 
   int r = mysql_query(mysql, buffer);
   if (r != 0)
@@ -620,7 +627,7 @@ batch_delete_table(MYSQL *mysql, const char *table_name
     sql.append("delete from ");
     sql.append(table_name);
     sql.append(" where ");
-    sql.append(primary_key_colname);
+    sql.append(primary_colname);
     sql.append(del_clause);
 
     r = mysql_query(mysql, buffer);
@@ -646,7 +653,8 @@ batch_delete(MYSQL *mysql, const char *clause, string *err)
   while (iter != tables.end())
   {
     table_name = *iter;
-    succ = batch_delete_table(mysql, table_name, clause, &del_count, err);
+    succ = batch_delete_table(mysql, table_name, NULL
+                              , clause, &del_count, err);
     table_count++;
     iter++;
   }
