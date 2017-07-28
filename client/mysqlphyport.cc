@@ -77,7 +77,8 @@ static char svr_version[64];
 //server lower_case
 static bool svr_lower_case_file_system = false;
 static int svr_lower_case_table_names = 1;
-
+//server foreign_key_checks
+static int svr_foreign_key_checks = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -584,6 +585,34 @@ get_svr_lower_case(string *err)
   return true;
 }
 
+static bool
+get_svr_foreign_key_checks(string *err)
+{
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "show global variables like 'foreign_key_checks';");
+  mysql_query(&mysql, buffer);
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    err->append("failed when get foreign_key_checks.\n");
+    strcpy(buffer, mysql_error(&mysql));
+    err->append(buffer);
+    return false;
+  }
+
+  row= mysql_fetch_row(result);
+  if (row)
+  {
+    if (row[1] && strcasecmp(row[1], "ON") == 0)
+    {
+      svr_foreign_key_checks = true;
+    }
+  }
+  mysql_free_result(result);
+
+  return true;
+}
+
 /*记录数据库中的表。
 导出时，按照该列表逐个导出表数据。
 导入时，参照该列表确认是否存在导入表在数据库中。
@@ -902,7 +931,7 @@ bool
 export_snapshot_copy(string *err)
 {
   //创建逻辑卷的快照（-s表示快照的意思）
-  sprintf(buffer, "sudo lvcreate -L%dG -s -n dbbackup %s > /dev/null 2>&1"
+  sprintf(buffer, "lvcreate -L%dG -s -n dbbackup %s > /dev/null 2>&1"
           , opt_lv_size, opt_lv_name);
   if (opt_verbose)
     cout << buffer << endl;
@@ -934,14 +963,14 @@ export_snapshot_copy(string *err)
   switch (0)
   {
   case 0:
-    sprintf(buffer, "sudo mount %s/dbbackup %s > /dev/null 2>&1"
+    sprintf(buffer, "mount %s/dbbackup %s > /dev/null 2>&1"
             , lv_pdir, opt_mount_dir);
     if (opt_verbose)
       cout << buffer << endl;
     r = system(buffer);
     if (r == 0) //mount success
       break;
-    sprintf(buffer, "sudo mount -o nouuid %s/dbbackup %s > /dev/null 2>&1"
+    sprintf(buffer, "mount -o nouuid %s/dbbackup %s > /dev/null 2>&1"
             , lv_pdir, opt_mount_dir);
     if (opt_verbose)
       cout << buffer << endl;
@@ -972,7 +1001,7 @@ export_snapshot_copy(string *err)
   cout << "Copy snapshot successfully." << endl;
 
   //umount/lvremove
-  sprintf(buffer, "sudo umount %s > /dev/null 2>&1", opt_mount_dir);
+  sprintf(buffer, "umount %s > /dev/null 2>&1", opt_mount_dir);
   if (opt_verbose)
     cout << buffer << endl;
   r = system(buffer);
@@ -980,7 +1009,7 @@ export_snapshot_copy(string *err)
     cout << "umount logical volumn successfully." << endl;
   else
     cout << "umount logical volumn failed" << endl;
-  sprintf(buffer, "sudo lvremove -f %s/dbbackup > /dev/null 2>&1", lv_pdir);
+  sprintf(buffer, "lvremove -f %s/dbbackup > /dev/null 2>&1", lv_pdir);
   if (opt_verbose)
     cout << buffer << endl;
   r = system(buffer);
@@ -1008,7 +1037,7 @@ export_copyonly(string *err)
   }
   else
   {
-    sprintf(buffer, "sudo rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
+    sprintf(buffer, "rm %s/*.frm > /dev/null 2>&1", opt_file_dir);
     if (opt_verbose)
       cout << buffer << endl;
     r = system(buffer);
@@ -1160,7 +1189,7 @@ export_tables(string *err)
   //修改文件的所有者
   if (opt_owner != NULL)
   {
-    sprintf(buffer, "sudo chown -R %s %s > /dev/null 2>&1"
+    sprintf(buffer, "chown -R %s %s > /dev/null 2>&1"
             , opt_owner, opt_file_dir);
     if (opt_verbose)
       cout << buffer << endl;
@@ -1233,6 +1262,7 @@ import_check(string *err)
 table_buffer_t file_table_buffer;
 //在给定的opt_file_dir中获取文件数，通过合tables变量的组合，确定倒入的表
 list<char*> file_tables;
+list<char*> fk_tables;
 
 bool
 import_get_file_tables(string *err)
@@ -1277,13 +1307,13 @@ import_get_file_tables(string *err)
 }
 
 bool
-import_do_cp_n_alter(const char *table_name)
+import_do_cp_n_alter(const char *table_name, string *err)
 {
   int r = 0;
 
   //文件拷贝
   //普通表/以及.def文件的拷贝
-  sprintf(buffer, "sudo cp %s/%s.* %s > /dev/null 2>&1"
+  sprintf(buffer, "cp %s/%s.* %s > /dev/null 2>&1"
           , opt_file_dir, table_name, opt_data_dir);
 
   if (opt_verbose)
@@ -1291,9 +1321,9 @@ import_do_cp_n_alter(const char *table_name)
   r = system(buffer);
   if (r != 0)
     return false;
-  if (!opt_cfg_check)
+  if (opt_cfg_check == 0)
   {
-    sprintf(buffer, "sudo rm %s/*.cfg > /dev/null 2>&1"
+    sprintf(buffer, "rm %s/*.cfg > /dev/null 2>&1"
             , opt_data_dir);
     if (opt_verbose)
       cout << buffer << endl;
@@ -1301,7 +1331,7 @@ import_do_cp_n_alter(const char *table_name)
   }
 
   //分区表
-  sprintf(buffer, "sudo cp %s/%s#P#* %s > /dev/null 2>&1"
+  sprintf(buffer, "cp %s/%s#P#* %s > /dev/null 2>&1"
           , opt_file_dir, table_name, opt_data_dir);
   if (opt_verbose)
     cout << buffer << endl;
@@ -1310,14 +1340,14 @@ import_do_cp_n_alter(const char *table_name)
   //修改文件的所有者
   if (opt_owner != NULL)
   {
-    sprintf(buffer, "sudo chown %s %s/%s.* > /dev/null 2>&1"
+    sprintf(buffer, "chown %s %s/%s.* > /dev/null 2>&1"
             , opt_owner, opt_data_dir, table_name);
     if (opt_verbose)
       cout << buffer << endl;
     r = system(buffer);
     if (r != 0)
       return false;
-    sprintf(buffer, "sudo chown %s %s/%s#P#* > /dev/null 2>&1"
+    sprintf(buffer, "chown %s %s/%s#P#* > /dev/null 2>&1"
             , opt_owner, opt_data_dir, table_name);
     if (opt_verbose)
       cout << buffer << endl;
@@ -1328,7 +1358,10 @@ import_do_cp_n_alter(const char *table_name)
   sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
+  {
+    err->append(mysql_error(&mysql));
     return false;
+  }
 
   return true;
 }
@@ -1421,7 +1454,7 @@ import_single_table_partition_single(const char* table_name,
     err->append(mysql_error(&mysql));
   }
 
-  sprintf(buffer, "sudo cp %s/%s#P#%s.ibd %s/%s.ibd",
+  sprintf(buffer, "cp %s/%s#P#%s.ibd %s/%s.ibd",
           opt_file_dir, table_name, ptable_name, opt_data_dir, ntable_name);
   r = system(buffer);
   if (r != 0)
@@ -1431,7 +1464,7 @@ import_single_table_partition_single(const char* table_name,
     return false;
   }
   
-  sprintf(buffer, "sudo chown %s %s/%s.* > /dev/null 2>&1"
+  sprintf(buffer, "chown %s %s/%s.* > /dev/null 2>&1"
           , opt_owner, opt_data_dir, ntable_name);
   r = system(buffer);
   if (r != 0)
@@ -1600,6 +1633,39 @@ import_single_table_partition(const char *table_name, list<char*> ptables
 }
 
 bool
+table_has_foreign_key(const char *table_name, bool *has_fk, string *err)
+{
+  *has_fk = false;
+
+  MYSQL_RES *result = NULL;
+  MYSQL_ROW row;
+  sprintf(buffer , "show create table %s;", table_name);
+  mysql_query(&mysql, buffer);
+  if (!(result = mysql_store_result(&mysql)))
+  {
+    err->append("failed when get FOREIGN KEY.");
+    err->append(mysql_error(&mysql));
+    return false;
+  }
+  else
+  {
+    row = mysql_fetch_row(result);
+    if (row == NULL)
+    {
+      err->append("failed when get FOREIGN KEY.");
+      mysql_free_result(result);
+      return false;
+    }
+    char *table_defination = row[1];
+    if (strstr(table_defination, "FOREIGN KEY"))
+      *has_fk = true;
+
+    mysql_free_result(result);
+  }
+  return true;
+}
+
+bool
 import_single_table(const char *table_name, string *err)
 {
   bool table_exist = import_check_table_exist(table_name);
@@ -1662,6 +1728,27 @@ import_single_table(const char *table_name, string *err)
   bool succ = true;
   if (do_it)
   {
+    bool has_fk;
+    succ = table_has_foreign_key(table_name, &has_fk, err);
+    if (!succ)
+      return succ;
+    if (has_fk && svr_foreign_key_checks == 1)
+    {
+      cout << "server foreign_key_checks is setted."
+           << "Import table maybe fail.Skip it(y/n)" << endl;
+      
+      string answer;
+      cin >> answer;
+      if (strcasecmp("y", answer.c_str()) == 0 ||
+          strcasecmp("yes", answer.c_str()) == 0)
+      {
+        char tmp[1024];
+        sprintf(tmp, "Skip table %s", table_name);
+        err->append(tmp);
+        return false;
+      }
+    }
+
     bool is_partition_table = false;
     list<char*> ptable_names;
     succ = get_partition_tables(table_name, &ptable_names, err);
@@ -1688,7 +1775,7 @@ import_single_table(const char *table_name, string *err)
       if (r != 0)
         return false;
 
-      succ = import_do_cp_n_alter(table_name);
+      succ = import_do_cp_n_alter(table_name, err);
       //for cfg schema match. Do "alter table format" when create table, so
       //no longer need this
       /*if (!succ)
@@ -1712,7 +1799,7 @@ import_single_table(const char *table_name, string *err)
     }
 
     //清除工具所用的.def文件
-    sprintf(buffer, "sudo rm %s/%s.def  > /dev/null 2>&1"
+    sprintf(buffer, "rm %s/%s.def  > /dev/null 2>&1"
             , opt_data_dir, table_name);
     if (opt_verbose)
       cout << buffer << endl;
@@ -1758,6 +1845,28 @@ import_start_binlog_repl(string *err)
 }
 
 /*
+  通过def文件，检查是否表是否存在外键
+*/
+static bool
+import_table_has_foreign_key(const char* table_name)
+{
+  sprintf(buffer, "%s/%s%s", opt_file_dir, table_name, ".def");
+  FILE *f = fopen(buffer, "r");
+  if (f == NULL)
+  {
+    printf("failed opening file %s", buffer);
+    return false;
+  }
+  memset(buffer, 0, sizeof(buffer));
+  fread(buffer, 1, sizeof(buffer), f);
+  fclose(f);
+  if (strstr(buffer, "FOREIGN KEY"))
+    return true;
+
+  return false;
+}
+
+/*
   导入表数据
 */
 bool
@@ -1770,6 +1879,35 @@ import_tables(string *err)
   iter = file_tables.begin();
   char *table_name = NULL;
   while (iter != file_tables.end())
+  {
+    table_name = *iter;
+    if (import_table_has_foreign_key(table_name) == true)
+    {
+      fk_tables.push_back(table_name);
+      iter++;
+      continue;
+    }
+
+    succ = import_single_table(table_name, err);
+    if (!succ)
+    {
+      sprintf(buffer, "table %s importing failed.", table_name);
+      cout << buffer << endl;
+      if (opt_ignore != 1)
+        break;
+    }
+    else
+    {
+      sprintf(buffer, "table %s imported.", table_name);
+      count++;
+      cout << buffer << endl;
+    }
+    iter++;
+  }
+
+  //最后导入含有外键的表。如果外键表还有嵌套关系，则不能保证导入成功
+  iter = fk_tables.begin();
+  while (iter != fk_tables.end())
   {
     table_name = *iter;
     succ = import_single_table(table_name, err);
@@ -1939,7 +2077,12 @@ int main(int argc,char *argv[])
     cout << err << endl;
     exit(1);
   }
-
+  succ = get_svr_foreign_key_checks(&err);
+  if (!succ)
+  {
+    cout << err << endl;
+    exit(1);
+  }
   succ = set_database(&err);
   if (!succ)
   {
