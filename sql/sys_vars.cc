@@ -5726,7 +5726,7 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        DEFAULT(""));
 
 #include "ctrip_version.h"
-#define CTRIP_VERSION "0.0.1.1"
+#define CTRIP_VERSION "0.0.1.2"
 static char *server_ctrip_version_ptr;
 static Sys_var_charptr Sys_ctrip_version(
        "ctrip_version", "ctrip_version",
