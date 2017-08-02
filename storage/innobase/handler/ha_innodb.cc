@@ -118,6 +118,9 @@ enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 
+ulonglong innodb_handler_open = 0;
+ulong innodb_handler_size = sizeof(ha_innobase);
+
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -2805,7 +2808,10 @@ ha_innobase::ha_innobase(
 	m_start_of_scan(),
 	m_num_write_row(),
         m_mysql_has_locked()
-{}
+{
+  __sync_fetch_and_add(&innodb_handler_open, 1);
+
+}
 
 /*********************************************************************//**
 Destruct ha_innobase handler. */
@@ -2813,6 +2819,7 @@ Destruct ha_innobase handler. */
 ha_innobase::~ha_innobase()
 /*======================*/
 {
+  __sync_fetch_and_sub(&innodb_handler_open, 1);
 }
 
 /*********************************************************************//**
@@ -20146,6 +20153,16 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
+static MYSQL_SYSVAR_ULONGLONG(handler_open, innodb_handler_open,
+  PLUGIN_VAR_READONLY,
+  "hanlder openned by innobase",
+  NULL, NULL, 0, 0, ULLONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(handler_size, innodb_handler_size,
+  PLUGIN_VAR_READONLY,
+  "hanlder size of innobase",
+  NULL, NULL, sizeof(ha_innobase), 0, ULONG_MAX, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
@@ -20318,6 +20335,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
+  MYSQL_SYSVAR(handler_open),
+  MYSQL_SYSVAR(handler_size),
   NULL
 };
 
