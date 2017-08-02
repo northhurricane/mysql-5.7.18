@@ -1100,7 +1100,8 @@ export_single_table(const char *table_name, string *err)
       else
       {
         row=mysql_fetch_row(result);
-        sprintf(buffer , "alter table %s row_format=%s;", table_name, row[3]);
+        sprintf(buffer , "alter table `%s` row_format=%s;"
+                , table_name, row[3]);
         fprintf(f, "%s\n", buffer);
       }
       mysql_free_result(result);
@@ -1111,7 +1112,7 @@ export_single_table(const char *table_name, string *err)
   }
 
   //锁定表，并生成.cfg文件
-  sprintf(buffer, "FLUSH TABLES %s FOR EXPORT;", table_name);
+  sprintf(buffer, "FLUSH TABLES `%s` FOR EXPORT;", table_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
@@ -1355,7 +1356,7 @@ import_do_cp_n_alter(const char *table_name, string *err)
   }
 
   //导入数据文件
-  sprintf(buffer, "ALTER TABLE %s IMPORT TABLESPACE;", table_name);
+  sprintf(buffer, "ALTER TABLE `%s` IMPORT TABLESPACE;", table_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
@@ -1433,21 +1434,21 @@ import_single_table_partition_single(const char* table_name,
     //do nothing now
   }
 
-  sprintf(buffer, "create table %s like %s;", ntable_name, table_name);
+  sprintf(buffer, "create table `%s` like `%s`;", ntable_name, table_name);
   int r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
     err->append(mysql_error(&mysql));
   }
 
-  sprintf(buffer, "alter table %s REMOVE PARTITIONING;", ntable_name);
+  sprintf(buffer, "alter table `%s` REMOVE PARTITIONING;", ntable_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
     err->append(mysql_error(&mysql));
   }
 
-  sprintf(buffer, "alter table %s discard tablespace;", ntable_name);
+  sprintf(buffer, "alter table `%s` discard tablespace;", ntable_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
@@ -1474,14 +1475,14 @@ import_single_table_partition_single(const char* table_name,
     return false;
   }
 
-  sprintf(buffer, "alter table %s import tablespace;", ntable_name);
+  sprintf(buffer, "alter table `%s` import tablespace;", ntable_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
     err->append(mysql_error(&mysql));
   }
 
-  sprintf(buffer, "ALTER TABLE %s EXCHANGE PARTITION %s WITH TABLE %s;",
+  sprintf(buffer, "ALTER TABLE `%s` EXCHANGE PARTITION %s WITH TABLE %s;",
           table_name, ptable_name, ntable_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
@@ -1489,7 +1490,7 @@ import_single_table_partition_single(const char* table_name,
     err->append(mysql_error(&mysql));
   }
 
-  sprintf(buffer, "drop table %s;", ntable_name);
+  sprintf(buffer, "drop table `%s`;", ntable_name);
   r = mysql_query(&mysql, buffer);
   if (r != 0)
   {
@@ -1583,7 +1584,7 @@ get_partition_tables(const char* table_name, list<char*> *ptable_names
 {
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
-  sprintf(buffer , "show create table %s;", table_name);
+  sprintf(buffer , "show create table `%s`;", table_name);
   mysql_query(&mysql, buffer);
   if (!(result = mysql_store_result(&mysql)))
   {
@@ -1639,7 +1640,7 @@ table_has_foreign_key(const char *table_name, bool *has_fk, string *err)
 
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
-  sprintf(buffer , "show create table %s;", table_name);
+  sprintf(buffer , "show create table `%s`;", table_name);
   mysql_query(&mysql, buffer);
   if (!(result = mysql_store_result(&mysql)))
   {
@@ -1770,7 +1771,7 @@ import_single_table(const char *table_name, string *err)
     {
       //normal operation
       //去掉表空间
-      sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
+      sprintf(buffer, "ALTER TABLE `%s` DISCARD TABLESPACE;", table_name);
       r = mysql_query(&mysql, buffer);
       if (r != 0)
         return false;
