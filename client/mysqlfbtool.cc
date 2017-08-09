@@ -85,7 +85,7 @@ struct table_struct
 };
 typedef table_struct table_t;
 
-#define MAX_TABLE_DICT_SIZE (128)
+#define MAX_TABLE_DICT_SIZE (4 * 1024)
 struct table_dict_struct
 {
   int number;
@@ -426,6 +426,23 @@ bool is_fb_line()
   return false;
 }
 
+bool is_new_fb_sql()
+{
+  if (strcasecmp(line_buffer, fb_flag) == 0)
+    return true;
+
+  if (strncmp(line_buffer, "### UPDATE", 10) == 0)
+    return true;
+
+  if (strncmp(line_buffer, "### INSERT", 10) == 0)
+    return true;
+
+  if (strncmp(line_buffer, "### DELETE", 10) == 0)
+    return true;
+
+  return false;
+}
+
 inline bool is_white_char(char c)
 {
   if (isspace(c))
@@ -479,11 +496,11 @@ string build_insert_sql(table_t *table, list<string> &values)
 {
   string sql;
 
-  sql.append("insert into ");
+  sql.append("insert into `");
   sql.append(table->db);
-  sql.append(".");
+  sql.append("`.`");
   sql.append(table->name);
-  sql.append(" (");
+  sql.append("` (");
   //构造插入的列名
   for (int i = 0; i < table->column_number; i++)
   {
@@ -529,11 +546,11 @@ string build_delete_sql(table_t *table, list<string> &values)
 {
   string sql;
 
-  sql.append("delete from ");
+  sql.append("delete from `");
   sql.append(table->db);
-  sql.append(".");
+  sql.append("`.`");
   sql.append(table->name);
-  sql.append(" where ");
+  sql.append("` where ");
 
   //构造where clause
   list<string>::iterator iter;
@@ -572,11 +589,11 @@ string build_update_sql(table_t *table
 {
   string sql;
 
-  sql.append("update ");
+  sql.append("update `");
   sql.append(table->db);
-  sql.append(".");
+  sql.append("`.`");
   sql.append(table->name);
-  sql.append(" set ");
+  sql.append("` set ");
 
   //构造set clause
   list<string>::iterator iter;
@@ -641,10 +658,11 @@ string build_update_sql(table_t *table
 
 string get_desc_sql(const char *db, const char *table)
 {
-  string sql("show columns from ");
+  string sql("show columns from `");
   sql.append(db);
-  sql.append(".");
+  sql.append("`.`");
   sql.append(table);
+  sql.append("`");
   return sql;
 }
 
@@ -720,7 +738,13 @@ find_table(const char *db, const char *table)
   {
     entry = table_dict.tables + i;
     if (strcasecmp(db, entry->db) == 0 && strcasecmp(table, entry->name) == 0)
+    {
       break;
+    }
+    else
+    {
+      entry = NULL;
+    }
   }
   if (i == MAX_TABLE_DICT_SIZE)
   {
@@ -750,6 +774,8 @@ get_insert_values(list<string> &values)
     }
     if (!is_fb_line())
       break;
+    if (is_new_fb_sql())
+      break;
     v = strchr(line_buffer, '=');
     string sv(v + 1);
     values.push_back(sv);
@@ -768,6 +794,8 @@ get_delete_values(list<string> &values)
       continue;
     }
     if (!is_fb_line())
+      break;
+    if (is_new_fb_sql())
       break;
     v = strchr(line_buffer, '=');
     string sv(v + 1);
@@ -797,6 +825,8 @@ get_update_values(list<string> &set_values, list<string> &where_values)
       continue;
     }
     if (!is_fb_line())
+      break;
+    if (is_new_fb_sql())
       break;
     v = strchr(line_buffer, '=');
     string sv(v + 1);
