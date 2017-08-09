@@ -260,6 +260,148 @@ mem_heap_validate(
 }
 #endif /* UNIV_DEBUG */
 
+#ifdef __linux__
+#include <map>
+#include <string>
+#include <execinfo.h>
+
+using namespace std;
+//每个lwp的内存分配字典记录
+typedef map<mem_block_t*, string> lwp_alloc_map_t;
+typedef map<pid_t, lwp_alloc_map_t*> lwps_alloc_map_t;
+ib_mutex_t	innodb_mem_map_mutex;
+lwps_alloc_map_t lwps_map;
+
+bool alloc_trace = false;
+
+#define BT_FRAME_NUMBER (20)
+string get_backtrace (int bt_size)  
+{  
+  void *array[BT_FRAME_NUMBER];
+  int size;  
+  char **strings;  
+  //string bt_info;
+  stringstream ss;
+  
+  size = backtrace(array, BT_FRAME_NUMBER);  
+  strings = backtrace_symbols(array, size);  
+  if(NULL == strings)  
+  {  
+    perror("backtrace_symbols");  
+    return ss.str();
+  }
+
+  int i;
+  int count = size < bt_size ? size : bt_size;
+  for (i = 0; i < count; i++)
+  {
+    ss << strings[i] << endl;
+    //bt_info.append(strings[i]);
+  }
+  free (strings);  
+
+  //return bt_info;
+  return ss.str();
+}
+
+class MemAllocMap
+{
+ public :
+  MemAllocMap();
+  ~MemAllocMap();
+};
+
+MemAllocMap::MemAllocMap()
+{
+  mutex_create(LATCH_ID_MEM_MONITOR, &innodb_mem_map_mutex);
+}
+
+MemAllocMap::~MemAllocMap()
+{
+  mutex_free(&innodb_mem_map_mutex);
+}
+
+bool alloc_map_log = false;
+
+void
+alloc_map_add(mem_block_t* key, string context)
+{
+  if (!alloc_map_log)
+    return;
+
+  pid_t lwpid = (pid_t) syscall(SYS_gettid);
+  mutex_enter(&innodb_mem_map_mutex);
+  lwp_alloc_map_t *lwp_map = lwps_map[lwpid];
+  mutex_exit(&innodb_mem_map_mutex);
+  if (lwp_map)
+  {
+    //在当前线程操作当前线程
+  }
+  else
+  {
+    //
+    lwp_map = new lwp_alloc_map_t();
+    mutex_enter(&innodb_mem_map_mutex);
+    lwps_map[lwpid] = lwp_map;
+    mutex_exit(&innodb_mem_map_mutex);
+  }
+  lwp_map->insert(pair<mem_block_t*, string>(key, context));
+}
+
+void
+alloc_map_remove(mem_block_t* key)
+{
+  if (!alloc_map_log)
+    return;
+  pid_t lwpid = (pid_t) syscall(SYS_gettid);
+  mutex_enter(&innodb_mem_map_mutex);
+  lwp_alloc_map_t *lwp_map = lwps_map[lwpid];
+  mutex_exit(&innodb_mem_map_mutex);
+  if (lwp_map == NULL)
+  {
+    return ;
+    DBUG_ASSERT(lwp_map != NULL);
+  }
+  lwp_map->erase(key);
+}
+
+void
+alloc_map_print_one(FILE *out, lwp_alloc_map_t *lwp_map)
+{
+  lwp_alloc_map_t::iterator  iter;
+  for(iter = lwp_map->begin(); iter != lwp_map->end(); iter++)
+  {
+    string context = iter->second;
+    fprintf(out, "%s\n", context.c_str());
+  }
+}
+
+void
+alloc_map_print()
+{
+  FILE *f = fopen("/tmp/alloc_map.log", "w+");
+  if (f == NULL)
+    return;
+
+  mutex_enter(&innodb_mem_map_mutex);
+  lwps_alloc_map_t::iterator  iter;
+  lwp_alloc_map_t* lwp_map = NULL;
+  for(iter = lwps_map.begin(); iter != lwps_map.end(); iter++)
+  {
+    fprintf(f, "%d\n", iter->first);
+    lwp_map = iter->second;
+    alloc_map_print_one(f, lwp_map);
+  }
+  mutex_exit(&innodb_mem_map_mutex);
+  fflush(f);
+  fclose(f);
+}
+
+#else
+#define alloc_map_add(p1, p2)
+#define alloc_map_remove(p1)
+#endif
+
 /***************************************************************//**
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
@@ -361,6 +503,15 @@ mem_heap_create_block_func(
 
 	ut_ad((ulint)MEM_BLOCK_HEADER_SIZE < len);
 
+    if (alloc_trace)
+    {
+      stringstream ss;
+      ss << n << endl;
+      string bt_info = get_backtrace(16);
+      ss << bt_info << endl;
+      string x(ss.str());
+      alloc_map_add(block, x);
+    }
 	return(block);
 }
 
@@ -446,6 +597,9 @@ mem_heap_block_free(
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
 	UNIV_MEM_ASSERT_W(block, len);
+
+    if (alloc_trace)
+      alloc_map_remove(block);
 
 #ifndef UNIV_HOTBACKUP
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {

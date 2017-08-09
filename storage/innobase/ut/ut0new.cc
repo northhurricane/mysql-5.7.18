@@ -207,6 +207,46 @@ ut_new_boot()
 
 #ifdef UNIV_PFS_MEMORY
 
+
+#include <execinfo.h>  
+
+#define BT_FRAME_NUMBER (20)
+void print_trace (void)  
+{  
+  void *array[BT_FRAME_NUMBER];
+  int size;  
+  char **strings;  
+  int i;  
+  size = backtrace(array, BT_FRAME_NUMBER);  
+  strings = backtrace_symbols(array, size);  
+  if(NULL == strings)  
+  {  
+    perror("backtrace_synbols");  
+    exit(EXIT_FAILURE);  
+  }  
+
+  FILE *f = fopen("/tmp/bt.log", "a+");
+  fprintf (f, "Obtained %d stack frames.\n", size);  
+  
+  for (i = 0; i < size; i++)  
+    fprintf (f, "%s\n", strings[i]);  
+  fflush(f);
+  fclose(f);
+  free (strings);  
+  strings = NULL;  
+}
+
+void mystop_for_dbg()
+{
+  /*  bool p = false;
+  if (p)
+  log_backtrace = true;*/
+  if (false)
+  {
+    fprintf(stdout, "%s", "");
+  }
+}
+
 /** Retrieve a memory key (registered with PFS), given a portion of the file
 name of the caller.
 @param[in]	file	portion of the filename - basename without an extension
@@ -216,6 +256,8 @@ ut_new_get_key_by_file(
 	const char*	file)
 {
 	mem_keys_auto_t::const_iterator	el = mem_keys_auto.find(file);
+    if (file != NULL && strcmp(file, "mem0mem") == 0)
+      mystop_for_dbg();
 
 	if (el != mem_keys_auto.end()) {
 		return(*(el->second));
