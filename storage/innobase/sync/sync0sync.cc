@@ -108,6 +108,7 @@ mysql_pfs_key_t	thread_mutex_key;
 mysql_pfs_key_t zip_pad_mutex_key;
 mysql_pfs_key_t row_drop_list_mutex_key;
 mysql_pfs_key_t	master_key_id_mutex_key;
+mysql_pfs_key_t	innodb_handler_stat_id_mutex_key;
 
 #endif /* UNIV_PFS_MUTEX */
 

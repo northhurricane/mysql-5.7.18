@@ -132,19 +132,12 @@ innodb_handlers_t innodb_handlers;
 
 ib_mutex_t innodb_handler_map_mutex;
 
-class InnoDBHandler
+void innodb_handler_stat_init()
 {
- public :
-  InnoDBHandler();
-  ~InnoDBHandler();
-};
-
-InnoDBHandler::InnoDBHandler()
-{
-  mutex_create(LATCH_ID_HANDLER_MONITOR, &innodb_handler_map_mutex);
+  memset(innodb_counter_value, 0, sizeof innodb_counter_value);
 }
 
-InnoDBHandler::~InnoDBHandler()
+void innodb_handler_stat_deinit()
 {
   mutex_free(&innodb_handler_map_mutex);
 }
@@ -174,7 +167,8 @@ innodb_handler_stat_mem_heap()
   for(iter = innodb_handlers.begin(); iter != innodb_handlers.end(); iter++)
   {
     ha_innobase *handler = iter->second;
-    total_size += handler->m_prebuilt->heap->total_size;
+    if (handler->m_prebuilt != NULL && handler->m_prebuilt->heap != NULL)
+      total_size += handler->m_prebuilt->heap->total_size;
   }
   mutex_exit(&innodb_handler_map_mutex);
   innodb_handler_heap_use = total_size;
@@ -4175,6 +4169,7 @@ innobase_change_buffering_inited_ok:
 
 	/* Create mutex to protect encryption master_key_id. */
 	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
+    mutex_create(LATCH_ID_HANDLER_MONITOR, &innodb_handler_map_mutex);
 
 	/* Adjust the innodb_undo_logs config object */
 	innobase_undo_logs_init_default_max();
@@ -4205,8 +4200,6 @@ innobase_change_buffering_inited_ok:
 
 	/* Currently, monitor counter information are not persistent. */
 	memset(monitor_set_tbl, 0, sizeof monitor_set_tbl);
-
-	memset(innodb_counter_value, 0, sizeof innodb_counter_value);
 
 	/* Do this as late as possible so server is fully starts up,
 	since  we might get some initial stats if user choose to turn
@@ -4239,6 +4232,7 @@ innobase_change_buffering_inited_ok:
 # endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
 
+    innodb_handler_stat_init();
 	DBUG_RETURN(0);
 }
 
@@ -4277,6 +4271,7 @@ innobase_end(
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
 	}
+    innodb_handler_stat_deinit();
 
 	DBUG_RETURN(err);
 }
@@ -6467,6 +6462,7 @@ ha_innobase::close()
 	}
 
 	row_prebuilt_free(m_prebuilt, FALSE);
+    m_prebuilt = NULL;
 
 	if (m_upd_buf != NULL) {
 		ut_ad(m_upd_buf_size != 0);
