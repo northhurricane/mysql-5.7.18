@@ -134,28 +134,28 @@ ib_mutex_t innodb_handler_map_mutex;
 
 void innodb_handler_stat_init()
 {
-  memset(innodb_counter_value, 0, sizeof innodb_counter_value);
+  //  mutex_create(LATCH_ID_HANDLER_MONITOR, &innodb_handler_map_mutex);
 }
 
 void innodb_handler_stat_deinit()
 {
-  mutex_free(&innodb_handler_map_mutex);
+  //mutex_free(&innodb_handler_map_mutex);
 }
 
 void
 innodb_handler_add(ha_innobase *handler)
 {
-  mutex_enter(&innodb_handler_map_mutex);
+  /*mutex_enter(&innodb_handler_map_mutex);
   innodb_handlers[handler] = handler;
-  mutex_exit(&innodb_handler_map_mutex);
+  mutex_exit(&innodb_handler_map_mutex);*/
 }
 
 void
 innodb_handler_remove(ha_innobase *handler)
 {
-  mutex_enter(&innodb_handler_map_mutex);
+  /*  mutex_enter(&innodb_handler_map_mutex);
   innodb_handlers.erase(handler);
-  mutex_exit(&innodb_handler_map_mutex);
+  mutex_exit(&innodb_handler_map_mutex);*/
 }
 
 ulonglong
@@ -4169,7 +4169,6 @@ innobase_change_buffering_inited_ok:
 
 	/* Create mutex to protect encryption master_key_id. */
 	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
-    mutex_create(LATCH_ID_HANDLER_MONITOR, &innodb_handler_map_mutex);
 
 	/* Adjust the innodb_undo_logs config object */
 	innobase_undo_logs_init_default_max();

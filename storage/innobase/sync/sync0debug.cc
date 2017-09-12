@@ -1579,8 +1579,8 @@ sync_latch_meta_init()
 	LATCH_ADD_MUTEX(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK,
 			master_key_id_mutex_key);
 
-	LATCH_ADD_MUTEX(HANDLER_MONITOR, SYNC_NO_ORDER_CHECK,
-			innodb_handler_stat_id_mutex_key);
+    LATCH_ADD_MUTEX(HANDLER_MONITOR, SYNC_NO_ORDER_CHECK,
+        innodb_handler_stat_id_mutex_key);
 
 	latch_id_t	id = LATCH_ID_NONE;
 
