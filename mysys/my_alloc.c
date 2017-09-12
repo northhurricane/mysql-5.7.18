@@ -20,6 +20,22 @@
 #include <m_string.h>
 #include "mysys_err.h"
 
+/*add by jiangyx begin*/
+ulonglong mem_root_use;
+
+void
+mem_root_use_add(ulong len)
+{
+  __sync_fetch_and_add(&mem_root_use, len);
+}
+
+void
+mem_root_use_sub(ulong len)
+{
+  __sync_fetch_and_sub(&mem_root_use, len);
+}
+/*add by jiangyx end*/
+
 static inline my_bool is_mem_available(MEM_ROOT *mem_root, size_t size);
 
 /*
@@ -78,6 +94,7 @@ void init_alloc_root(PSI_memory_key key,
                                pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM)),
 			       MYF(0))))
     {
+      mem_root_use_add(pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM)));
       mem_root->free->size= (uint)(pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM)));
       mem_root->free->left= (uint)pre_alloc_size;
       mem_root->free->next= 0;
@@ -142,6 +159,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
           {
             mem->left= mem->size;
             mem_root->allocated_size-= mem->size;
+            mem_root_use_sub(mem->size);
             TRASH_MEM(mem);
             my_free(mem);
           }
@@ -154,6 +172,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
           (mem= (USED_MEM *) my_malloc(mem_root->m_psi_key,
                                        size, MYF(0))))
       {
+        mem_root_use_add(size);
         mem->size= (uint)size;
         mem->left= (uint)pre_alloc_size;
         mem->next= *prev;
@@ -221,6 +240,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
       (*mem_root->error_handler)();
     DBUG_RETURN((uchar*) 0);			/* purecov: inspected */
   }
+  mem_root_use_add(length);
   mem_root->allocated_size+= length;
   next->next= mem_root->used;
   next->size= (uint)length;
@@ -283,6 +303,9 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
 	(*mem_root->error_handler)();
       DBUG_RETURN((void*) 0);                      /* purecov: inspected */
     }
+
+    mem_root_use_add(get_size);
+
     mem_root->allocated_size+= get_size;
     mem_root->block_num++;
     next->next= *prev;
@@ -447,6 +470,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
     if (old != root->pre_alloc)
     {
       old->left= old->size;
+      mem_root_use_sub(old->size);
       TRASH_MEM(old);
       my_free(old);
     }
@@ -457,6 +481,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
     if (old != root->pre_alloc)
     {
       old->left= old->size;
+      mem_root_use_sub(old->size);
       TRASH_MEM(old);
       my_free(old);
     }

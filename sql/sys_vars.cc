@@ -5750,3 +5750,13 @@ static Sys_var_charptr Sys_ctrip_build_commit(
        "ctrip_build_commit", "ctrip_build_commit",
        READ_ONLY GLOBAL_VAR(server_ctrip_build_commit_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_COMMIT));
+
+
+extern "C" ulonglong mem_root_use;
+static Sys_var_ulonglong Sys_mem_root_use(
+       "mem_root_use",
+       "MEM_ROOT memory allocated bytes.",
+       GLOBAL_VAR(mem_root_use), CMD_LINE(OPT_ARG),
+       VALID_RANGE(0, (ulonglong)~(intptr)0), DEFAULT(0),
+       BLOCK_SIZE(1), ON_CHECK(0));
+
