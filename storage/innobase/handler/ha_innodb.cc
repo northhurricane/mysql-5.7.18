@@ -120,101 +120,8 @@ enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 /*memory check by jiangyx*/
 ulonglong innodb_handler_open = 0;
-ulong innodb_handler_size = sizeof(ha_innobase);
-ulonglong innodb_handler_heap_use = 0;
-static my_bool handler_stat = FALSE;
-
-#include <map>
-using namespace std;
-
-typedef map<ha_innobase*, ha_innobase*> innodb_handlers_t;
-innodb_handlers_t innodb_handlers;
-
-ib_mutex_t innodb_handler_map_mutex;
-
-void innodb_handler_stat_init()
-{
-  //  mutex_create(LATCH_ID_HANDLER_MONITOR, &innodb_handler_map_mutex);
-}
-
-void innodb_handler_stat_deinit()
-{
-  //mutex_free(&innodb_handler_map_mutex);
-}
-
-void
-innodb_handler_add(ha_innobase *handler)
-{
-  /*mutex_enter(&innodb_handler_map_mutex);
-  innodb_handlers[handler] = handler;
-  mutex_exit(&innodb_handler_map_mutex);*/
-}
-
-void
-innodb_handler_remove(ha_innobase *handler)
-{
-  /*  mutex_enter(&innodb_handler_map_mutex);
-  innodb_handlers.erase(handler);
-  mutex_exit(&innodb_handler_map_mutex);*/
-}
-
-ulonglong
-innodb_handler_stat_mem_heap()
-{
-  ulonglong total_size = 0;
-  mutex_enter(&innodb_handler_map_mutex);
-  innodb_handlers_t::iterator  iter;
-  for(iter = innodb_handlers.begin(); iter != innodb_handlers.end(); iter++)
-  {
-    ha_innobase *handler = iter->second;
-    if (handler->m_prebuilt != NULL && handler->m_prebuilt->heap != NULL)
-      total_size += handler->m_prebuilt->heap->total_size;
-  }
-  mutex_exit(&innodb_handler_map_mutex);
-  innodb_handler_heap_use = total_size;
-  return 0;
-}
-
-static
-int
-innodb_handler_stat_validate(
-  /*=============================*/
-  THD*                            thd,    /*!< in: thread handle */
-  struct st_mysql_sys_var*        var,    /*!< in: pointer to system
-                                            variable */
-  void*                           save,   /*!< out: immediate result
-                                            for update function */
-  struct st_mysql_value*          value)  /*!< in: incoming string */
-{
-  DBUG_ENTER("ctrip_audit_flush_log_validate");
-  long long tmp;
-
-  value->val_int(value, &tmp);
-  if (tmp)
-  {
-    //make statistic
-    innodb_handler_stat_mem_heap();
-    DBUG_RETURN(0);
-  }
-
-  DBUG_RETURN(1);
-}
-
-static
-void
-innodb_handler_stat_update(
-  THD*				thd,		/*!< in: thread handle */
-  struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-  void*				var_ptr,	/*!< out: where the
-							formal string goes */
-  const void*			save)		/*!< in: immediate result
-							from check function */
-{
-  DBUG_ENTER("ctrip_audit_flush_log_update");
-  DBUG_VOID_RETURN;
-}
-
+ulonglong innodb_heap_use = 0;
+ulonglong innodb_dict_table_heap_use = 0;
 /**/
 
 /** to protect innobase_open_files */
@@ -1425,7 +1332,6 @@ innobase_create_handler(
 			delete file;
 			return(NULL);
 		}
-        innodb_handler_add(file);
 		return(file);
 	}
 
@@ -2906,7 +2812,6 @@ ha_innobase::ha_innobase(
 	m_num_write_row(),
         m_mysql_has_locked()
 {
-  innodb_handler_add(this);
   __sync_fetch_and_add(&innodb_handler_open, 1);
 }
 
@@ -2916,7 +2821,6 @@ Destruct ha_innobase handler. */
 ha_innobase::~ha_innobase()
 /*======================*/
 {
-  innodb_handler_remove(this);
   __sync_fetch_and_sub(&innodb_handler_open, 1);
 }
 
@@ -4231,7 +4135,6 @@ innobase_change_buffering_inited_ok:
 # endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
 
-    innodb_handler_stat_init();
 	DBUG_RETURN(0);
 }
 
@@ -4270,7 +4173,6 @@ innobase_end(
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
 	}
-    innodb_handler_stat_deinit();
 
 	DBUG_RETURN(err);
 }
@@ -20257,22 +20159,15 @@ static MYSQL_SYSVAR_ULONGLONG(handler_open, innodb_handler_open,
   "hanlder openned by innobase",
   NULL, NULL, 0, 0, ULLONG_MAX, 0);
 
-static MYSQL_SYSVAR_ULONG(handler_size, innodb_handler_size,
-  PLUGIN_VAR_READONLY,
-  "hanlder size of innobase",
-  NULL, NULL, sizeof(ha_innobase), 0, ULONG_MAX, 0);
-
-static MYSQL_SYSVAR_ULONGLONG(handler_heap_use, innodb_handler_heap_use,
+static MYSQL_SYSVAR_ULONGLONG(heap_use, innodb_heap_use,
   PLUGIN_VAR_READONLY,
   "hanlder openned by innobase",
   NULL, NULL, 0, 0, ULLONG_MAX, 0);
 
-static MYSQL_SYSVAR_BOOL(handler_stat, handler_stat
-                         , PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG
-                         , "make statistic"
-                         , innodb_handler_stat_validate
-                         , innodb_handler_stat_update
-                         , FALSE);
+static MYSQL_SYSVAR_ULONGLONG(dict_table_heap_use, innodb_dict_table_heap_use,
+                              PLUGIN_VAR_READONLY,
+                              "heap usage of table dictionary object",
+                              NULL, NULL, 0, 0, ULLONG_MAX, 0);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
@@ -20447,9 +20342,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(handler_open),
-  MYSQL_SYSVAR(handler_size),
-  MYSQL_SYSVAR(handler_heap_use),
-  MYSQL_SYSVAR(handler_stat),
+  MYSQL_SYSVAR(heap_use),
+  MYSQL_SYSVAR(dict_table_heap_use),
   NULL
 };
 

@@ -34,6 +34,19 @@ Created 6/9/1994 Heikki Tuuri
 #include "srv0srv.h"
 #include <stdarg.h>
 
+extern ulonglong innodb_heap_use;
+void
+innodb_heap_use_add(ulint len)
+{
+  __sync_fetch_and_add(&innodb_heap_use, len);
+}
+
+void
+innodb_heap_use_sub(ulint len)
+{
+  __sync_fetch_and_sub(&innodb_heap_use, len);
+}
+
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
 @param[in]	heap,	memory heap where string is allocated
 @param[in]	str)	string to be copied
@@ -468,7 +481,8 @@ mem_heap_create_block_func(
 		ib::fatal() << "Unable to allocate memory of size "
 			<< len << ".";
 	}
-
+    
+    innodb_heap_use_add(len);
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 #else /* !UNIV_HOTBACKUP */
@@ -601,6 +615,7 @@ mem_heap_block_free(
     if (alloc_trace)
       alloc_map_remove(block);
 
+    innodb_heap_use_sub(len);
 #ifndef UNIV_HOTBACKUP
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 

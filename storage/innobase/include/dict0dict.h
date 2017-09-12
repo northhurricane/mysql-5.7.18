@@ -1107,6 +1107,11 @@ dict_index_find_on_id_low(
 /*======================*/
 	index_id_t	id)	/*!< in: index id */
 	MY_ATTRIBUTE((warn_unused_result));
+
+/*calc all heap usage in table dict cache*/
+ulint
+dict_table_cache_heap_usage();
+
 /**********************************************************************//**
 Make room in the table cache by evicting an unused table. The unused table
 should not be part of FK relationship and currently not used in any user

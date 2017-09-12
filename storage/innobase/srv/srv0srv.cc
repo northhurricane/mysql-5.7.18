@@ -1958,6 +1958,7 @@ srv_sync_log_buffer_in_background(void)
 	}
 }
 
+extern ulonglong innodb_dict_table_heap_use;
 /********************************************************************//**
 Make room in the table cache by evicting an unused table.
 @return number of tables evicted. */
@@ -1975,6 +1976,8 @@ srv_master_evict_from_table_cache(
 
 	n_tables_evicted = dict_make_room_in_cache(
 		innobase_get_table_cache_size(), pct_check);
+
+    innodb_dict_table_heap_use = dict_table_cache_heap_usage();
 
 	dict_mutex_exit_for_mysql();
 

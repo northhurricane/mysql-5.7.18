@@ -1510,6 +1510,29 @@ dict_table_can_be_evicted(
 	return(FALSE);
 }
 
+ulint
+dict_table_cache_heap_usage()
+{
+  int i = 0;
+  dict_table_t*   table;
+  ulint total_size = 0;
+  for (table = UT_LIST_GET_LAST(dict_sys->table_LRU); table != NULL; i++)
+  {
+
+    dict_table_t*      prev_table;
+    if (table->heap != NULL)
+    {
+      total_size += table->heap->total_size;
+    }
+
+    prev_table = UT_LIST_GET_PREV(table_LRU, table);
+
+    table = prev_table;
+  }
+
+  return total_size;
+}
+
 /**********************************************************************//**
 Make room in the table cache by evicting an unused table. The unused table
 should not be part of FK relationship and currently not used in any user
