@@ -155,6 +155,7 @@ skip:
 		os_atomic_increment_ulint(
 			&os_total_large_mem_allocated, size);
 		UNIV_MEM_ALLOC(ptr, size);
+        //memset(ptr, 0, size);
 	}
 #endif
 	return(ptr);
