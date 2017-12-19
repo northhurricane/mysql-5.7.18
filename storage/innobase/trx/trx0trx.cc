@@ -2606,6 +2606,161 @@ state_ok:
 	}
 }
 
+
+void
+trx_dead_lock_print_locks_json(
+  FILE*		f,
+  const trx_t*	trx);
+
+/**********************************************************************//**
+Prints info about a transaction.
+Caller must hold trx_sys->mutex. */
+void
+trx_dead_lock_print_json(
+/*==========*/
+  FILE*		f,
+  /*!< in: output stream */
+  ulint seq,
+  /*!< in: output stream */
+  const trx_t*	trx,
+  /*!< in: transaction inc circle */
+  ulint		max_query_len,
+  /*!< in: max query length to print,
+    or 0 to use the default max length */
+  ulint		n_rec_locks,
+  /*!< in: lock_number_of_rows_locked(&trx->lock) */
+  ulint		n_trx_locks,
+  /*!< in: length of trx->lock.trx_locks */
+  ulint		heap_size)
+    /*!< in: mem_heap_get_size(trx->lock.lock_heap) */
+{
+  const char*	op_info;
+  char temp_buff[512];
+
+  ut_ad(trx_sys_mutex_own());
+
+  fprintf(f, "{\"seq\": %ld", seq);
+
+  //trx info
+  fprintf(f, ",\"trx_id\": %ld", trx_get_id_for_print(trx));
+  /* trx->state cannot change from or to NOT_STARTED while we
+     are holding the trx_sys->mutex. It may change from ACTIVE to
+     PREPARED or COMMITTED. */
+  fprintf(f, ",\"trx_state\":");
+  switch (trx->state) {
+  case TRX_STATE_NOT_STARTED:
+    fprintf(f, "\"%s\"", "not started");
+    break;
+  case TRX_STATE_FORCED_ROLLBACK:
+    fprintf(f, "\"%s\"", "forced rollback");
+    break;
+  case TRX_STATE_ACTIVE:
+    sprintf(temp_buff, "ACTIVE %lu sec",
+			(ulong) difftime(time(NULL), trx->start_time));
+    fprintf(f, "\"%s\"", temp_buff);
+    break;
+  case TRX_STATE_PREPARED:
+    sprintf(temp_buff, ", ACTIVE (PREPARED) %lu sec",
+			(ulong) difftime(time(NULL), trx->start_time));
+    fprintf(f, "\"%s\"", temp_buff);
+    break;
+  case TRX_STATE_COMMITTED_IN_MEMORY:
+    fprintf(f, "\"%s\"", "COMMITTED IN MEMORY");
+    break;
+  default:
+    sprintf(temp_buff, "state %lu", (ulong) trx->state);
+    fprintf(f, "\"%s\"", temp_buff);
+    ut_ad(0);
+  }
+
+  op_info = trx->op_info;
+  fprintf(f, ",\"op_info\":");
+  if (*op_info)
+  {
+    fprintf(f, "\"%s\"", op_info);
+  }
+  else
+  {
+    fprintf(f, "null");
+  }
+
+  fprintf(f, ",\"tables_in_use\":%lu", (ulong)trx->n_mysql_tables_in_use);
+  fprintf(f, ",\"tables_locked\":%lu", (ulong)trx->mysql_n_tables_locked);
+  
+  /* trx->lock.que_state of an ACTIVE transaction may change
+     while we are not holding trx->mutex. We perform a dirty read
+     for performance reasons. */
+  fprintf(f, ",\"trx_lock_que_state\":");
+  switch (trx->lock.que_state) {
+  case TRX_QUE_RUNNING:
+    fprintf(f, "\"%s\"", "RUNNING");
+    break;
+  case TRX_QUE_LOCK_WAIT:
+    fprintf(f, "\"%s\"", "LOCK WAIT");
+    break;
+  case TRX_QUE_ROLLING_BACK:
+    fprintf(f, "\"%s\"", "ROLLING BACK");
+    break;
+  case TRX_QUE_COMMITTING:
+    fprintf(f, "\"%s\"", "COMMITTING");
+    break;
+  default:
+    fprintf(f, "\"que state %lu\"", (ulong) trx->lock.que_state);
+  }
+
+  /*
+  if (n_trx_locks > 0 || heap_size > 400) {
+    newline = TRUE;
+
+    fprintf(f, "%lu lock struct(s), heap size %lu,"
+			" %lu row lock(s)",
+			(ulong) n_trx_locks,
+			(ulong) heap_size,
+			(ulong) n_rec_locks);
+  }
+
+  if (trx->has_search_latch) {
+    newline = TRUE;
+    fputs(", holds adaptive hash latch", f);
+  }
+  */
+
+  fprintf(f, ", \"undo_log_entries\":");
+  if (trx->undo_no != 0) {
+    sprintf(temp_buff, ""TRX_ID_FMT, trx->undo_no);
+    fprintf(f, "\"%s\"", temp_buff);
+  }
+  else
+  {
+    fprintf(f, "null");
+  }
+
+  fprintf(f, ",locks:");
+  trx_dead_lock_print_locks_json(f, trx);
+
+  fprintf(f, ", \"sql_env\":");
+  if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != NULL) {
+    char sql_buff[4096];
+    ulint max_query_len2 = (sizeof(sql_buff) - 1 < max_query_len) ?
+                           (sizeof(sql_buff) - 1) : max_query_len;
+    thd_security_context(trx->mysql_thd, sql_buff, sizeof(sql_buff)
+                         ,static_cast<uint>(max_query_len2));
+    for (ulint i = 0; i < max_query_len2; i++)
+    {
+      //json不支持包含字符/r/n的值，进行相应的替换
+      if (sql_buff[i] == '\r' || sql_buff[i] == '\n')
+        sql_buff[i] = ' ';
+    }
+    fprintf(f, "\"%s\"", sql_buff);
+  }
+  else
+  {
+    fprintf(f, "null");
+  }
+
+  //lock info
+}
+
 /**********************************************************************//**
 Prints info about a transaction.
 The caller must hold lock_sys->mutex and trx_sys->mutex.
