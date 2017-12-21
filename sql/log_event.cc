@@ -3684,10 +3684,16 @@ bool Query_log_event::write(IO_CACHE* file)
       Security_context *ctx= thd->security_context();
       LEX_CSTRING priv_user= ctx->priv_user();
       LEX_CSTRING priv_host= ctx->priv_host();
+      LEX_CSTRING host_or_ip = ctx->host_or_ip();
 
       invoker_user.length= priv_user.length;
       invoker_user.str= (char *) priv_user.str;
-      if (priv_host.str[0] != '\0')
+      if (host_or_ip.str != NULL && host_or_ip.str[0] != '\0')
+      {
+        invoker_host.str= (char *) host_or_ip.str;
+        invoker_host.length= host_or_ip.length;
+      }
+      else if (priv_host.str[0] != '\0')
       {
         invoker_host.str= (char *) priv_host.str;
         invoker_host.length= priv_host.length;
