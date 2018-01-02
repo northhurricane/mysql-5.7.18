@@ -58,6 +58,8 @@
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
 
+#include "sql_iostat.h"
+
 #define MIN_BUFFER_SIZE (8)
 #define LOG_BUFFER_SIZE (1024 * 1024 * MIN_BUFFER_SIZE)
 
@@ -5413,6 +5415,7 @@ pfs_refine_statement_v1(PSI_statement_locker *locker,
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
 
+io_stat_reset_func_t io_stat_reset_func = NULL;
 void pfs_start_statement_v1(PSI_statement_locker *locker,
                             const char *db, uint db_len,
                             const char *src_file, uint src_line)
@@ -5459,6 +5462,9 @@ void pfs_start_statement_v1(PSI_statement_locker *locker,
     pfs->start_ru_stime = usage.ru_stime;
 #endif
   }
+
+  if (io_stat_reset_func)
+    io_stat_reset_func();
 }
 
 void pfs_set_statement_text_v1(PSI_statement_locker *locker,
@@ -5616,6 +5622,8 @@ void pfs_set_statement_no_good_index_used_v1(PSI_statement_locker *locker)
   SET_STATEMENT_ATTR_BODY(locker, m_no_good_index_used, 1);
 }
 
+io_stat_get_func_t io_stat_get_func = NULL;
+
 void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 {
   PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
@@ -5756,6 +5764,20 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs->end_ru_utime = usage.ru_utime;
       pfs->end_ru_stime = usage.ru_stime;
 #endif
+      if (io_stat_get_func)
+      {
+        io_stat_t io_stat;
+        io_stat_get_func(&io_stat);
+        pfs->logic_read = io_stat.logic_read;
+        pfs->physic_read = io_stat.physic_read;
+        pfs->page_write = io_stat.page_write;
+      }
+      else
+      {
+        pfs->logic_read = 0;
+        pfs->physic_read = 0;
+        pfs->page_write = 0;
+      }
 
       if (thread->m_flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
