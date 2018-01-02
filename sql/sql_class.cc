@@ -60,6 +60,8 @@
 
 #include "mysql/psi/mysql_ps.h"
 
+#include "sql_iostat.h"
+
 using std::min;
 using std::max;
 
@@ -4782,3 +4784,15 @@ bool THD::is_current_stmt_binlog_disabled() const
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
           !mysql_bin_log.is_open());
 }
+
+
+void thrd_io_incr(uint type)
+{
+  THD *thd = current_thd;
+  if (thd == NULL)
+    return ;
+  switch (type)
+  {
+  }
+}
+

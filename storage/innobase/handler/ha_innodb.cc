@@ -109,6 +109,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 #include "row0ext.h"
 
+#include "sql_iostat.h"
+
 enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 #include "ha_innodb.h"
@@ -196,6 +198,8 @@ static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+io_stat_func_t io_stat_func = NULL;
 
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
@@ -4134,6 +4138,8 @@ innobase_change_buffering_inited_ok:
 	test_row_raw_format_int();
 # endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
+
+    io_stat_func = innobase_hton->io_stat_func;
 
 	DBUG_RETURN(0);
 }
