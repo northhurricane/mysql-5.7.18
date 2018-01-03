@@ -4796,3 +4796,22 @@ void thrd_io_incr(uint type)
   }
 }
 
+void thrd_io_stat_reset()
+{
+  THD *thd = current_thd;
+  if (thd == NULL)
+    return ;
+}
+
+void thrd_io_stat_get(io_stat_t *io_stat)
+{
+  THD *thd = current_thd;
+  if (thd == NULL)
+    return ;
+  if (io_stat == NULL)
+    return ;
+  io_stat->logic_read = thd->logic_read;
+  io_stat->physic_read = thd->physic_read;
+  io_stat->page_write = thd->page_write;
+}
+

@@ -833,6 +833,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   }
 
   hton->io_stat_func = thrd_io_incr;
+  hton->io_stat_reset_func = thrd_io_stat_reset;
+  hton->io_stat_get_func = thrd_io_stat_get;
   hton->slot= HA_SLOT_UNDEF;
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future

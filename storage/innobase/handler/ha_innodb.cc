@@ -3509,6 +3509,8 @@ innobase_init(
 	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
 
+    io_stat_func = innobase_hton->io_stat_func;
+
 	innobase_hton->state = SHOW_OPTION_YES;
 	innobase_hton->db_type = DB_TYPE_INNODB;
 	innobase_hton->savepoint_offset = sizeof(trx_named_savept_t);
@@ -4138,8 +4140,6 @@ innobase_change_buffering_inited_ok:
 	test_row_raw_format_int();
 # endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
-
-    io_stat_func = innobase_hton->io_stat_func;
 
 	DBUG_RETURN(0);
 }

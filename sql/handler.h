@@ -988,8 +988,9 @@ struct handlerton
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 
-  //  void (*io_stat_ptr)(uint stat_type);
   io_stat_func_t  io_stat_func;
+  io_stat_reset_func_t  io_stat_reset_func;
+  io_stat_get_func_t  io_stat_get_func;
 };
 
 

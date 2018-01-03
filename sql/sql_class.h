@@ -4618,11 +4618,12 @@ public:
   void reset_io_stat()
   {
     logic_read = 0;
-    physical_read = 0;
+    physic_read = 0;
   }
 
   ulong logic_read;
-  ulong physical_read;
+  ulong physic_read;
+  ulong page_write;
 };
 
 /**
