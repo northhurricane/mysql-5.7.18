@@ -4793,6 +4793,17 @@ void thrd_io_incr(uint type)
     return ;
   switch (type)
   {
+  case SQL_IOSTAT_LOGICAL_READ:
+    thd->logic_read++;
+    break;
+  case SQL_IOSTAT_PHYSICAL_READ:
+    thd->physic_read++;
+    break;
+  case SQL_IOSTAT_PAGE_WRITE:
+    thd->page_write++;
+    break;
+  default:
+    DBUG_ASSERT(0);
   }
 }
 
@@ -4801,6 +4812,9 @@ void thrd_io_stat_reset()
   THD *thd = current_thd;
   if (thd == NULL)
     return ;
+  thd->logic_read = 0;
+  thd->physic_read = 0;
+  thd->page_write = 0;
 }
 
 void thrd_io_stat_get(io_stat_t *io_stat)

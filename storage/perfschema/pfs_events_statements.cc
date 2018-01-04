@@ -679,6 +679,26 @@ int events_statements_2_csv(PFS_events_statements *statement
   - statement->start_ru_stime.tv_usec;
   sprintf(buffer + pos, "%lld", utime);
   pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* page logic/physic read, page write */
+  /* logic read*/
+  ulonglong count = 0;
+  count = statement->logic_read;
+  sprintf(buffer + pos, "%lld", count);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* physic read*/
+  count = statement->physic_read;
+  sprintf(buffer + pos, "%lld", count);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* page write*/
+  count = statement->page_write;
+  sprintf(buffer + pos, "%lld", count);
+  pos += strlen(buffer + pos);
   /* end */
   DBUG_ASSERT(pos < buffer_size);
   strcpy(buffer + pos, "\r\n");
