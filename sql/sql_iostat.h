@@ -1,8 +1,8 @@
 #ifndef SQL_IOSTAT_INCLUDED
 #define SQL_IOSTAT_INCLUDED
 
-#define SQL_IOSTAT_LOGICAL_READ (1)
-#define SQL_IOSTAT_PHYSICAL_READ (2)
+#define SQL_IOSTAT_LOGIC_READ (1)
+#define SQL_IOSTAT_PHYSIC_READ (2)
 #define SQL_IOSTAT_PAGE_WRITE (3)
 
 struct io_stat_struct

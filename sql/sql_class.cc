@@ -4793,10 +4793,10 @@ void thrd_io_incr(uint type)
     return ;
   switch (type)
   {
-  case SQL_IOSTAT_LOGICAL_READ:
+  case SQL_IOSTAT_LOGIC_READ:
     thd->logic_read++;
     break;
-  case SQL_IOSTAT_PHYSICAL_READ:
+  case SQL_IOSTAT_PHYSIC_READ:
     thd->physic_read++;
     break;
   case SQL_IOSTAT_PAGE_WRITE:

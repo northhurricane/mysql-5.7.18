@@ -218,7 +218,7 @@ buf_read_page_low(
 			return(0);
 		}
 	}
-    io_stat_func(SQL_IOSTAT_PHYSICAL_READ);
+    io_stat_func(SQL_IOSTAT_PHYSIC_READ);
 
 	return(1);
 }
