@@ -7226,6 +7226,8 @@ lock_dead_lock_print_json(FILE *f, const lock_t *lock)
   */
 }
 
+extern ulong innodb_max_locks_print;
+
 void
 trx_dead_lock_print_locks_json(
   FILE*		f,
@@ -7241,6 +7243,7 @@ trx_dead_lock_print_locks_json(
   fprintf(f, "{locks:");
   fprintf(f, "[");
   bool first = true;
+  ulong count = 0;
   for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
        lock != NULL;
        lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
@@ -7255,6 +7258,9 @@ trx_dead_lock_print_locks_json(
     {
       first = false;
     }
+    count++;
+    if (count >= innodb_max_locks_print)
+      break;
   }
   fprintf(f, "]");
   fprintf(f, "}");
