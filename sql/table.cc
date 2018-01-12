@@ -4191,6 +4191,44 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
   return ident_check_status;
 }
 
+/**
+  Check if database name is valid
+
+  @param org_name             Name of database and length
+  @param preserve_lettercase  Preserve lettercase if true
+
+  @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
+  @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
+
+  @note In case of IDENT_NAME_WRONG , this function reports an error (my_error)
+*/
+
+enum_ident_name_check check_db_name_droppable(LEX_STRING *org_name,
+                                              bool preserve_lettercase)
+{
+  char *name= org_name->str;
+  size_t name_length= org_name->length;
+  char prefix[5];
+
+  if (!name_length || name_length > NAME_LEN || name_length < 4)
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
+    return IDENT_NAME_WRONG;
+  }
+  for (int i =0; i < 4; i++)
+  {
+    prefix[i] = name[i];
+  }
+  prefix[4] = 0;
+  if (strcasecmp(prefix, "del_") != 0)
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
+    return IDENT_NAME_WRONG;
+  }
+
+  return IDENT_NAME_OK;
+}
+
 
 /**
   Function to check if table name is valid or not. If it is invalid,

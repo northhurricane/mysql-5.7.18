@@ -3842,6 +3842,8 @@ end_with_restore_list:
   {
     if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
+    if (check_db_name_droppable(&lex->name, FALSE) != IDENT_NAME_OK)
+      break;
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
