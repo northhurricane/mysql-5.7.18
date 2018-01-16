@@ -1098,16 +1098,16 @@ exit:
 bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
                      ,bool if_exists, bool silent)
 {
-  ulong deleted_tables= 0;
+  //  ulong deleted_tables= 0;
   bool error= true;
   char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
   size_t length;
-  bool found_other_files= false;
-  TABLE_LIST *tables= NULL;
-  TABLE_LIST *table;
+  //bool found_other_files= false;
+  //TABLE_LIST *tables= NULL;
+  //TABLE_LIST *table;
   Drop_table_error_handler err_handler;
-  DBUG_ENTER("mysql_rm_db");
+  DBUG_ENTER("mysql_rename_db");
 
 
   if (lock_schema_name(thd, db.str))
@@ -1136,6 +1136,7 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
       goto exit;
     }
   }
+  my_dirend(dirp);  
 
   //create new database
   {
@@ -1214,7 +1215,10 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
     }
   }
   //tables have been moved
-
+exit :
+  my_dirend(dirp);
+  return error;
+#ifdef DELETED
   //
   if (find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
                                         &found_other_files))
@@ -1468,6 +1472,7 @@ exit:
   }
   my_dirend(dirp);
   DBUG_RETURN(error);
+#endif
 }
 
 static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
