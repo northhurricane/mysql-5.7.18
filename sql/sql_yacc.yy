@@ -7521,6 +7521,7 @@ alter:
           {
             LEX *lex=Lex;
             lex->sql_command=SQLCOM_ALTER_DB;
+			lex->alter_db_type=ALTER_DB_TYPE_NULL;
             lex->name= $3;
             if (lex->name.str == NULL &&
                 lex->copy_db_to(&lex->name.str, &lex->name.length))
@@ -7538,6 +7539,19 @@ alter:
             }
             lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
             lex->name= $3;
+          }
+        | ALTER DATABASE ident RENAME TO_SYM ident
+          {
+            LEX *lex= Lex;
+            lex->sql_command=SQLCOM_ALTER_DB;
+			lex->alter_db_type = ALTER_DB_TYPE_RENAME;
+            if (lex->sphead)
+            {
+              my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
+              MYSQL_YYABORT;
+            }
+            lex->name= $3;
+            lex->ident= $6;
           }
         | ALTER PROCEDURE_SYM sp_name
           {
