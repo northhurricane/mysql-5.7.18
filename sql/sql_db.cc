@@ -1080,6 +1080,395 @@ exit:
   DBUG_RETURN(error);
 }
 
+/**
+  Drop all tables, routines and events in a database and the database itself.
+
+  @param  thd        Thread handle
+  @param  db         Database name in the case given by user
+                     It's already validated and set to lower case
+                     (if needed) when we come here
+  @param  if_exists  Don't give error if database doesn't exists
+  @param  silent     Don't write the statement to the binary log and don't
+                     send ok packet to the client
+
+  @retval  false  OK (Database dropped)
+  @retval  true   Error
+*/
+
+bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
+                     ,bool if_exists, bool silent)
+{
+  ulong deleted_tables= 0;
+  bool error= true;
+  char	path[2 * FN_REFLEN + 16];
+  MY_DIR *dirp;
+  size_t length;
+  bool found_other_files= false;
+  TABLE_LIST *tables= NULL;
+  TABLE_LIST *table;
+  Drop_table_error_handler err_handler;
+  DBUG_ENTER("mysql_rm_db");
+
+
+  if (lock_schema_name(thd, db.str))
+    DBUG_RETURN(true);
+
+  length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
+  my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
+  /*
+  del_dbopt(path);				// Remove dboption hash entry
+  */
+  path[length]= '\0';				// Remove file name
+
+  /* See if the directory exists */
+  if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
+  {
+    if (!if_exists)
+    {
+      my_error(ER_DB_DROP_EXISTS, MYF(0), db.str);
+      DBUG_RETURN(true);
+    }
+    else
+    {
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
+			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db.str);
+      error= false;
+      goto exit;
+    }
+  }
+
+  //create new database
+  {
+    HA_CREATE_INFO create_info;
+    if ((load_db_opt(thd, path, &create_info)))
+      create_info.default_table_charset= thd->variables.collation_server;
+    if ((error= mysql_create_db(thd, ndb.str, &create_info, 1)))
+      goto exit;
+  }
+
+  //Move tables to the new database
+  {
+    SELECT_LEX *sl= thd->lex->current_select();
+    TABLE_LIST *table_list;
+    if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
+    {
+      uint nfiles= (uint) dirp->number_off_files;
+      for (uint idx=0 ; idx < nfiles && !thd->killed ; idx++)
+      {
+        FILEINFO *file= dirp->dir_entry + idx;
+        char *extension, tname[FN_REFLEN + 1];
+        LEX_CSTRING table_str;
+        DBUG_PRINT("info",("Examining: %s", file->name));
+
+        /* skiping non-FRM files */
+        if (my_strcasecmp(files_charset_info,
+                          (extension= fn_rext(file->name)), reg_ext))
+          continue;
+
+        /* A frm file found, add the table info rename list */
+        *extension= '\0';
+
+        table_str.length= filename_to_tablename(file->name,
+                                                tname, sizeof(tname)-1);
+        table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
+        Table_ident *old_ident= new Table_ident(thd, db, table_str, 0);
+        Table_ident *new_ident= new Table_ident(thd, ndb, table_str, 0);
+        if (!old_ident || !new_ident ||
+            !sl->add_table_to_list(thd, old_ident, NULL,
+                                   TL_OPTION_UPDATING, TL_IGNORE,
+                                   MDL_EXCLUSIVE) ||
+            !sl->add_table_to_list(thd, new_ident, NULL,
+                                   TL_OPTION_UPDATING, TL_IGNORE,
+                                   MDL_EXCLUSIVE))
+        {
+          error= 1;
+          my_dirend(dirp);
+          goto exit;
+        }
+      }
+      my_dirend(dirp);  
+    }
+
+    if ((table_list= thd->lex->query_tables) &&
+        (error= mysql_rename_tables(thd, table_list, 1)))
+    {
+      /*
+        Failed to move all tables from the old database to the new one.
+        In the best case mysql_rename_tables() moved all tables back to the old
+        database. In the worst case mysql_rename_tables() moved some tables
+        to the new database, then failed, then started to move the tables back,
+        and then failed again. In this situation we have some tables in the
+        old database and some tables in the new database.
+        Let's delete the option file, and then the new database directory.
+        If some tables were left in the new directory, rmdir() will fail.
+        It garantees we never loose any tables.
+      */
+      build_table_filename(path, sizeof(path)-1,
+                           ndb.str,"",MY_DB_OPT_FILE, 0);
+      mysql_file_delete(key_file_dbopt, path, MYF(MY_WME));
+      length= build_table_filename(path, sizeof(path)-1, ndb.str, "", "", 0);
+      if (length && path[length-1] == FN_LIBCHAR)
+        path[length-1]=0;                            // remove ending '\'
+      rmdir(path);
+      goto exit;
+    }
+  }
+  //tables have been moved
+
+  //
+  if (find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
+                                        &found_other_files))
+    goto exit;
+
+  /*
+    Disable drop of enabled log tables, must be done before name locking.
+    This check is only needed if we are dropping the "mysql" database.
+  */
+  if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db.str) == 0))
+  {
+    for (table= tables; table; table= table->next_local)
+    {
+      if (query_logger.check_if_log_table(table, true))
+      {
+        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
+        goto exit;
+      }
+    }
+  }
+
+  /* Lock all tables and stored routines about to be dropped. */
+  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0) ||
+      lock_db_routines(thd, db.str))
+    goto exit;
+
+  /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
+  if (tables)
+    mysql_ha_rm_tables(thd, tables);
+
+  for (table= tables; table; table= table->next_local)
+  {
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                     false);
+    deleted_tables++;
+  }
+
+  thd->push_internal_handler(&err_handler);
+  if (!thd->killed &&
+      !(tables &&
+        mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
+  {
+    /*
+      We temporarily disable the binary log while dropping the objects
+      in the database. Since the DROP DATABASE statement is always
+      replicated as a statement, execution of it will drop all objects
+      in the database on the slave as well, so there is no need to
+      replicate the removal of the individual objects in the database
+      as well.
+
+      This is more of a safety precaution, since normally no objects
+      should be dropped while the database is being cleaned, but in
+      the event that a change in the code to remove other objects is
+      made, these drops should still not be logged.
+
+      Notice that the binary log have to be enabled over the call to
+      ha_drop_database(), since NDB otherwise detects the binary log
+      as disabled and will not log the drop database statement on any
+      other connected server.
+    */
+
+    ha_drop_database(path);
+    tmp_disable_binlog(thd);
+    query_cache.invalidate(db.str);
+    (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
+#ifndef EMBEDDED_LIBRARY
+    Events::drop_schema_events(thd, db.str);
+#endif
+    reenable_binlog(thd);
+
+    /*
+      If the directory is a symbolic link, remove the link first, then
+      remove the directory the symbolic link pointed at
+    */
+    if (!found_other_files)
+      error= rm_dir_w_symlink(path, true);
+  }
+  thd->pop_internal_handler();
+
+  if (!silent && !error)
+  {
+    const char *query;
+    size_t query_length;
+    // quoted db name + wraping quote
+    char buffer_temp [2 * FN_REFLEN + 2];
+    size_t id_len= 0;
+    if (!thd->query().str)
+    {
+      /* The client used the old obsolete mysql_drop_db() call */
+      query= path;
+      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db.str, db.length);
+      buffer_temp[id_len] ='\0';
+      query_length=
+        static_cast<size_t>(strxmov(path, "DROP DATABASE ", buffer_temp, "",
+                                    NullS) - path);
+    }
+    else
+    {
+      query= thd->query().str;
+      query_length= thd->query().length;
+    }
+    if (mysql_bin_log.is_open())
+    {
+      int errcode= query_error_code(thd, TRUE);
+      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
+			    /* suppress_use */ TRUE, errcode);
+      /*
+        Write should use the database being created as the "current
+        database" and not the threads current database, which is the
+        default.
+      */
+      qinfo.db     = db.str;
+      qinfo.db_len = db.length;
+
+      /*
+        These DDL methods and logging are protected with the exclusive
+        metadata lock on the schema.
+      */
+      if (mysql_bin_log.write_event(&qinfo))
+      {
+        error= true;
+        goto exit;
+      }
+    }
+    thd->clear_error();
+    thd->server_status|= SERVER_STATUS_DB_DROPPED;
+    my_ok(thd, deleted_tables);
+  }
+  else if (mysql_bin_log.is_open() && !silent)
+  {
+    char *query, *query_pos, *query_end, *query_data_start;
+    char temp_identifier[ 2 * FN_REFLEN + 2];
+    TABLE_LIST *tbl;
+    size_t id_length=0;
+
+    /*
+      If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
+      statement.  However, the incomplete DROP has already 'committed'
+      (some tables were removed).  So we generate an error and let
+      user fix the situation.
+    */
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+    {
+      char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
+      thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
+                                              true);
+      my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
+               path, gtid_buf, db.str);
+      error= true;
+      goto exit;
+    }
+
+    DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
+
+    if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+      // @todo: abort on out of memory instead
+      goto exit; /* not much else we can do */
+    query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
+    query_end= query + MAX_DROP_TABLE_Q_LEN;
+
+    for (tbl= tables; tbl; tbl= tbl->next_local)
+    {
+      size_t tbl_name_len;
+      bool exists;
+
+      // Only write drop table to the binlog for tables that no longer exist.
+      if (check_if_table_exists(thd, tbl, &exists))
+      {
+        error= true;
+        goto exit;
+      }
+      if (exists)
+        continue;
+
+      /* 3 for the quotes and the comma*/
+      tbl_name_len= strlen(tbl->table_name) + 3;
+      if (query_pos + tbl_name_len + 1 >= query_end)
+      {
+        DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
+        thd->variables.gtid_next.dbug_print("gtid_next", true);
+        /*
+          These DDL methods and logging are protected with the exclusive
+          metadata lock on the schema.
+        */
+
+        thd->is_commit_in_middle_of_statement= true;
+        int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                                 db.length);
+        thd->is_commit_in_middle_of_statement= false;
+        if (ret)
+        {
+          error= true;
+          goto exit;
+        }
+        query_pos= query_data_start;
+      }
+      id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
+                                      tbl->table_name, 0);
+      temp_identifier[id_length]= '\0';
+      query_pos= my_stpcpy(query_pos,(char *)&temp_identifier);
+      *query_pos++ = ',';
+    }
+
+    if (query_pos != query_data_start)
+    {
+      thd->add_to_binlog_accessed_dbs(db.str);
+      /*
+        These DDL methods and logging are protected with the exclusive
+        metadata lock on the schema.
+      */
+      if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                          db.length))
+      {
+        error= true;
+        goto exit;
+      }
+    }
+  }
+
+  /*
+    We have postponed generating the error until now, since if the
+    error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
+    should report that instead.
+   */
+  if (found_other_files)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+    error= true;
+    goto exit;
+  }
+
+exit:
+  /*
+    If this database was the client's selected database, we silently
+    change the client's selected database to nothing (to have an empty
+    SELECT DATABASE() in the future). For this we free() thd->db and set
+    it to 0.
+  */
+  if (thd->db().str && !strcmp(thd->db().str, db.str) && !error)
+  {
+    mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
+    /*
+      Check if current database tracker is enabled. If so, set the 'changed' flag.
+    */
+    if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
+    {
+      LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
+      dummy.length= dummy.length*1;
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
+    }
+  }
+  my_dirend(dirp);
+  DBUG_RETURN(error);
+}
 
 static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
                                               const char *db,

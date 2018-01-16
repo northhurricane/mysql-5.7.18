@@ -3842,8 +3842,8 @@ end_with_restore_list:
   {
     if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
-    if (check_db_name_droppable(&lex->name, FALSE) != IDENT_NAME_OK)
-      break;
+    /*if (check_db_name_droppable(&lex->name, FALSE) != IDENT_NAME_OK)
+      break;*/
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
@@ -3860,7 +3860,15 @@ end_with_restore_list:
 #endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
+    if (false)
+    {
+      res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
+    }
+    else
+    {
+      res= mysql_rename_db(thd, to_lex_cstring(lex->name)
+                           , to_lex_cstring("del_"), lex->drop_if_exists, 0);
+    }
     break;
   }
   case SQLCOM_ALTER_DB_UPGRADE:
