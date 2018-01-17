@@ -1098,27 +1098,25 @@ exit:
 bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
                      ,bool if_exists, bool silent)
 {
-  //  ulong deleted_tables= 0;
+  DBUG_ENTER("mysql_rename_db");
+
   bool error= true;
   char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
   size_t length;
-  //bool found_other_files= false;
-  //TABLE_LIST *tables= NULL;
-  //TABLE_LIST *table;
+
+  /* //seem to have no use here
   Drop_table_error_handler err_handler;
-  DBUG_ENTER("mysql_rename_db");
+  thd->push_internal_handler(&err_handler);
+  */
 
+  my_ok(thd, 0);
+  //get path
+  length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
 
+  //lock db
   if (lock_schema_name(thd, db.str))
     DBUG_RETURN(true);
-
-  length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
-  my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
-  /*
-  del_dbopt(path);				// Remove dboption hash entry
-  */
-  path[length]= '\0';				// Remove file name
 
   /* See if the directory exists */
   if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
@@ -1138,7 +1136,7 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
   }
   my_dirend(dirp);  
 
-  //create new database
+  ///create new database
   {
     HA_CREATE_INFO create_info;
     if ((load_db_opt(thd, path, &create_info)))
@@ -1147,7 +1145,7 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
       goto exit;
   }
 
-  //Move tables to the new database
+  ///Move tables to the new database
   {
     SELECT_LEX *sl= thd->lex->current_select();
     TABLE_LIST *table_list;
@@ -1214,10 +1212,16 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
       goto exit;
     }
   }
-  //tables have been moved
+
+  ///remove db opt
+  my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
+  del_dbopt(path);				// Remove dboption hash entry
+  path[length]= '\0';			// Remove file name, recover origin value
+
+  ///return
 exit :
-  my_dirend(dirp);
-  return error;
+  DBUG_RETURN(error);
+
 #ifdef DELETED
   //
   if (find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
