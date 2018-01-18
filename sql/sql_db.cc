@@ -1096,7 +1096,7 @@ exit:
 */
 
 bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
-                     ,bool if_exists, bool silent)
+                     ,bool if_exists)
 {
   DBUG_ENTER("mysql_rename_db");
 
@@ -1227,7 +1227,7 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
   }
 
   ///write binlog
-  if (!silent && !error)
+  if (!error && mysql_bin_log.is_open())
   {
     const char *query;
     size_t query_length;
@@ -1235,33 +1235,50 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
     query= thd->query().str;
     query_length= thd->query().length;
 
-    if (mysql_bin_log.is_open())
-    {
-      int errcode= query_error_code(thd, TRUE);
-      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
-			    /* suppress_use */ TRUE, errcode);
-      /*
-        Write should use the database being renamed as the "current
-        database" and not the threads current database, which is the
-        default.
-      */
-      qinfo.db     = db.str;
-      qinfo.db_len = db.length;
+    int errcode= query_error_code(thd, TRUE);
+    Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
+                          /* suppress_use */ TRUE, errcode);
+    /*
+      Write should use the database being renamed as the "current
+      database" and not the threads current database, which is the
+      default.
+    */
+    qinfo.db     = db.str;
+    qinfo.db_len = db.length;
 
-      /*
-        These DDL methods and logging are protected with the exclusive
-        metadata lock on the schema.
-      */
-      if (mysql_bin_log.write_event(&qinfo))
-      {
-        error= true;
-        goto exit;
-      }
+    /*
+      These DDL methods and logging are protected with the exclusive
+      metadata lock on the schema.
+    */
+    if (mysql_bin_log.write_event(&qinfo))
+    {
+      error= true;
+      goto exit;
     }
   }
 
   ///return
 exit :
+  /*
+    If this database was the client's selected database, we silently
+    change the client's selected database to nothing (to have an empty
+    SELECT DATABASE() in the future). For this we free() thd->db and set
+    it to 0.
+  */
+  if (thd->db().str && !strcmp(thd->db().str, db.str) && !error)
+  {
+    mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
+    /*
+      Check if current database tracker is enabled. If so, set the 'changed' flag.
+    */
+    if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
+    {
+      LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
+      dummy.length= dummy.length*1;
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
+    }
+  }
+
   if (!error)
     my_ok(thd, 0);
 

@@ -3916,7 +3916,7 @@ end_with_restore_list:
     {
       res= mysql_rename_db(thd, to_lex_cstring(lex->name)
                            , to_lex_cstring(lex->ident)
-                           , lex->drop_if_exists, 0);
+                           , lex->drop_if_exists);
     }
     else
     {
