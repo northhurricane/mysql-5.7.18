@@ -1102,15 +1102,9 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
 
   bool error= true;
   char	path[2 * FN_REFLEN + 16];
-  MY_DIR *dirp;
   size_t length;
+  MY_DIR *dirp;
 
-  /* //seem to have no use here
-  Drop_table_error_handler err_handler;
-  thd->push_internal_handler(&err_handler);
-  */
-
-  my_ok(thd, 0);
   //get path
   length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
 
@@ -1121,18 +1115,8 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
   /* See if the directory exists */
   if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
   {
-    if (!if_exists)
-    {
-      my_error(ER_DB_DROP_EXISTS, MYF(0), db.str);
+      my_error(ER_BAD_DB_ERROR, MYF(0), db.str);
       DBUG_RETURN(true);
-    }
-    else
-    {
-      push_warning_printf(thd, Sql_condition::SL_NOTE,
-			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db.str);
-      error= false;
-      goto exit;
-    }
   }
   my_dirend(dirp);  
 
@@ -1213,13 +1197,74 @@ bool mysql_rename_db(THD *thd, const LEX_CSTRING &db, const LEX_CSTRING &ndb
     }
   }
 
-  ///remove db opt
-  my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
-  del_dbopt(path);				// Remove dboption hash entry
-  path[length]= '\0';			// Remove file name, recover origin value
+  ///remove old db
+  {
+    Drop_table_error_handler err_handler;
+    bool found_other_files= false;
+    TABLE_LIST *tables= NULL;
+    thd->push_internal_handler(&err_handler);
+    switch (0)
+    {
+    case 0:
+      ///remove database opt file hash entry
+      my_stpcpy(path+length, MY_DB_OPT_FILE);
+      del_dbopt(path);
+      path[length]= '\0';
+
+      ///remove known file such as db.opt file 
+      if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
+        break;
+
+      find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
+                                        &found_other_files);
+      my_dirend(dirp);
+
+      ///remove data directory
+      if (!found_other_files)
+        rm_dir_w_symlink(path, true);
+    }
+    thd->pop_internal_handler();
+  }
+
+  ///write binlog
+  if (!silent && !error)
+  {
+    const char *query;
+    size_t query_length;
+
+    query= thd->query().str;
+    query_length= thd->query().length;
+
+    if (mysql_bin_log.is_open())
+    {
+      int errcode= query_error_code(thd, TRUE);
+      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
+			    /* suppress_use */ TRUE, errcode);
+      /*
+        Write should use the database being renamed as the "current
+        database" and not the threads current database, which is the
+        default.
+      */
+      qinfo.db     = db.str;
+      qinfo.db_len = db.length;
+
+      /*
+        These DDL methods and logging are protected with the exclusive
+        metadata lock on the schema.
+      */
+      if (mysql_bin_log.write_event(&qinfo))
+      {
+        error= true;
+        goto exit;
+      }
+    }
+  }
 
   ///return
 exit :
+  if (!error)
+    my_ok(thd, 0);
+
   DBUG_RETURN(error);
 
 #ifdef DELETED
