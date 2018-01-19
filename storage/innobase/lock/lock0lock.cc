@@ -7285,6 +7285,7 @@ DeadlockChecker::print_full(const lock_t* dead_lock) const
 
   const lock_t *lock = NULL;
   const trx_t *trx = NULL;
+  mutex_enter(&trx_sys->mutex);
   fprintf(f, "\n############circle dead lock start############\n");
   fprintf(f, "{");
   fprintf(f, "\"trxs\":[");
@@ -7315,6 +7316,7 @@ DeadlockChecker::print_full(const lock_t* dead_lock) const
   fprintf(f, "]");
   fprintf(f, "}\n");
   fprintf(f, "############circle dead lock end############\n");
+  mutex_exit(&trx_sys->mutex);
 
   /*
   fflush(f);
