@@ -7240,7 +7240,6 @@ trx_dead_lock_print_locks_json(
 
   const trx_lock_t *trx_lock = &trx->lock;
 
-  fprintf(f, "{locks:");
   fprintf(f, "[");
   bool first = true;
   ulong count = 0;
@@ -7263,7 +7262,6 @@ trx_dead_lock_print_locks_json(
       break;
   }
   fprintf(f, "]");
-  fprintf(f, "}");
 }
 
 extern my_bool innodb_print_deadlock_circle;
