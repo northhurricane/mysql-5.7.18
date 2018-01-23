@@ -2735,7 +2735,7 @@ trx_dead_lock_print_json(
     fprintf(f, "null");
   }
 
-  fprintf(f, ",locks:");
+  fprintf(f, ",\"locks\":");
   trx_dead_lock_print_locks_json(f, trx);
 
   fprintf(f, ", \"sql_env\":");
