@@ -4210,6 +4210,18 @@ enum_ident_name_check check_db_name_droppable(LEX_STRING *org_name,
   size_t name_length= org_name->length;
   char prefix[5];
 
+  if (!name_length || name_length > NAME_LEN)
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
+    return IDENT_NAME_WRONG;
+  }
+  if (strcasecmp(name, "information_schema") == 0
+      || strcasecmp(name, "mysql") == 0
+      || strcasecmp(name, "performance_schema") == 0
+      || strcasecmp(name, "sys") == 0
+      )
+    return IDENT_NAME_OK;
+
   if (!name_length || name_length > NAME_LEN || name_length < 4)
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
