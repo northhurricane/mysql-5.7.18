@@ -15,6 +15,7 @@
 #include <list>
 
 #include "mysql.h"
+
 using namespace std;
 
 static MYSQL mysql;			/* The connection */
@@ -195,7 +196,18 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 {
   switch(optid) {
   case 'p':
-    tty_password= 1;
+    if (argument)
+    {
+      char *start= argument;
+      my_free(opt_password);
+      opt_password= my_strdup(0, argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';       // Destroy argument
+      if (*start)
+        start[1]=0 ;
+      tty_password= 0;
+    }
+    else
+      tty_password= 1;
     break;
   case 'I':
   case '?':
@@ -228,6 +240,20 @@ void
 stop_for_dbg()
 {
   printf("stop_for_dbg\n");
+}
+
+static void
+put_mysql_error(MYSQL *mysql)
+{
+  if (mysql && mysql_error(mysql))
+  {
+    char buffer[1024];
+    int err_no = mysql_errno(mysql);
+    memset(buffer, 0, sizeof(buffer));
+    strncpy(buffer, mysql_error(mysql), sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = 0;
+    printf("error no:%d.error message:%s\n", err_no, buffer);
+  }
 }
 
 static void
@@ -396,7 +422,8 @@ sql_connect()
     {
       if (try_count > MAX_RECONNECT_TIME)
       {
-        printf("fail to connect. retry %d times", MAX_RECONNECT_TIME);
+        printf("fail to connect. retry %d times.", MAX_RECONNECT_TIME);
+        put_mysql_error(&mysql);
         exit (-1);
       }
       try_count++;
@@ -678,7 +705,8 @@ void get_table_columns(const char *db, const char *table
   mysql_query(&mysql, desc_sql.c_str());
   if (!(result = mysql_store_result(&mysql)))
   {
-    printf("error query column name");
+    printf("error query column name.");
+    put_mysql_error(&mysql);
     exit(-1);
   }
   else
