@@ -72,7 +72,7 @@ class StaticLocker
   void Init()
   {
     if (!inited_)
-      mysql_mutex_init(NULL, &lock_, MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(0, &lock_, MY_MUTEX_INIT_FAST);
   }
   void Lock()
   {
