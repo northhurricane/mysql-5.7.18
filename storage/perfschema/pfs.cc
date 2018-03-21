@@ -5455,8 +5455,11 @@ void pfs_start_statement_v1(PSI_statement_locker *locker,
     int r = 0;
     struct rusage usage;
     r = getrusage(RUSAGE_THREAD, &usage);
-    pfs->start_ru_utime = usage.ru_utime;
-    pfs->start_ru_stime = usage.ru_stime;
+    if (r == 0)
+    {
+      pfs->start_ru_utime = usage.ru_utime;
+      pfs->start_ru_stime = usage.ru_stime;
+    }
 #endif
   }
 }
@@ -5752,9 +5755,11 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       struct rusage usage;
 
       r = getrusage(RUSAGE_THREAD, &usage);
-
-      pfs->end_ru_utime = usage.ru_utime;
-      pfs->end_ru_stime = usage.ru_stime;
+      if (r == 0)
+      {
+        pfs->end_ru_utime = usage.ru_utime;
+        pfs->end_ru_stime = usage.ru_stime;
+      }
 #endif
 
       if (thread->m_flag_events_statements_history)

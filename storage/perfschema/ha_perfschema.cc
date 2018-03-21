@@ -103,7 +103,7 @@ pfs_ha_init_csv_log_impl(const char *file_name)
 void
 pfs_ha_init_csv_log(const char *file_name)
 {
-  mysql_mutex_init(NULL, &LOCK_log, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(0, &LOCK_log, MY_MUTEX_INIT_FAST);
   pfs_ha_init_csv_log_impl(file_name);
 }
 
