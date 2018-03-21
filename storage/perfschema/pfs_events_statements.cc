@@ -288,9 +288,9 @@ get_nano_time(int type, ulonglong orig)
   }
 }
 
-#define MAX_SQL_TEXT_LEN (8 * 1024)
+#define MAX_SQL_TEXT_LEN (16 * 1024)
 #define MAX_MSG_TEXT_LEN (8 * 1024)
-#define MAX_DIG_TEXT_LEN (8 * 1024)
+#define MAX_DIG_TEXT_LEN (16 * 1024)
 int events_statements_2_csv(PFS_events_statements *statement
                             , char *buffer, int buffer_size, int type)
 {
@@ -379,6 +379,13 @@ int events_statements_2_csv(PFS_events_statements *statement
     else
       len = statement->m_sqltext_length;
     memcpy(buffer + pos, statement->m_sqltext, len);
+    //replace \r\n with space. for one row write
+    for (int i = 0; i < len; i++)
+    {
+      int c = *(buffer + pos + i);
+      if (c == '\n' || c == '\r' || c == '\0')
+        *(buffer + pos + i) = ' ';
+    }
     pos += len;
   }
   else
@@ -411,6 +418,13 @@ int events_statements_2_csv(PFS_events_statements *statement
     if (len > MAX_DIG_TEXT_LEN)
       len = MAX_DIG_TEXT_LEN;
     memcpy(buffer + pos, digest_text.ptr(), len);
+    //replace \r\n with space. for one row write
+    for (int i = 0; i < len; i++)
+    {
+      int c = *(buffer + pos + i);
+      if (c == '\n' || c == '\r' || c == '\0')
+        *(buffer + pos + i) = ' ';
+    }
     pos += len;
   }
   else
@@ -645,6 +659,8 @@ int events_statements_2_csv(PFS_events_statements *statement
     sprintf(buffer + pos, "%s", "NULL");
     pos += strlen(buffer + pos);
   }
+  buffer[pos] = '|';
+  pos++;
   /* CPU user usage*/
   ulonglong utime = 0;
   utime =
@@ -665,6 +681,24 @@ int events_statements_2_csv(PFS_events_statements *statement
   pos += strlen(buffer + pos);
   buffer[pos] = '|';
   pos++;
+  /* page logic/physic read, page write */
+  /* logic read*/
+  ulonglong count = 0;
+  count = statement->logic_read;
+  sprintf(buffer + pos, "%lld", count);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* physic read*/
+  count = statement->physic_read;
+  sprintf(buffer + pos, "%lld", count);
+  pos += strlen(buffer + pos);
+  buffer[pos] = '|';
+  pos++;
+  /* page write*/
+  count = statement->page_write;
+  sprintf(buffer + pos, "%lld", count);
+  pos += strlen(buffer + pos);
   /* end */
   DBUG_ASSERT(pos < buffer_size);
   strcpy(buffer + pos, "\r\n");

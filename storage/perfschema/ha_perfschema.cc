@@ -35,6 +35,8 @@
 #include "pfs_prepared_stmt.h"
 #include "pfs_buffer_container.h"
 
+#include "sql_iostat.h"
+
 handlerton *pfs_hton= NULL;
 
 #define PFS_ENABLED() (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
@@ -196,6 +198,8 @@ log_file_update(
   pfs_ha_init_csv_log_impl(value);
 }
 
+extern io_stat_reset_func_t io_stat_reset_func;
+extern io_stat_get_func_t io_stat_get_func;
 static int pfs_init_func(void *p)
 {
   DBUG_ENTER("pfs_init_func");
@@ -203,6 +207,9 @@ static int pfs_init_func(void *p)
   pfs_ha_init_csv_log(log_file);
 
   pfs_hton= reinterpret_cast<handlerton *> (p);
+
+  io_stat_reset_func = pfs_hton->io_stat_reset_func;
+  io_stat_get_func = pfs_hton->io_stat_get_func;
 
   pfs_hton->state= SHOW_OPTION_YES;
   pfs_hton->create= pfs_create_handler;

@@ -98,6 +98,13 @@ struct row_events_statements
   /** CPU usage system time*/
   ulonglong m_ru_stime;
 
+  /** reading page request*/
+  ulonglong m_logic_read;
+  /** reading page from file*/
+  ulonglong m_physic_read;
+  /** writing page to file*/
+  ulonglong m_page_write;
+
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Column MYSQL_ERRNO. */

@@ -5724,3 +5724,29 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+#include "ctrip_version.h"
+#define CTRIP_VERSION "0.0.2.1"
+static char *server_ctrip_version_ptr;
+static Sys_var_charptr Sys_ctrip_version(
+       "ctrip_version", "ctrip_version",
+       READ_ONLY GLOBAL_VAR(server_ctrip_version_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_VERSION));
+
+static char *server_ctrip_build_date_ptr;
+static Sys_var_charptr Sys_ctrip_build_date(
+       "ctrip_build_date", "ctrip_build_date",
+       READ_ONLY GLOBAL_VAR(server_ctrip_build_date_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_DATE));
+
+static char *server_ctrip_build_branch_ptr;
+static Sys_var_charptr Sys_ctrip_build_branch(
+       "ctrip_build_branch", "ctrip_build_branch",
+       READ_ONLY GLOBAL_VAR(server_ctrip_build_branch_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_BRANCH));
+
+static char *server_ctrip_build_commit_ptr;
+static Sys_var_charptr Sys_ctrip_build_commit(
+       "ctrip_build_commit", "ctrip_build_commit",
+       READ_ONLY GLOBAL_VAR(server_ctrip_build_commit_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_COMMIT));
