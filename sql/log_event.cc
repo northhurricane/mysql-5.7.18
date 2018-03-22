@@ -2461,6 +2461,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   table_def *td;
   const char *sql_command, *sql_clause1, *sql_clause2;
   Log_event_type general_type_code= get_general_type_code();
+  bool update_swapped = false;
   
   if (m_extra_row_data)
   {
@@ -2547,7 +2548,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     my_b_printf(file, "### %s %s.%s\n",
                       sql_command,
                       quoted_db, quoted_table);
-    if (is_print_flashback == true
+    if (is_print_flashback == true && update_swapped == false
         && general_type_code == binary_log::UPDATE_ROWS_EVENT)
     {
       //change clause sequence
@@ -2555,6 +2556,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
       sql_clause_swap = sql_clause1;
       sql_clause1 = sql_clause2;
       sql_clause2 = sql_clause_swap;
+      update_swapped = true;
     }
     /* Print the first image */
     if (!(length= print_verbose_one_row(file, td, print_event_info,
