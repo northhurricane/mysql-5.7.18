@@ -1088,6 +1088,7 @@ get_fb_event()
 
 void process_fb_event()
 {
+process_sql:
   fb_event_t event = get_fb_event();
   switch (event)
   {
@@ -1109,6 +1110,9 @@ void process_fb_event()
   default:
     assert(0);
   }
+  bool new_fb_sql = is_new_fb_sql();
+  if (new_fb_sql)
+    goto process_sql;
 }
 
 fb_type_t get_fb_type()
