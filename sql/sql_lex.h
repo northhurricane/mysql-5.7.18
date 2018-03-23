@@ -2973,6 +2973,8 @@ public:
 
 
 /* The state of the lex parsing. This is saved in the THD struct */
+#define ALTER_DB_TYPE_NULL     (0)
+#define ALTER_DB_TYPE_RENAME   (1)
 
 struct LEX: public Query_tables_list
 {
@@ -3012,6 +3014,7 @@ public:
   LEX_ALTER alter_password;
   THD *thd;
   Generated_column *gcol_info;
+  uint8 alter_db_type;
 
   /* Optimizer hints */
   Opt_hints_global *opt_hints_global;

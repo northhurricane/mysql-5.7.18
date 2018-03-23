@@ -221,6 +221,8 @@ private:
 	@param msg message to print */
 	static void print(const char* msg);
 
+    void print_full(const lock_t* lock) const;
+
 	/** Print info about transaction that was rolled back.
 	@param trx transaction rolled back
 	@param lock lock trx wants */
@@ -7071,6 +7073,255 @@ DeadlockChecker::start_print()
 	}
 }
 
+void
+lock_dead_lock_print_json(FILE *f, const lock_t *lock)
+{
+  //FILE *file = f;
+
+  if (lock_get_type_low(lock) == LOCK_REC)
+  {
+    //print record lock
+    fprintf(f, "\"lock_type\":\"%s\"", "REC_LOCK");
+    if (lock_get_mode(lock) == LOCK_S)
+      fprintf(f, ",\"lock_mode\":\"%s\"", "S");
+    else
+      fprintf(f, ",\"lock_mode\":\"%s\"", "X");
+    fprintf(f, ",\"lock_table\":\"%s\"", lock->index->table_name);
+    fprintf(f, ",\"lock_index\":\"%s\"", lock->index->name());
+    if (lock_rec_get_gap(lock))
+      fprintf(f, ",\"lock_gap\":true");
+    else
+      fprintf(f, ",\"lock_gap\":false");
+
+    ulint			space = lock->un_member.rec_lock.space;
+    ulint			page_no = lock->un_member.rec_lock.page_no;
+    ulint           n_bits = lock->un_member.rec_lock.n_bits;
+    fprintf(f, ",\"lock_space\":%ld", space);
+    fprintf(f, ",\"lock_page_no\":%ld", page_no);
+    fprintf(f, ",\"lock_n_bits\":%ld", n_bits);
+
+    ulint bytes_num = n_bits / 8;
+    fprintf(f, ",\"lock_bits\":\"0x");
+    unsigned char *bits = (unsigned char *)(&lock[1]);
+    for (ulint i = 0; i < bytes_num; i++)
+    {
+      fprintf(f, "%02x", bits[i]);
+    }
+    fprintf(f, "\"");
+    //    fprintf(f, ",\"lock_n_bits\":%ld", n_bits);
+  }
+  else
+  {
+    //print table lock
+    fprintf(f, "\"lock_type\":\"%s\"", "TABLE_LOCK");
+	if (lock_get_mode(lock) == LOCK_S) {
+      fprintf(f, ",\"lock_mode\":\"%s\"", "S");
+	} else if (lock_get_mode(lock) == LOCK_X) {
+      ut_ad(lock->trx->id != 0);
+      fprintf(f, ",\"lock_mode\":\"%s\"", "X");
+	} else if (lock_get_mode(lock) == LOCK_IS) {
+      fprintf(f, ",\"lock_mode\":\"%s\"", "IS");
+	} else if (lock_get_mode(lock) == LOCK_IX) {
+      ut_ad(lock->trx->id != 0);
+      fprintf(f, ",\"lock_mode\":\"%s\"", "IX");
+	} else if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+      fprintf(f, ",\"lock_mode\":\"%s\"", "AUTO-INC");
+	} else {
+      fprintf(f, ",\"lock_mode\":\"unkonw mode %lu\""
+              , (ulong) lock_get_mode(lock));
+	}
+    fprintf(f, ",\"lock_table\":\"%s\"", 
+		      lock->un_member.tab_lock.table->name.m_name);
+    fprintf(f, ",\"lock_index\":null");
+    fprintf(f, ",\"lock_gap\":null");
+    fprintf(f, ",\"lock_space\":null");
+    fprintf(f, ",\"lock_page_no\":null");
+  }
+
+
+  /*  ulint			space;
+  ulint			page_no;
+  mtr_t			mtr;
+  mem_heap_t*		heap		= NULL;
+  ulint			offsets_[REC_OFFS_NORMAL_SIZE];
+  ulint*			offsets		= offsets_;
+  rec_offs_init(offsets_);
+
+  ut_ad(lock_mutex_own());
+  ut_a(lock_get_type_low(lock) == LOCK_REC);
+
+  space = lock->un_member.rec_lock.space;
+  page_no = lock->un_member.rec_lock.page_no;
+
+  fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu "
+          "index %s of table ",
+          (ulong) space, (ulong) page_no,
+          (ulong) lock_rec_get_n_bits(lock),
+          lock->index->name());
+  ut_print_name(file, lock->trx, lock->index->table_name);
+  fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
+
+  if (lock_get_mode(lock) == LOCK_S) {
+    fputs(" lock mode S", file);
+  } else if (lock_get_mode(lock) == LOCK_X) {
+    fputs(" lock_mode X", file);
+  } else {
+    ut_error;
+  }
+
+  if (lock_rec_get_gap(lock)) {
+    fputs(" locks gap before rec", file);
+  }
+
+  if (lock_rec_get_rec_not_gap(lock)) {
+    fputs(" locks rec but not gap", file);
+  }
+
+  if (lock_rec_get_insert_intention(lock)) {
+    fputs(" insert intention", file);
+  }
+
+  if (lock_get_wait(lock)) {
+    fputs(" waiting", file);
+  }
+
+  mtr_start(&mtr);
+
+  putc('\n', file);
+
+  const buf_block_t*	block;
+
+  block = buf_page_try_get(page_id_t(space, page_no), &mtr);
+
+  for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
+
+    if (!lock_rec_get_nth_bit(lock, i)) {
+      continue;
+    }
+
+    fprintf(file, "Record lock, heap no %lu", (ulong) i);
+
+    if (block) {
+      const rec_t*	rec;
+
+      rec = page_find_rec_with_heap_no(
+        buf_block_get_frame(block), i);
+
+      offsets = rec_get_offsets(
+        rec, lock->index, offsets,
+        ULINT_UNDEFINED, &heap);
+
+      putc(' ', file);
+      rec_print_new(file, rec, offsets);
+    }
+
+    putc('\n', file);
+  }
+
+  mtr_commit(&mtr);
+
+  if (heap) {
+    mem_heap_free(heap);
+  }
+  */
+}
+
+extern ulong innodb_max_locks_print;
+
+void
+trx_dead_lock_print_locks_json(
+  FILE*		f,
+  const trx_t*	trx
+)
+{
+  ut_ad(lock_mutex_own());
+
+  const lock_t*	lock;
+
+  const trx_lock_t *trx_lock = &trx->lock;
+
+  fprintf(f, "[");
+  bool first = true;
+  ulong count = 0;
+  for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
+       lock != NULL;
+       lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+    if (!first)
+    {
+      fprintf(f, ",");
+    }
+    fprintf(f, "{");
+    lock_dead_lock_print_json(f, lock);
+    fprintf(f, "}");
+    if (first)
+    {
+      first = false;
+    }
+    count++;
+    if (count >= innodb_max_locks_print)
+      break;
+  }
+  fprintf(f, "]");
+}
+
+extern my_bool innodb_print_deadlock_circle;
+/*
+  print the dead lock circle
+*/
+void
+DeadlockChecker::print_full(const lock_t* dead_lock) const
+{
+  /*  char log_file[256]= {0};
+  sprintf(log_file, "dead_lock.%ld", (ulint)ut_time());
+  FILE *f = fopen(log_file, "w");
+  if (f == NULL)
+  {
+    return;
+  }
+  */
+  FILE *f = stderr;
+
+  const lock_t *lock = NULL;
+  const trx_t *trx = NULL;
+  mutex_enter(&trx_sys->mutex);
+  fprintf(f, "\n############circle dead lock start############\n");
+  fprintf(f, "{");
+  fprintf(f, "\"trxs\":[");
+  for (ulint i = 0; i < m_n_elems; i++)
+  {
+    const state_t&	state = s_states[i];
+    lock = state.m_lock;
+    trx = lock->trx;
+    
+    trx_dead_lock_print_json(f, i, trx, 3000, 0, 0, 0);
+    fprintf(f, ",");
+    fprintf(f, "\"lock_in_circle\":{");
+    lock_dead_lock_print_json(f, lock);
+    fprintf(f, "}");
+    fprintf(f, ",\"wait_for\":%ld", i + 1);
+    fprintf(f, "},");
+  }
+  lock = dead_lock;
+  trx = lock->trx;
+  trx_dead_lock_print_json(f, m_n_elems, trx, 3000, 0, 0, 0);
+  fprintf(f, ",");
+  fprintf(f, "\"lock_in_circle\":{");
+  lock_dead_lock_print_json(f, lock);
+  fprintf(f, "}");
+  fprintf(f, ",\"wait_for\":%d", 0);
+  fprintf(f, "}");
+
+  fprintf(f, "]");
+  fprintf(f, "}\n");
+  fprintf(f, "############circle dead lock end############\n");
+  mutex_exit(&trx_sys->mutex);
+
+  /*
+  fflush(f);
+  fclose(f);
+  */
+}
+
 /** Print a message to the deadlock file and possibly to stderr.
 @param msg message to print */
 void
@@ -7236,6 +7487,9 @@ void
 DeadlockChecker::notify(const lock_t* lock) const
 {
 	ut_ad(lock_mutex_own());
+
+    if ( innodb_print_deadlock_circle)
+      print_full(lock);
 
 	start_print();
 

@@ -73,6 +73,9 @@ Created 11/5/1995 Heikki Tuuri
 #include <map>
 #include <sstream>
 
+#include "sql_iostat.h"
+extern io_stat_func_t io_stat_func;
+
 my_bool  srv_numa_interleave = FALSE;
 
 #ifdef HAVE_LIBNUMA
@@ -3647,6 +3650,7 @@ buf_page_get_zip(
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
 	buf_pool->stat.n_page_gets++;
+    io_stat_func(SQL_IOSTAT_LOGIC_READ);
 
 	for (;;) {
 lookup:
@@ -4100,6 +4104,7 @@ buf_page_get_gen(
 	      || ibuf_page_low(page_id, page_size, FALSE, file, line, NULL));
 
 	buf_pool->stat.n_page_gets++;
+    io_stat_func(SQL_IOSTAT_LOGIC_READ);
 	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 loop:
 	block = guess;
@@ -4776,6 +4781,7 @@ buf_page_optimistic_get(
 
 	buf_pool = buf_pool_from_block(block);
 	buf_pool->stat.n_page_gets++;
+    io_stat_func(SQL_IOSTAT_LOGIC_READ);
 
 	return(TRUE);
 }
@@ -4884,6 +4890,7 @@ buf_page_get_known_nowait(
 	ut_a((mode == BUF_KEEP_OLD) || ibuf_count_get(block->page.id) == 0);
 #endif
 	buf_pool->stat.n_page_gets++;
+    io_stat_func(SQL_IOSTAT_LOGIC_READ);
 
 	return(TRUE);
 }
@@ -4971,6 +4978,7 @@ buf_page_try_get_func(
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	buf_pool->stat.n_page_gets++;
+    io_stat_func(SQL_IOSTAT_LOGIC_READ);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(block->page.id) == 0);

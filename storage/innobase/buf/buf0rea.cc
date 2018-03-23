@@ -40,6 +40,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 
+#include "sql_iostat.h"
+
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
 #define BUF_READ_AHEAD_RANDOM_THRESHOLD(b)	\
@@ -89,6 +91,7 @@ buf_read_page_handle_error(
 	buf_pool_mutex_exit(buf_pool);
 }
 
+extern io_stat_func_t io_stat_func;
 /** Low-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
@@ -215,6 +218,7 @@ buf_read_page_low(
 			return(0);
 		}
 	}
+    io_stat_func(SQL_IOSTAT_PHYSIC_READ);
 
 	return(1);
 }

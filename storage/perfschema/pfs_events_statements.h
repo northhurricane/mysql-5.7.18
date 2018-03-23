@@ -39,6 +39,22 @@ struct PFS_events_statements : public PFS_events
   char m_object_name[NAME_LEN];
   uint m_object_name_length;
 
+  /** User name & Host name */
+  char m_user_name[NAME_LEN];
+  uint m_user_name_length;
+  char m_host_name[NAME_LEN];
+  uint m_host_name_length;
+
+  /** CPU usage start user time*/
+  struct timeval start_ru_utime;  /* user CPU time used */
+  struct timeval start_ru_stime; /* system CPU time used */
+  struct timeval end_ru_utime;  /* user CPU time used */
+  struct timeval end_ru_stime; /* system CPU time used */
+
+  ulong logic_read;
+  ulong physic_read;
+  ulong page_write;
+
   /** Database name. */
   char m_current_schema_name[NAME_LEN];
   /** Length of @c m_current_schema_name. */
@@ -114,6 +130,16 @@ struct PFS_events_statements : public PFS_events
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);
 void insert_events_statements_history_long(PFS_events_statements *statement);
+int events_statements_2_csv(PFS_events_statements *statement
+                            , char *buffer, int buffer_size, int type);
+
+#define TIMER_TYPE_NONE 0
+#define TIMER_TYPE_NANO 1
+#define TIMER_TYPE_MICRO 2
+#define TIMER_TYPE_MILLI 3
+#define TIMER_TYPE_TICKS 4
+#define TIMER_TYPE_CYCLE 5
+
 
 extern ulong nested_statement_lost;
 

@@ -35,6 +35,8 @@
 #include "pfs_prepared_stmt.h"
 #include "pfs_buffer_container.h"
 
+#include "sql_iostat.h"
+
 handlerton *pfs_hton= NULL;
 
 #define PFS_ENABLED() (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
@@ -66,11 +68,148 @@ find_table_share(const char *db, const char *name)
   DBUG_RETURN(result);
 }
 
+#define DEFAULT_LOG_FILE ""
+static char *log_file = NULL;
+static char log_file_buffer[512] = {0};
+static my_bool flush_log = FALSE;
+/*
+  与performance插件生存周期相同，用于设置变量performance_schema_flush_log的保护
+  实际是防止log_file_buffer和log_file的冲突访问
+*/
+
+static mysql_mutex_t LOCK_log;
+
+void pfs_csv_log_flush();
+void pfs_init_csv_log(const char * csv_file);
+void pfs_deinit_csv_log();
+
+void
+pfs_ha_init_csv_log_impl(const char *file_name)
+{
+  mysql_mutex_lock(&LOCK_log);
+  log_file_buffer[0] = 0;
+  if (file_name)
+  {
+    int len = strlen(file_name);
+    if (len > 0)
+    {
+      if (len < (int)sizeof(log_file_buffer))
+        strcpy(log_file_buffer, file_name);
+    }
+  }
+  log_file = log_file_buffer;
+  pfs_init_csv_log(file_name);
+  mysql_mutex_unlock(&LOCK_log);
+}
+
+void
+pfs_ha_init_csv_log(const char *file_name)
+{
+  mysql_mutex_init(0, &LOCK_log, MY_MUTEX_INIT_FAST);
+  pfs_ha_init_csv_log_impl(file_name);
+}
+
+void
+pfs_ha_deinit_csv_log_impl()
+{
+  mysql_mutex_lock(&LOCK_log);
+  pfs_deinit_csv_log();
+  mysql_mutex_unlock(&LOCK_log);
+}
+
+void
+pfs_ha_deinit_csv_log()
+{
+  pfs_ha_deinit_csv_log_impl();
+  mysql_mutex_destroy(&LOCK_log);
+}
+
+void
+pfs_ha_flush_csv_log()
+{
+  mysql_mutex_lock(&LOCK_log);
+  pfs_csv_log_flush();
+  mysql_mutex_unlock(&LOCK_log);
+}
+
+static
+int
+flush_csv_log_validate(
+  /*=============================*/
+  THD*                            thd,    /*!< in: thread handle */
+  struct st_mysql_sys_var*        var,    /*!< in: pointer to system
+                                            variable */
+  void*                           save,   /*!< out: immediate result
+                                            for update function */
+  struct st_mysql_value*          value)  /*!< in: incoming string */
+{
+  DBUG_ENTER("flush_csv_log_validate");
+  long long tmp;
+  
+  value->val_int(value, &tmp);
+  if (tmp)
+  {
+    pfs_ha_flush_csv_log();
+    DBUG_RETURN(0);
+  }
+  
+  DBUG_RETURN(1);
+}
+
+static
+void
+flush_csv_log_update(
+  THD*              thd,        /*!< in: thread handle */
+  struct st_mysql_sys_var*  var,        /*!< in: pointer to
+                                          system variable */
+  void*             var_ptr,    /*!< out: where the
+                                  formal string goes */
+  const void*           save)       /*!< in: immediate result
+                                      from check function */
+{
+  DBUG_ENTER("flush_csv_log_update");
+  
+  //  my_bool flush = *(my_bool*) save;
+
+  DBUG_VOID_RETURN;
+}
+
+static
+void
+log_file_update(
+  /*===========================*/
+  THD*                thd,        /*!< in: thread handle */
+  struct st_mysql_sys_var*    var,        /*!< in: pointer to
+                                            system variable */
+  void*               var_ptr,    /*!< out: where the
+                                    formal string goes */
+  const void*         save)       /*!< in: immediate result
+                                    from check function */
+{
+  const char* value;
+
+  value = *static_cast<const char*const*>(save);
+  pfs_ha_deinit_csv_log_impl();
+  if (!value || strlen(value) == 0)
+  {
+    log_file_buffer[0] = 0;
+    return ;
+  }
+  pfs_ha_init_csv_log_impl(value);
+}
+
+extern io_stat_reset_func_t io_stat_reset_func;
+extern io_stat_get_func_t io_stat_get_func;
 static int pfs_init_func(void *p)
 {
   DBUG_ENTER("pfs_init_func");
 
+  pfs_ha_init_csv_log(log_file);
+
   pfs_hton= reinterpret_cast<handlerton *> (p);
+
+  io_stat_reset_func = pfs_hton->io_stat_reset_func;
+  io_stat_get_func = pfs_hton->io_stat_get_func;
 
   pfs_hton->state= SHOW_OPTION_YES;
   pfs_hton->create= pfs_create_handler;
@@ -103,6 +242,8 @@ static int pfs_init_func(void *p)
 static int pfs_done_func(void *p)
 {
   DBUG_ENTER("pfs_done_func");
+
+  pfs_ha_deinit_csv_log();
 
   pfs_hton= NULL;
 
@@ -189,6 +330,26 @@ static struct st_mysql_show_var pfs_status_vars[]=
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
+static MYSQL_SYSVAR_STR(log_file, log_file
+                        , PLUGIN_VAR_RQCMDARG
+                        , "Performance csv log file"
+                        , NULL
+                        , log_file_update
+                        , DEFAULT_LOG_FILE);
+
+static MYSQL_SYSVAR_BOOL(flush_log, flush_log
+                         , PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG
+                         , "flush out data in buffer ,empty current file and create file to store exist data"
+                         , flush_csv_log_validate
+                         , flush_csv_log_update
+                         , FALSE);
+
+static struct st_mysql_sys_var *pfs_sys_var[] = {
+  MYSQL_SYSVAR(log_file)
+  , MYSQL_SYSVAR(flush_log)
+  , 0
+};
+
 struct st_mysql_storage_engine pfs_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
@@ -206,7 +367,7 @@ mysql_declare_plugin(perfschema)
   pfs_done_func,                                /* Plugin Deinit */
   0x0001 /* 0.1 */,
   pfs_status_vars,                              /* status variables */
-  NULL,                                         /* system variables */
+  pfs_sys_var,                                  /* system variables */
   NULL,                                         /* config options */
   0,                                            /* flags */
 }

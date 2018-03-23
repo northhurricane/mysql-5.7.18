@@ -1318,7 +1318,14 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
-  "NESTING_EVENT_LEVEL INTEGER"
+  "NESTING_EVENT_LEVEL INTEGER,"
+  "CLIENT_USER VARCHAR(128),"
+  "CLIENT_HOST VARCHAR(128),"
+  "RU_UTIME BIGINT unsigned,"
+  "RU_STIME BIGINT unsigned,"
+  "LOGIC_READ BIGINT unsigned not null,"
+  "PHYSIC_READ BIGINT unsigned not null,"
+  "PAGE_WRITE BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1371,7 +1378,14 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
-  "NESTING_EVENT_LEVEL INTEGER"
+  "NESTING_EVENT_LEVEL INTEGER,"
+  "CLIENT_USER VARCHAR(128),"
+  "CLIENT_HOST VARCHAR(128),"
+  "RU_UTIME BIGINT unsigned,"
+  "RU_STIME BIGINT unsigned,"
+  "LOGIC_READ BIGINT unsigned not null,"
+  "PHYSIC_READ BIGINT unsigned not null,"
+  "PAGE_WRITE BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1424,7 +1438,14 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
-  "NESTING_EVENT_LEVEL INTEGER"
+  "NESTING_EVENT_LEVEL INTEGER,"
+  "CLIENT_USER VARCHAR(128),"
+  "CLIENT_HOST VARCHAR(128),"
+  "RU_UTIME BIGINT unsigned,"
+  "RU_STIME BIGINT unsigned,"
+  "LOGIC_READ BIGINT unsigned not null,"
+  "PHYSIC_READ BIGINT unsigned not null,"
+  "PAGE_WRITE BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
