@@ -32,6 +32,8 @@ static char *opt_user = NULL;
 static char *opt_password = NULL;
 static char *opt_input_file = NULL;
 static char *opt_filter_user = NULL;
+static char *opt_filter_db = NULL;
+static char *opt_filter_tables = NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -61,6 +63,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"filter-user", 'U', "get filter user's flash back SQL.", &opt_filter_user,
    &opt_filter_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to filter.", &opt_filter_db,
+   &opt_filter_db, 0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"tables", 't', "tables to filter.", &opt_filter_tables,
+   &opt_filter_tables, 0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -95,6 +101,15 @@ struct table_dict_struct
 };
 typedef table_dict_struct table_dict_t;
 
+#define MAX_FILTER_TABLE_NAME (256)
+struct table_filter_struct
+{
+  int number;
+  table_name_t tables[MAX_FILTER_TABLE_NAME];
+  table_filter_struct() {number = 0;}
+};
+typedef table_filter_struct table_filter_t;
+
 #define DEFAULTS_LINE_BUFFER_SIZE (8 * 1024 * 1024)
 
 char line_buffer[DEFAULTS_LINE_BUFFER_SIZE];
@@ -117,6 +132,7 @@ char host_buffer[512] = {0};
 const int host_buffer_len = sizeof(host_buffer);
 
 table_dict_t table_dict;
+table_filter_t table_filter;
 
 bool fb_flag_ = false;
 inline void set_fb_flag(bool v)
@@ -190,6 +206,63 @@ static void usage(int version)
   my_print_variables(my_long_options);
 }
 
+bool
+do_filter(const char *db, const char *table)
+{
+  if (opt_filter_db != NULL)
+  {
+    if (strcasecmp(db, opt_filter_db) != 0)
+      return false;
+  }
+
+  if (table_filter.number != 0)
+  {
+    int pos = 0;
+    for (; pos < table_filter.number; pos++)
+    {
+      if (strcasecmp(table, table_filter.tables[pos]) == 0)
+        return true;
+    }
+    if (pos == table_filter.number)
+      return false;
+  }
+
+  return true;
+}
+
+void
+get_filter_tables()
+{
+  if (strlen(opt_filter_tables) < 1)
+    return ;
+  
+  char *pos = opt_filter_tables;
+  char *next = NULL;
+  int tablei = 0;
+  while (pos != NULL)
+  {
+    int len;
+    next = strstr(pos, ",");
+    if (next)
+    {
+      len = next - pos;
+      next++;
+    }
+    else
+    {
+      //last table name
+      len = strlen(pos);
+    }
+    memcpy(table_filter.tables[tablei], pos, len);
+    tablei++;
+    table_filter.tables[tablei][len] = 0;
+    table_filter.number++;
+    if (next != NULL && next[0] == '\0')
+      next = NULL;
+    pos = next;
+  }
+}
+
 my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
@@ -232,6 +305,8 @@ static int get_options(int argc, char **argv)
   opt_input_file = my_strdup(PSI_NOT_INSTRUMENTED, *argv, MYF(MY_WME));
   if (tty_password)
     opt_password= get_tty_password(NullS);
+  if (opt_filter_tables != NULL)
+    get_filter_tables();
 
   return(0);
 }
@@ -776,7 +851,8 @@ find_table(const char *db, const char *table)
   }
   if (i == MAX_TABLE_DICT_SIZE)
   {
-    printf("too many flashback table in table.Max is 128\n");
+    printf("too many flashback table in table cache.Max is %d\n"
+           , MAX_TABLE_DICT_SIZE );
     assert(0);
   }
   if (entry == NULL)
@@ -930,6 +1006,8 @@ process_insert_event()
   string sql = build_insert_sql(t, values);
 
   //print sql start line
+  if (!do_filter(db, table))
+    return ;
   *outstream << sql << endl;
 }
 
@@ -991,9 +1069,11 @@ process_delete_event()
   assert(t != NULL);
 
   list<string> values;
-
   get_delete_values(values);
   string sql = build_delete_sql(t, values);
+
+  if (!do_filter(db, table))
+    return ;
   *outstream << sql << endl;
 }
 
@@ -1055,9 +1135,11 @@ process_update_event()
   assert(t != NULL);
 
   list<string> set_values, where_values;
-
   get_update_values(set_values, where_values);
   string sql = build_update_sql(t, set_values, where_values);
+
+  if (!do_filter(db, table))
+    return ;
   *outstream << sql << endl;
 }
 
