@@ -1193,7 +1193,7 @@ process_sql:
     assert(0);
   }
   bool new_fb_sql = is_new_fb_sql();
-  if (new_fb_sql)
+  if (new_fb_sql && strcasecmp(line_buffer, fb_flag) != 0)
     goto process_sql;
 }
 
