@@ -314,7 +314,7 @@ static int get_options(int argc, char **argv)
 void
 stop_for_dbg()
 {
-  printf("stop_for_dbg\n");
+  fprintf(stderr, "stop_for_dbg\n");
 }
 
 static void
@@ -327,7 +327,7 @@ put_mysql_error(MYSQL *mysql)
     memset(buffer, 0, sizeof(buffer));
     strncpy(buffer, mysql_error(mysql), sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = 0;
-    printf("error no:%d.error message:%s\n", err_no, buffer);
+    fprintf(stderr, "error no:%d.error message:%s\n", err_no, buffer);
   }
 }
 
@@ -434,14 +434,14 @@ sql_real_connect(const char *host, const char *user, const char *password)
   {
     if(mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
     {
-      fprintf(stdout, "Please use --connect-expired-password option or " \
+      fprintf(stderr, "Please use --connect-expired-password option or " \
                            "invoke mysql in interactive mode.\n");
       return -1;
     }
     if ((mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
          mysql_errno(&mysql) != CR_CONNECTION_ERROR))
     {
-      printf("error connect");
+      fprintf(stderr, "error connect");
     }
     return -1;					// Retryable
   }
@@ -497,7 +497,8 @@ sql_connect()
     {
       if (try_count > MAX_RECONNECT_TIME)
       {
-        printf("fail to connect. retry %d times.", MAX_RECONNECT_TIME);
+        fprintf(stderr, "fail to connect. retry %d times."
+                , MAX_RECONNECT_TIME);
         put_mysql_error(&mysql);
         exit (-1);
       }
@@ -579,7 +580,7 @@ void get_invoker()
   char *host_ptr = user_ptr + i + 1;
   if (i >= user_buffer_len)
   {
-    printf("!!!too long invoker user name\n");
+    fprintf(stderr, "!!!too long invoker user name\n");
     assert(0);
   }
   memcpy(user_buffer, user_ptr, i);
@@ -587,7 +588,7 @@ void get_invoker()
   int host_name_len = strlen(host_ptr);
   if (host_name_len >= host_buffer_len)
   {
-    printf("!!!too long invoker host name\n");
+    fprintf(stderr, "!!!too long invoker host name\n");
     assert(0);
   }
   memcpy(host_buffer, host_ptr, host_name_len);
@@ -780,7 +781,7 @@ void get_table_columns(const char *db, const char *table
   mysql_query(&mysql, desc_sql.c_str());
   if (!(result = mysql_store_result(&mysql)))
   {
-    printf("error query column name.");
+    fprintf(stderr, "error query column name.");
     put_mysql_error(&mysql);
     exit(-1);
   }
@@ -851,9 +852,10 @@ find_table(const char *db, const char *table)
   }
   if (i == MAX_TABLE_DICT_SIZE)
   {
-    printf("too many flashback table in table cache.Max is %d\n"
+    fprintf(stderr, "too many flashback table in table cache.Max is %d\n"
            , MAX_TABLE_DICT_SIZE );
     assert(0);
+    exit(-1);
   }
   if (entry == NULL)
   {
@@ -1193,7 +1195,7 @@ process_sql:
     assert(0);
   }
   bool new_fb_sql = is_new_fb_sql();
-  if (new_fb_sql)
+  if (new_fb_sql && strcasecmp(line_buffer, fb_flag) != 0)
     goto process_sql;
 }
 
@@ -1272,7 +1274,7 @@ static void open_input_file()
   ifs = new ifstream();
   if (ifs == NULL)
   {
-    printf("Out of memory when create ifstream.\n");
+    fprintf(stderr, "Out of memory when create ifstream.\n");
     exit(-1);
   }
   ifs->open(opt_input_file);
