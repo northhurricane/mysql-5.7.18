@@ -34,6 +34,7 @@ static char *opt_input_file = NULL;
 static char *opt_filter_user = NULL;
 static char *opt_filter_db = NULL;
 static char *opt_filter_tables = NULL;
+static my_bool opt_orig_input = FALSE;
 
 static struct my_option my_long_options[] =
 {
@@ -67,6 +68,9 @@ static struct my_option my_long_options[] =
    &opt_filter_db, 0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"tables", 't', "tables to filter.", &opt_filter_tables,
    &opt_filter_tables, 0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"origin", 'O', "Input is original binlog -v output.",
+   &opt_orig_input, &opt_orig_input, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1259,7 +1263,7 @@ void process_fb()
   {
     if (!filter_user_matched)
       break;
-    if (get_fb_flag())
+    if (get_fb_flag() || opt_orig_input == TRUE)
     {
       process_fb_event();
       set_fb_flag(false);
