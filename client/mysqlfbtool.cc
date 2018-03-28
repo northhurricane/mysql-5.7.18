@@ -1000,16 +1000,15 @@ process_insert_event()
   memcpy(table, table_name + 1, pos - 1);
   table[pos - 1] = 0;
 
-  table_t *t = find_table(db, table);
-  assert(t != NULL);
-
   list<string> values;
   get_insert_values(values);
-  string sql = build_insert_sql(t, values);
-
-  //print sql start line
   if (!do_filter(db, table))
     return ;
+
+  table_t *t = find_table(db, table);
+
+  string sql = build_insert_sql(t, values);
+  //print sql start line
   *outstream << sql << endl;
 }
 
@@ -1067,15 +1066,14 @@ process_delete_event()
   memcpy(table, table_name + 1, pos - 1);
   table[pos - 1] = 0;
 
-  table_t *t = find_table(db, table);
-  assert(t != NULL);
-
   list<string> values;
   get_delete_values(values);
-  string sql = build_delete_sql(t, values);
-
   if (!do_filter(db, table))
     return ;
+
+  table_t *t = find_table(db, table);
+
+  string sql = build_delete_sql(t, values);
   *outstream << sql << endl;
 }
 
@@ -1133,15 +1131,14 @@ process_update_event()
   memcpy(table, table_name + 1, pos - 1);
   table[pos - 1] = 0;
 
-  table_t *t = find_table(db, table);
-  assert(t != NULL);
-
   list<string> set_values, where_values;
   get_update_values(set_values, where_values);
-  string sql = build_update_sql(t, set_values, where_values);
-
   if (!do_filter(db, table))
     return ;
+
+  table_t *t = find_table(db, table);
+
+  string sql = build_update_sql(t, set_values, where_values);
   *outstream << sql << endl;
 }
 
