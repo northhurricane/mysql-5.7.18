@@ -609,7 +609,9 @@ string build_insert_sql(table_t *table, list<string> &values)
   {
     if (i != 0)
       sql.append(", ");
+    sql.append("`");
     sql.append(table->cols[i].name);
+    sql.append("`");
   }
   sql.append(")");
   //构造插入的值
@@ -667,7 +669,9 @@ string build_delete_sql(table_t *table, list<string> &values)
       first = false;
     assert(iter != values.end());
     string value = *iter;
+    sql.append("`");
     sql.append(table->cols[i].name);
+    sql.append("`");
     sql.append("=");
     if (table->cols[i].is_timestamp)
     {
@@ -711,7 +715,9 @@ string build_update_sql(table_t *table
       first = false;
     string value = *iter;
     assert(iter != set_values.end());
+    sql.append("`");
     sql.append(table->cols[i].name);
+    sql.append("`");
     sql.append("=");
     if (table->cols[i].is_timestamp)
     {
