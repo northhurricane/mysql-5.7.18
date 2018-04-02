@@ -13,6 +13,7 @@
 #include <string.h>
 #include <assert.h>
 #include <list>
+#include <sstream>
 
 #include "mysql.h"
 
@@ -114,11 +115,20 @@ struct table_filter_struct
 };
 typedef table_filter_struct table_filter_t;
 
+/*用于记录一个事务的flashback情况*/
+struct trx_group_struct
+{
+  int flashback_no;
+};
+typedef trx_group_struct trx_group_t;
+trx_group_t trx_group;
+
 #define DEFAULTS_LINE_BUFFER_SIZE (8 * 1024 * 1024)
 
 char line_buffer[DEFAULTS_LINE_BUFFER_SIZE];
 uint64_t line_no = 0;
 ifstream *ifs = NULL;
+ostringstream buffer_stream;
 ostream *outstream = NULL;
 
 const char *fb_invoker = "###invoker:";
@@ -130,10 +140,26 @@ const int fb_flag_len = strlen(fb_flag);
 const char *fb_line_start = "###";
 const int fb_line_start_len = strlen(fb_line_start);
 
+const char *fb_begin = "BEGIN";
+//const int fb_begin_len = strlen(fb_begin);
+
+const char *fb_commit = "COMMIT/*!*/;";
+//const int fb_commit_len = strlen(fb_commit);
+
+const char *fb_at = "# at ";
+const int fb_at_len = strlen(fb_at);
+static bool prev_at_line = false;
+
 char user_buffer[256] = {0};
 const int user_buffer_len = sizeof(user_buffer);
 char host_buffer[512] = {0};
 const int host_buffer_len = sizeof(host_buffer);
+char current_at[512] = {0};
+const int current_at_buffer_len = sizeof(current_at);
+char sql_at[512] = {0};
+const int sql_at_buffer_len = sizeof(sql_at);
+char sql_time[512] = {0};
+const int sql_time_buffer_len = sizeof(sql_time);
 
 table_dict_t table_dict;
 table_filter_t table_filter;
@@ -516,11 +542,69 @@ sql_connect()
   return 0;
 }
 
+static void
+do_at()
+{
+  if (strncmp(line_buffer, fb_at, fb_at_len) == 0)
+  {
+    strcpy(current_at, line_buffer);
+    prev_at_line = true;
+  }
+  else
+  {
+    prev_at_line = false;
+  }
+}
+
+/*must be called before do_at*/
+/*time format is #180328 10:26:25 */
+static void
+do_time()
+{
+  if (prev_at_line == true)
+  {
+    //check if line is time line by first 7 characters
+    if (line_buffer[0] != '#')
+      return;
+    int len = strlen(line_buffer);
+    if (len < 7)
+      return ;
+    int pos;
+    for (pos = 1; pos <= 6; pos++)
+    {
+      if (line_buffer[pos] < '0' || line_buffer[pos] > '9') 
+        return;
+    }
+    if (line_buffer[7] != ' ')
+      return ;
+    //get time
+    pos = 1;
+    int space_count = 0;
+    strcpy(sql_time, "time ");
+    int sql_time_pos = strlen(sql_time);
+    while (pos < len)
+    {
+      if (line_buffer[pos] == ' ')
+        space_count++;
+
+      if (space_count >= 2)
+        break;
+
+      sql_time[sql_time_pos] = line_buffer[pos];
+      sql_time_pos++;
+      pos++;
+    }
+    sql_time[sql_time_pos] = 0;
+  }
+}
+
 uint64_t
 read_line()
 {
   ifs->getline(line_buffer, sizeof(line_buffer));
   line_no++;
+  do_time();
+  do_at();
   return 0;
 }
 
@@ -1019,7 +1103,8 @@ process_insert_event()
 
   string sql = build_insert_sql(t, values);
   //print sql start line
-  *outstream << sql << endl;
+  buffer_stream << sql << (char*)sql_at << " " << (char*)sql_time << endl;
+  trx_group.flashback_no++;
 }
 
 void
@@ -1084,7 +1169,8 @@ process_delete_event()
   table_t *t = find_table(db, table);
 
   string sql = build_delete_sql(t, values);
-  *outstream << sql << endl;
+  buffer_stream << sql << (char*)sql_at << " " << sql_time << endl;
+  trx_group.flashback_no++;
 }
 
 void
@@ -1149,7 +1235,8 @@ process_update_event()
   table_t *t = find_table(db, table);
 
   string sql = build_update_sql(t, set_values, where_values);
-  *outstream << sql << endl;
+  buffer_stream << sql << (char*)sql_at << " " << sql_time << endl;
+  trx_group.flashback_no++;
 }
 
 fb_event_t
@@ -1181,6 +1268,7 @@ void process_fb_event()
 {
 process_sql:
   fb_event_t event = get_fb_event();
+  strcpy(sql_at, current_at);
   switch (event)
   {
   case FB_EVENT_INSERT:
@@ -1309,6 +1397,58 @@ static void close_output_file()
   outstream = NULL;
 }
 
+static bool
+is_begin_line()
+{
+  if (strcmp(line_buffer, fb_begin) == 0)
+    return true;
+  return false;
+}
+
+static void
+do_begin()
+{
+  buffer_stream << line_buffer << "; " << current_at << endl;
+  trx_group.flashback_no = 0;
+  read_line(); //begin line processed read next
+}
+
+static bool
+is_commit_line()
+{
+  if (strcmp(line_buffer, fb_commit) == 0)
+    return true;
+  return false;
+}
+
+static void
+do_commit()
+{
+  buffer_stream << line_buffer << " " << current_at << endl;
+  if (trx_group.flashback_no > 0)
+  {
+    *outstream << buffer_stream.str();
+  }
+  buffer_stream.str("");
+  buffer_stream.clear();
+  read_line();
+}
+
+static void
+do_trx_line()
+{
+  if (is_begin_line())
+  {
+    do_begin();
+    return;
+  }
+  if (is_commit_line())
+  {
+    do_commit();
+    return;
+  }
+}
+
 void
 gen_fb_sql()
 {
@@ -1320,6 +1460,7 @@ gen_fb_sql()
   while (!ifs->eof())
   {
     read_line();
+    do_trx_line();
     if (is_fb_line())
     {
       process_fb();
