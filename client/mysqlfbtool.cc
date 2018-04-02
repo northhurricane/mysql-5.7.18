@@ -148,6 +148,7 @@ const char *fb_commit = "COMMIT/*!*/;";
 
 const char *fb_at = "# at ";
 const int fb_at_len = strlen(fb_at);
+static bool prev_at_line = false;
 
 char user_buffer[256] = {0};
 const int user_buffer_len = sizeof(user_buffer);
@@ -157,6 +158,8 @@ char current_at[512] = {0};
 const int current_at_buffer_len = sizeof(current_at);
 char sql_at[512] = {0};
 const int sql_at_buffer_len = sizeof(sql_at);
+char sql_time[512] = {0};
+const int sql_time_buffer_len = sizeof(sql_time);
 
 table_dict_t table_dict;
 table_filter_t table_filter;
@@ -545,6 +548,53 @@ do_at()
   if (strncmp(line_buffer, fb_at, fb_at_len) == 0)
   {
     strcpy(current_at, line_buffer);
+    prev_at_line = true;
+  }
+  else
+  {
+    prev_at_line = false;
+  }
+}
+
+/*must be called before do_at*/
+/*time format is #180328 10:26:25 */
+static void
+do_time()
+{
+  if (prev_at_line == true)
+  {
+    //check if line is time line by first 7 characters
+    if (line_buffer[0] != '#')
+      return;
+    int len = strlen(line_buffer);
+    if (len < 7)
+      return ;
+    int pos;
+    for (pos = 1; pos <= 6; pos++)
+    {
+      if (line_buffer[pos] < '0' || line_buffer[pos] > '9') 
+        return;
+    }
+    if (line_buffer[7] != ' ')
+      return ;
+    //get time
+    pos = 1;
+    int space_count = 0;
+    strcpy(sql_time, "time ");
+    int sql_time_pos = strlen(sql_time);
+    while (pos < len)
+    {
+      if (line_buffer[pos] == ' ')
+        space_count++;
+
+      if (space_count >= 2)
+        break;
+
+      sql_time[sql_time_pos] = line_buffer[pos];
+      sql_time_pos++;
+      pos++;
+    }
+    sql_time[sql_time_pos] = 0;
   }
 }
 
@@ -553,6 +603,7 @@ read_line()
 {
   ifs->getline(line_buffer, sizeof(line_buffer));
   line_no++;
+  do_time();
   do_at();
   return 0;
 }
@@ -1052,7 +1103,7 @@ process_insert_event()
 
   string sql = build_insert_sql(t, values);
   //print sql start line
-  buffer_stream << sql << (char*)sql_at << endl;
+  buffer_stream << sql << (char*)sql_at << " " << (char*)sql_time << endl;
   trx_group.flashback_no++;
 }
 
@@ -1118,7 +1169,7 @@ process_delete_event()
   table_t *t = find_table(db, table);
 
   string sql = build_delete_sql(t, values);
-  buffer_stream << sql << (char*)sql_at << endl;
+  buffer_stream << sql << (char*)sql_at << " " << sql_time << endl;
   trx_group.flashback_no++;
 }
 
@@ -1184,7 +1235,7 @@ process_update_event()
   table_t *t = find_table(db, table);
 
   string sql = build_update_sql(t, set_values, where_values);
-  buffer_stream << sql << (char*)sql_at << endl;
+  buffer_stream << sql << (char*)sql_at << " " << sql_time << endl;
   trx_group.flashback_no++;
 }
 
