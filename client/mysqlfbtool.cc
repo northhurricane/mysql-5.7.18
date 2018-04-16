@@ -1354,7 +1354,7 @@ void process_fb()
     if (get_fb_flag() || opt_orig_input == TRUE)
     {
       process_fb_event();
-      set_fb_flag(false);
+      //set_fb_flag(false);
     }
     break;
   }
@@ -1410,6 +1410,7 @@ do_begin()
 {
   buffer_stream << line_buffer << "; " << current_at << endl;
   trx_group.flashback_no = 0;
+  set_fb_flag(false);
   read_line(); //begin line processed read next
 }
 
@@ -1433,6 +1434,7 @@ do_commit()
   buffer_stream.clear();
   //clear
   trx_group.flashback_no = 0;
+  set_fb_flag(false);
   read_line();
 }
 
