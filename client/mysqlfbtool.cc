@@ -128,7 +128,7 @@ trx_group_t trx_group;
 char line_buffer[DEFAULTS_LINE_BUFFER_SIZE];
 uint64_t line_no = 0;
 ifstream *ifs = NULL;
-ostringstream buffer_stream;
+ostringstream buffer_stream("");
 ostream *outstream = NULL;
 
 const char *fb_invoker = "###invoker:";
@@ -1354,7 +1354,7 @@ void process_fb()
     if (get_fb_flag() || opt_orig_input == TRUE)
     {
       process_fb_event();
-      set_fb_flag(false);
+      //set_fb_flag(false);
     }
     break;
   }
@@ -1410,6 +1410,7 @@ do_begin()
 {
   buffer_stream << line_buffer << "; " << current_at << endl;
   trx_group.flashback_no = 0;
+  set_fb_flag(false);
   read_line(); //begin line processed read next
 }
 
@@ -1431,6 +1432,9 @@ do_commit()
   }
   buffer_stream.str("");
   buffer_stream.clear();
+  //clear
+  trx_group.flashback_no = 0;
+  set_fb_flag(false);
   read_line();
 }
 
@@ -1457,6 +1461,10 @@ gen_fb_sql()
   open_input_file();
   open_output_file();
 
+  //初始化闪回变量
+  trx_group.flashback_no = 0;
+
+  //逐行读取文件，进行语句生成
   while (!ifs->eof())
   {
     read_line();
@@ -1466,6 +1474,8 @@ gen_fb_sql()
       process_fb();
     }
   }
+  if (trx_group.flashback_no > 0)
+    *outstream << buffer_stream.str();
 
   close_input_file();
   close_output_file();
