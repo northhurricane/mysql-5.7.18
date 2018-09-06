@@ -2459,6 +2459,9 @@ ctrip_audit_process_command_event(
   const struct mysql_event_command *event_command=
   (const struct mysql_event_command *)event;
 
+  //debug test for deinit
+  //  sleep(10);
+
   switch (event_command->event_subclass)
   {
   case MYSQL_AUDIT_COMMAND_START:
@@ -2610,6 +2613,35 @@ static void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),
   }
 }
 
+/** plugin usage reference */
+volatile ulonglong usage_ref = 0;
+
+ulonglong
+increase_usage_ref()
+{
+  ulonglong curr = 0;
+  return curr;
+}
+
+ulonglong
+decrease_usage_ref()
+{
+  ulonglong curr = 0;
+  __sync_fetch_and_add(&usage_ref, 1);
+  return curr;
+}
+
+/** probe quiting condition */
+volatile bool quiting = false;
+
+bool
+probe_quiting_condition()
+{
+  quiting = true;
+  return true;
+}
+
+
 /* 插件接口 */
 static bool plugin_inited = false;
 /*
@@ -2629,6 +2661,11 @@ static int ctrip_audit_plugin_deinit(void *arg __attribute__((unused)))
 {
   if (!plugin_inited)
     return(0);
+
+  if (!probe_quiting_condition())
+  {
+    return 1;
+  }
 
   ctrip_audit_deinit_lock();
 
@@ -2719,6 +2756,9 @@ static int ctrip_audit_notify(MYSQL_THD thd,
                              mysql_event_class_t event_class,
                              const void *event)
 {
+  if (quiting == true)
+    return 0;
+
   number_of_calls++;
 
   ctrip_audit_process_event(thd, event_class, event);
