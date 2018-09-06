@@ -101,14 +101,12 @@ static void ctrip_audit_deinit_lock()
 
 inline void ctrip_audit_lock_filter_and_var()
 {
-  mysql_mutex_lock(&LOCK_plugin_delete);
   mysql_mutex_lock(&LOCK_filter_and_var);
 }
 
 inline void ctrip_audit_unlock_filter_and_var()
 {
   mysql_mutex_unlock(&LOCK_filter_and_var);
-  mysql_mutex_unlock(&LOCK_plugin_delete);
 }
 
 
@@ -2574,47 +2572,41 @@ static void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),
                            unsigned int event_class,
                            const void *event)
 {
-  if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
+  switch (event_class)
   {
+  case MYSQL_AUDIT_GENERAL_CLASS:
     ctrip_audit_process_general_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
-  {
+    break;
+  case MYSQL_AUDIT_CONNECTION_CLASS:
     ctrip_audit_process_connection_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_PARSE_CLASS)
-  {
+    break;
+  case MYSQL_AUDIT_PARSE_CLASS:
     ctrip_audit_process_parse_event(thd, event_class, event);
-  }
-  /**
-    Currently events not active.
-  else if (event_class == MYSQL_AUDIT_AUTHORIZATION_CLASS)
-  {
-  }
-  */
-  else if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS)
-  {
-    ctrip_audit_process_startup_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS)
-  {
-    ctrip_audit_process_shutdown_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_COMMAND_CLASS)
-  {
-    ctrip_audit_process_command_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_QUERY_CLASS)
-  {
-    ctrip_audit_process_query_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS)
-  {
+    break;
+  case MYSQL_AUDIT_AUTHORIZATION_CLASS:
+    break;
+  case MYSQL_AUDIT_TABLE_ACCESS_CLASS:
     ctrip_audit_process_table_access_event(thd, event_class, event);
-  }
-  else if (event_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS)
-  {
+    break;
+  case MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS:
     ctrip_audit_process_variable_event(thd, event_class, event);
+    break;
+  case MYSQL_AUDIT_SERVER_STARTUP_CLASS:
+    ctrip_audit_process_startup_event(thd, event_class, event);
+    break;
+  case MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS:
+    ctrip_audit_process_shutdown_event(thd, event_class, event);
+    break;
+  case MYSQL_AUDIT_COMMAND_CLASS:
+    ctrip_audit_process_command_event(thd, event_class, event);
+    break;
+  case MYSQL_AUDIT_QUERY_CLASS:
+    ctrip_audit_process_query_event(thd, event_class, event);
+    break;
+  case MYSQL_AUDIT_STORED_PROGRAM_CLASS:
+    break;
+  default:
+    DBUG_ASSERT(FALSE);
   }
 }
 
