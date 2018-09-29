@@ -803,9 +803,7 @@ static int ctrip_audit_remove_filter(remove_parse_t *removes)
   return 0;
 }
 
-static
-int
-ctrip_audit_remove_rule_check_exist(remove_parse_t *removes)
+static int ctrip_audit_remove_rule_check_exist(remove_parse_t *removes)
 {
   int i;
 
@@ -838,8 +836,7 @@ static int ctrip_audit_parse_remove_input(
   return 0;
 }
 
-inline filter_result_enum 
-ctrip_audit_filter_event(event_info_t *info, filter_item_t *item
+inline filter_result_enum  ctrip_audit_filter_event(event_info_t *info, filter_item_t *item
                          , unsigned int event_class)
 {
   //host
@@ -1003,9 +1000,7 @@ const char *connection_events[] = {
   , CTRIP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER
 };
 
-static void 
-ctrip_audit_rule_2_str(
-  filter_item_t *item, char *buffer, int size)
+static void ctrip_audit_rule_2_str(filter_item_t *item, char *buffer, int size)
 {
   char *buffer_index = buffer;
 
@@ -1163,8 +1158,7 @@ ctrip_audit_rule_2_str(
   buffer_index += 1;
 }
 
-static void rules2str_buffer_write(
-  const char *rule, rules2str_buffer_t *buffer)
+static void rules2str_buffer_write(const char *rule, rules2str_buffer_t *buffer)
 {
   int len = strlen(rule);
   if ((buffer->occupied_bytes + len) >= buffer->buffer_size)
@@ -1377,9 +1371,7 @@ static char *version = version_inner;
 
 static rules2str_buffer_t rules_buffer;
 
-static
-void
-ctrip_audit_add_rule_update(
+static void ctrip_audit_add_rule_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1388,9 +1380,7 @@ ctrip_audit_add_rule_update(
   const void*			save);		/*!< in: immediate result
 							from check function */
 
-static
-int
-ctrip_audit_add_rule_validate(
+static int ctrip_audit_add_rule_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1400,9 +1390,7 @@ ctrip_audit_add_rule_validate(
   struct st_mysql_value*          value);  /*!< in: incoming string */
 
 
-static
-void
-ctrip_audit_remove_rule_update(
+static void ctrip_audit_remove_rule_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1411,9 +1399,7 @@ ctrip_audit_remove_rule_update(
   const void*			save);		/*!< in: immediate result
 							from check function */
 
-static
-int
-ctrip_audit_remove_rule_validate(
+static int ctrip_audit_remove_rule_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1422,9 +1408,7 @@ ctrip_audit_remove_rule_validate(
                                             for update function */
   struct st_mysql_value*          value);  /*!< in: incoming string */
 
-static
-void
-ctrip_audit_set_enable_buffer_update(
+static void ctrip_audit_set_enable_buffer_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1433,9 +1417,7 @@ ctrip_audit_set_enable_buffer_update(
   const void*			save);		/*!< in: immediate result
 							from check function */
 
-static
-int
-ctrip_audit_flush_log_validate(
+static int ctrip_audit_flush_log_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1444,9 +1426,7 @@ ctrip_audit_flush_log_validate(
                                             for update function */
   struct st_mysql_value*          value);  /*!< in: incoming string */
 
-static
-void
-ctrip_audit_flush_log_update(
+static void ctrip_audit_flush_log_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1454,9 +1434,7 @@ ctrip_audit_flush_log_update(
 							formal string goes */
   const void*			save);		/*!< in: immediate result
 							from check function */
-static
-int
-ctrip_audit_set_buffer_size_validate(
+static int ctrip_audit_set_buffer_size_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1465,9 +1443,7 @@ ctrip_audit_set_buffer_size_validate(
                                             for update function */
   struct st_mysql_value*          value);  /*!< in: incoming string */
 
-static
-void
-ctrip_audit_set_buffer_size_update(
+static void ctrip_audit_set_buffer_size_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1585,9 +1561,7 @@ static void ctrip_audit_deinit_variable()
 Check if it is a valid add rule input. This function is registered as
 a callback with MySQL.
 @return	0 for valid input , 1 for invalid*/
-static
-int
-ctrip_audit_add_rule_validate(
+static int ctrip_audit_add_rule_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1638,9 +1612,7 @@ ctrip_audit_add_rule_validate(
   return(1);
 }
 
-static
-void
-ctrip_audit_add_rule_update(
+static void ctrip_audit_add_rule_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1693,9 +1665,7 @@ ctrip_audit_add_rule_update(
 Check if it is a valid remove rule input. This function is registered as
 a callback with MySQL.
 @return	0 for valid input , 1 for invalid*/
-static
-int
-ctrip_audit_remove_rule_validate(
+static int ctrip_audit_remove_rule_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1732,9 +1702,7 @@ ctrip_audit_remove_rule_validate(
   return(1);
 }
 
-static
-void
-ctrip_audit_remove_rule_update(
+static void ctrip_audit_remove_rule_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1778,9 +1746,7 @@ ctrip_audit_remove_rule_update(
   DBUG_VOID_RETURN;
 }
 
-static
-void
-ctrip_audit_set_enable_buffer_update(
+static void ctrip_audit_set_enable_buffer_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1811,9 +1777,7 @@ ctrip_audit_set_enable_buffer_update(
   DBUG_VOID_RETURN;
 }
 
-static
-int
-ctrip_audit_flush_log_validate(
+static int ctrip_audit_flush_log_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1846,9 +1810,7 @@ ctrip_audit_flush_log_validate(
   DBUG_RETURN(1);
 }
 
-static
-void
-ctrip_audit_flush_log_update(
+static void ctrip_audit_flush_log_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -1864,9 +1826,7 @@ ctrip_audit_flush_log_update(
   DBUG_VOID_RETURN;
 }
 
-static
-int
-ctrip_audit_set_buffer_size_validate(
+static int ctrip_audit_set_buffer_size_validate(
   /*=============================*/
   THD*                            thd,    /*!< in: thread handle */
   struct st_mysql_sys_var*        var,    /*!< in: pointer to system
@@ -1891,9 +1851,7 @@ ctrip_audit_set_buffer_size_validate(
   DBUG_RETURN(0);
 }
 
-static
-void
-ctrip_audit_set_buffer_size_update(
+static void ctrip_audit_set_buffer_size_update(
   THD*				thd,		/*!< in: thread handle */
   struct st_mysql_sys_var*	var,		/*!< in: pointer to
 							system variable */
@@ -2233,8 +2191,7 @@ static void ctrip_audit_general_event_get_user(
   user[user_len] = 0;
 }
 
-static int
-ctrip_audit_process_general_event(
+static int ctrip_audit_process_general_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2300,8 +2257,7 @@ ctrip_audit_process_general_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_connection_event(
+static int ctrip_audit_process_connection_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2357,8 +2313,7 @@ ctrip_audit_process_connection_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_parse_event(
+static int ctrip_audit_process_parse_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2424,8 +2379,7 @@ ctrip_audit_process_auth_event(
   return 0;
   }*/
 
-static int
-ctrip_audit_process_startup_event(
+static int ctrip_audit_process_startup_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2436,8 +2390,7 @@ ctrip_audit_process_startup_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_shutdown_event(
+static int ctrip_audit_process_shutdown_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2448,8 +2401,7 @@ ctrip_audit_process_shutdown_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_command_event(
+static int ctrip_audit_process_command_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2476,8 +2428,7 @@ ctrip_audit_process_command_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_query_event(
+static int ctrip_audit_process_query_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2505,8 +2456,7 @@ ctrip_audit_process_query_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_table_access_event(
+static int ctrip_audit_process_table_access_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2534,8 +2484,7 @@ ctrip_audit_process_table_access_event(
   return 0;
 }
 
-static int
-ctrip_audit_process_variable_event(
+static int ctrip_audit_process_variable_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -2571,7 +2520,7 @@ ctrip_audit_process_variable_event(
   return 0;
 }
 
-static void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),
+void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),
                            unsigned int event_class,
                            const void *event)
 {
