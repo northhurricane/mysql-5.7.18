@@ -1,5 +1,5 @@
-#ifndef CTRIP_AUDIT_H
-#define CTRIP_AUDIT_H
+#ifndef HTP_AUDIT_H
+#define HTP_AUDIT_H
 
 #include <stdio.h>
 #include <mysql/plugin_audit.h>
@@ -7,65 +7,81 @@
 
 /*
   version changer spec
-  1.3:first version under MySQL 5.7.17
+  1.0:first version under MySQL 5.7.18
 */
-#define CTRIP_AUDIT_VERSION "1.3"
+#define HTP_AUDIT_VERSION "1.0"
 
 /*插件所需的配置文件名*/
-#define CTRIP_AUDIT_CONFIG_FILE "ctrip_audit.cnf"
+#define HTP_AUDIT_CONFIG_FILE "htp_audit.cnf"
 
 /*配置文件config section*/
-#define CTRIP_AUDIT_RULE_GROUP_NAME "audit rule"
-#define CTRIP_AUDIT_GENERAL_GROUP_NAME "general"
+#define HTP_AUDIT_RULE_GROUP_NAME "audit rule"
+#define HTP_AUDIT_GENERAL_GROUP_NAME "general"
 
 /*audit rule section下的配置项的名字*/
-#define CTRIP_AUDIT_RULE_KEY_NAME "name"
-#define CTRIP_AUDIT_RULE_KEY_HOST "host"
-#define CTRIP_AUDIT_RULE_KEY_USER "user"
-#define CTRIP_AUDIT_RULE_KEY_EVENT "event"
-#define CTRIP_AUDIT_RULE_KEY_CMD "command"
-#define CTRIP_AUDIT_RULE_KEY_SQL_CMD "sql_command"
-#define CTRIP_AUDIT_RULE_KEY_SQL_KEYWORD "sql_keyword"
+#define HTP_AUDIT_RULE_KEY_NAME "name"
+#define HTP_AUDIT_RULE_KEY_HOST "host"
+#define HTP_AUDIT_RULE_KEY_USER "user"
+#define HTP_AUDIT_RULE_KEY_EVENT "event"
+#define HTP_AUDIT_RULE_KEY_CMD "command"
+#define HTP_AUDIT_RULE_KEY_SQL_CMD "sql_command"
+#define HTP_AUDIT_RULE_KEY_SQL_KEYWORD "sql_keyword"
 
 
 
 /*general section下的配置项的名字*/
-#define CTRIP_AUDIT_GENERAL_SECTION_AUDIT_FILE "audit_file"
-#define CTRIP_AUDIT_GENERAL_SECTION_AUDIT_ERROR_FILE "audit_error_file"
-#define CTRIP_AUDIT_GENERAL_SECTION_AUDIT_ENABLE_BUFFER "enable_buffer"
+#define HTP_AUDIT_GENERAL_SECTION_AUDIT_FILE "audit_file"
+#define HTP_AUDIT_GENERAL_SECTION_AUDIT_ERROR_FILE "audit_error_file"
+#define HTP_AUDIT_GENERAL_SECTION_AUDIT_ENABLE_BUFFER "enable_buffer"
 
 #define MAX_BUFFER_SIZE (4 * 1024)
 #define MIN_BUFFER_SIZE (32)
+
+bool lock_initialized = false;
+mysql_mutex_t LOCK_filter_and_var;
 
 void audit_connection_connect(const struct mysql_event_connection *event);
 void audit_connection_disconnect(const struct mysql_event_connection *event);
 void audit_connection_change_user(const struct mysql_event_connection *event);
 void audit_general_error(const struct mysql_event_general *event);
 void audit_general_status(const struct mysql_event_general *event);
+void ctrip_audit_init_filter_item(filter_item_t *item)
+void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),unsigned int event_class,const void *event);
+/*
+void ctrip_audit_set_buffer_size_validate(THD* thd, struct st_mysql_sys_var* var,void* save, struct st_mysql_value* value);
+void ctrip_audit_set_buffer_size_update(THD* thd, struct st_mysql_sys_var*	var,void* var_ptr, const void* save);
+void ctrip_audit_add_rule_update( THD* thd, struct st_mysql_sys_var* var,void* var_ptr,const void* save);
+*/
+/*!< in: incoming string */
+//add lock production
+
+static int ctrip_audit_init_lock();
+static void ctrip_audit_deinit_lock()
 
 
-#define CTRIP_AUDIT_LOG_LEVEL_INFO 1
-#define CTRIP_AUDIT_LOG_LEVEL_WARN 2
-#define CTRIP_AUDIT_LOG_LEVEL_ERROR 3
-#define CTRIP_AUDIT_LOG_LEVEL_FATAL 4
 
-#define CTRIP_AUDIT_EVENT_CLASS_INVALID (-1)
+#define HTP_AUDIT_LOG_LEVEL_INFO 1
+#define HTP_AUDIT_LOG_LEVEL_WARN 2
+#define HTP_AUDIT_LOG_LEVEL_ERROR 3
+#define HTP_AUDIT_LOG_LEVEL_FATAL 4
 
-#define CTRIP_AUDIT_EVENT_ALL "all"
+#define HTP_AUDIT_EVENT_CLASS_INVALID (-1)
 
-#define CTRIP_AUDIT_EVENT_GENERAL_CLASS "general"
-#define CTRIP_AUDIT_EVENT_GENERAL_SUB_LOG "log"
-#define CTRIP_AUDIT_EVENT_GENERAL_SUB_ERROR "error"
-#define CTRIP_AUDIT_EVENT_GENERAL_SUB_RESULT "result"
-#define CTRIP_AUDIT_EVENT_GENERAL_SUB_STATUS "status"
+#define HTP_AUDIT_EVENT_ALL "all"
 
-#define CTRIP_AUDIT_EVENT_CONNECTION_CLASS "connection"
-#define CTRIP_AUDIT_EVENT_CONNECTION_SUB_CONNECT "connect"
-#define CTRIP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT "disconnect"
-#define CTRIP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER "change user"
+#define HTP_AUDIT_EVENT_GENERAL_CLASS "general"
+#define HTP_AUDIT_EVENT_GENERAL_SUB_LOG "log"
+#define HTP_AUDIT_EVENT_GENERAL_SUB_ERROR "error"
+#define HTP_AUDIT_EVENT_GENERAL_SUB_RESULT "result"
+#define HTP_AUDIT_EVENT_GENERAL_SUB_STATUS "status"
+
+#define HTP_AUDIT_EVENT_CONNECTION_CLASS "connection"
+#define HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT "connect"
+#define HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT "disconnect"
+#define HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER "change user"
 
 void
-ctrip_audit_logf(
+tp_audit_logf(
   int level,  /*!< in: warning level */
   const char*    format, /*!< printf format */
   ...
@@ -121,4 +137,4 @@ private :
   ~Logger();
 };
 
-#endif //CTRIP_AUDIT_H
+#endif //HTP_AUDIT_H
