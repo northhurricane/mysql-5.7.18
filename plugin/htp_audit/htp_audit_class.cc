@@ -11,7 +11,7 @@
 #include "config.h"
 #include "log.h"
 #include "htp_audit_vars.h"
-
+#include "htp_audit_filter.h"
 using namespace std;
 /* 审计事件处理 */
 

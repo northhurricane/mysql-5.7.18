@@ -7,7 +7,7 @@
 #include <string>
 #include "config.h"
 #include "log.h"
-//#include "htp_audit_filter.h"
+#include "htp_audit_filter.h"
 #include "htp_audit_vars.h"
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>

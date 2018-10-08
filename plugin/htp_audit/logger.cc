@@ -2,6 +2,7 @@
 #include <string.h>
 #include<stdlib.h>
 #include "htp_audit_vars.h"
+#include "htp_audit_filter.h"
 using namespace std;
 
 #define LOG_BUFFER_SIZE (1024 * 8)

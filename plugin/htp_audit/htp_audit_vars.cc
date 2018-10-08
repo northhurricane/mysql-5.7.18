@@ -11,7 +11,7 @@
 #include "config.h"
 #include "log.h"
 #include "htp_audit_vars.h"
-
+#include "htp_audit_filter.h"
 /* 变量 */
 /*command line/option file/system variables*/
 #define MAX_ADD_RULE_LENGTH 1024

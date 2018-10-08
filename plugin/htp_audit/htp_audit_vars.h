@@ -4,7 +4,7 @@
 
 #ifndef MYSQL_HTP_AUDIT_VARS_H
 #define MYSQL_HTP_AUDIT_VARS_H
-#include"htp_audit_filter.h"
+//#include"htp_audit_filter.h"
 //#include"htp_audit.h"
 
 #define MAX_ADD_RULE_LENGTH 1024
