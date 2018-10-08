@@ -529,9 +529,9 @@ void audit_authorization_proxy(const struct mysql_event_authorization *event)
 
 //MYSQL_AUDIT_SERVER_SHUTDOWN_ALL
 
-void audit_server_shutdown_reason_shutdown(const struct mysql_event_server_shutdown *event)
+void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *event)
 {
-  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_SHUTDOWN);
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN);
 
   char current_str[100];
   //to do : 获取当前时间
@@ -549,34 +549,6 @@ void audit_server_shutdown_reason_shutdown(const struct mysql_event_server_shutd
   cJSON_AddItemToObject(root, "code",cJSON_CreateNumber(event->exit_code));
   cJSON_AddItemToObject(root, "reason",cJSON_CreateNumber(event->reason));
  //获得json字符串，输出到审计日志
-  char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
-
-  //释放资源
-  cJSON_Delete(root);
-  free(json_str);
-}
-
-void audit_server_shutdown_reason_abort(const struct mysql_event_server_shutdown *event)
-{
-  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_ABORT);
-
-  char current_str[100];
-  //to do : 获取当前时间
-  time_t current;
-  struct tm current_broken;
-  current=time(NULL);
-  localtime_r(&current, &current_broken);
-
-  strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
-
-  cJSON *root;
-  root=cJSON_CreateObject();
-  cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
-  cJSON_AddItemToObject(root, "type", cJSON_CreateString("shutdown"));
-  cJSON_AddItemToObject(root, "code",cJSON_CreateNumber(event->exit_code));
-  cJSON_AddItemToObject(root, "reason",cJSON_CreateNumber(event->reason));
-  //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
   Logger::GetELogger()->Write(json_str, ",");
 

@@ -304,7 +304,6 @@ HTP_AUDIT_VAR(server_startup)
 
 /* Count MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS event instances */
 HTP_AUDIT_VAR(server_shutdown)
-HTP_AUDIT_VAR(server_abort)
 
 /* Count MYSQL_AUDIT_TABLE_ACCESS_CLASS event instances */
 HTP_AUDIT_VAR(table_access_insert)
@@ -391,11 +390,6 @@ void number_of_calls_server_startup_incr()
 void number_of_calls_server_shutdown_incr()
 {
     number_of_calls_server_shutdown++;
-}
-
-void number_of_calls_server_abort_incr()
-{
-    number_of_calls_server_abort++;
 }
 
 void number_of_calls_command_start_incr()

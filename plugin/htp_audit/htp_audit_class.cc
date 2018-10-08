@@ -249,13 +249,9 @@ htp_audit_process_shutdown_event(
 
     switch(event_shutdown->event_subclass)
     {
-        case MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_SHUTDOWN:
-            audit_server_shutdown_reason_shutdown(event_shutdown);
+        case MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN:
+            audit_server_shutdown_shutdown(event_shutdown);
             number_of_calls_server_shutdown_incr();
-            break;
-        case MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_ABORT:
-            audit_server_shutdown_reason_abort(event_shutdown);
-            number_of_calls_server_abort_incr();
             break;
         default:
             break;
@@ -411,6 +407,7 @@ void htp_audit_process_event(MYSQL_THD thd __attribute__((unused)),
             htp_audit_process_parse_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_AUTHORIZATION_CLASS:
+            htp_audit_process_auth_event(thd,event_class,event);
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_CLASS:
             htp_audit_process_table_access_event(thd, event_class, event);

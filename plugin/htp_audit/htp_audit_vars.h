@@ -39,7 +39,6 @@ void number_of_calls_parse_preparse_incr();
 void number_of_calls_parse_postparse_incr();
 void number_of_calls_server_startup_incr();
 void number_of_calls_server_shutdown_incr();
-void number_of_calls_server_abort_incr();
 void number_of_calls_command_start_incr();
 void number_of_calls_command_end_incr();
 void number_of_calls_query_start_incr();
