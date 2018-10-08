@@ -304,6 +304,7 @@ HTP_AUDIT_VAR(server_startup)
 
 /* Count MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS event instances */
 HTP_AUDIT_VAR(server_shutdown)
+HTP_AUDIT_VAR(server_abort)
 
 /* Count MYSQL_AUDIT_TABLE_ACCESS_CLASS event instances */
 HTP_AUDIT_VAR(table_access_insert)
@@ -392,6 +393,11 @@ void number_of_calls_server_shutdown_incr()
     number_of_calls_server_shutdown++;
 }
 
+void number_of_calls_server_abort_incr()
+{
+    number_of_calls_server_abort++;
+}
+
 void number_of_calls_command_start_incr()
 {
     number_of_calls_command_start++;
@@ -451,6 +457,37 @@ void number_of_calls_global_variable_set_incr()
 {
     number_of_calls_global_variable_set++;
 }
+
+void number_of_calls_authorization_user_incr()
+{
+    number_of_calls_authorization_user++;
+}
+
+void number_of_calls_authorization_db_incr()
+{
+    number_of_calls_authorization_db++;
+}
+
+void number_of_calls_authorization_table_incr()
+{
+    number_of_calls_authorization_table++;
+}
+
+void number_of_calls_authorization_column_incr()
+{
+    number_of_calls_authorization_column++;
+}
+
+void number_of_calls_authorization_procedure_incr()
+{
+    number_of_calls_authorization_procedure++;
+}
+
+void number_of_calls_authorization_proxy_incr()
+{
+    number_of_calls_authorization_proxy++;
+}
+
 /*被审计的事件统计*/
 static volatile int64_t number_of_records; /* for SHOW STATUS, see below */
 static volatile int64_t number_of_records_general_log;

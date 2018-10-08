@@ -164,9 +164,11 @@ static int htp_audit_process_parse_event(
     switch (event_parse->event_subclass)
     {
         case MYSQL_AUDIT_PARSE_PREPARSE:
+            audit_parse_preparse(event_parse);
             number_of_calls_parse_preparse_incr();
             break;
         case MYSQL_AUDIT_PARSE_POSTPARSE:
+            audit_parse_postparse(event_parse);
             number_of_calls_parse_postparse_incr();
             break;
         default:
@@ -176,7 +178,7 @@ static int htp_audit_process_parse_event(
 }
 
 
-/*static int
+static int
 htp_audit_process_auth_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
@@ -184,7 +186,7 @@ htp_audit_process_auth_event(
 {
   const struct mysql_event_authorization *event_grant =
   (const struct mysql_event_authorization *)event;
-
+/*
   buffer_data= sprintf(buffer, "db=\"%s\" table=\"%s\" object=\"%s\" "
                        "requested=\"0x%08x\" granted=\"0x%08x\"",
                        event_grant->database.str ? event_grant->database.str : "<NULL>",
@@ -192,32 +194,38 @@ htp_audit_process_auth_event(
                        event_grant->object.str ? event_grant->object.str : "<NULL>",
                        event_grant->requested_privilege,
                        event_grant->granted_privilege);
-
+*/
   switch (event_grant->event_subclass)
   {
   case MYSQL_AUDIT_AUTHORIZATION_USER:
-    number_of_calls_authorization_user++;
+    audit_authorization_user(event_grant);
+    number_of_calls_authorization_user_incr();
     break;
   case MYSQL_AUDIT_AUTHORIZATION_DB:
-    number_of_calls_authorization_db++;
+    audit_authorization_db(event_grant);
+    number_of_calls_authorization_db_incr();
     break;
   case MYSQL_AUDIT_AUTHORIZATION_TABLE:
-    number_of_calls_authorization_table++;
+    audit_authorization_table(event_grant);
+    number_of_calls_authorization_table_incr();
     break;
   case MYSQL_AUDIT_AUTHORIZATION_COLUMN:
-    number_of_calls_authorization_column++;
+    audit_authorization_column(event_grant);
+    number_of_calls_authorization_column_incr();
     break;
   case MYSQL_AUDIT_AUTHORIZATION_PROCEDURE:
-    number_of_calls_authorization_procedure++;
+    audit_authorization_procedure(event_grant);
+    number_of_calls_authorization_procedure_incr();
     break;
   case MYSQL_AUDIT_AUTHORIZATION_PROXY:
-    number_of_calls_authorization_proxy++;
+    audit_authorization_proxy(event_grant);
+    number_of_calls_authorization_proxy_incr();
     break;
   default:
     break;
   }
   return 0;
-  }*/
+  }
 
 static int htp_audit_process_startup_event(
         MYSQL_THD thd __attribute__((unused))
@@ -236,9 +244,23 @@ htp_audit_process_shutdown_event(
         , unsigned int event_class
         ,const void *event)
 {
-    /* const struct mysql_event_server_shutdown *event_startup=
-       (const struct mysql_event_server_shutdown *) event; */
-    number_of_calls_server_shutdown_incr();
+    const struct mysql_event_server_shutdown *event_shutdown=
+       (const struct mysql_event_server_shutdown *) event;
+
+    switch(event_shutdown->event_subclass)
+    {
+        case MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_SHUTDOWN:
+            audit_server_shutdown_reason_shutdown(event_shutdown);
+            number_of_calls_server_shutdown_incr();
+            break;
+        case MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_ABORT:
+            audit_server_shutdown_reason_abort(event_shutdown);
+            number_of_calls_server_abort_incr();
+            break;
+        default:
+            break;
+    }
+
     return 0;
 }
 
@@ -258,9 +280,11 @@ static int htp_audit_process_command_event(
     switch (event_command->event_subclass)
     {
         case MYSQL_AUDIT_COMMAND_START:
+            audit_command_start(event_command);
             number_of_calls_command_start_incr();
             break;
         case MYSQL_AUDIT_COMMAND_END:
+            audit_command_end(event_command);
             number_of_calls_command_end_incr();
             break;
         default:
@@ -280,15 +304,19 @@ static int htp_audit_process_query_event(
     switch (event_query->event_subclass)
     {
         case MYSQL_AUDIT_QUERY_START:
+            audit_query_start(event_query);
             number_of_calls_query_start_incr();
             break;
         case MYSQL_AUDIT_QUERY_NESTED_START:
+            audit_query_nested_start(event_query);
             number_of_calls_query_nested_start_incr();
             break;
         case MYSQL_AUDIT_QUERY_STATUS_END:
+            audit_query_status_end(event_query);
             number_of_calls_query_status_end_incr();
             break;
         case MYSQL_AUDIT_QUERY_NESTED_STATUS_END:
+            audit_query_nested_status_end(event_query);
             number_of_calls_query_nested_status_end_incr();
             break;
         default:
@@ -308,15 +336,19 @@ static int htp_audit_process_table_access_event(
     switch (event_table->event_subclass)
     {
         case MYSQL_AUDIT_TABLE_ACCESS_INSERT:
+            audit_table_access_insert(event_table);
             number_of_calls_table_access_insert_incr();
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_DELETE:
+            audit_table_access_delete(event_table);
             number_of_calls_table_access_delete_incr();
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_UPDATE:
+            audit_table_access_update(event_table);
             number_of_calls_table_access_update_incr();
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_READ:
+            audit_table_access_read(event_table);
             number_of_calls_table_access_read_incr();
             break;
         default:
@@ -350,9 +382,11 @@ static int htp_audit_process_variable_event(
     switch (event_gvar->event_subclass)
     {
         case MYSQL_AUDIT_GLOBAL_VARIABLE_GET:
+            audit_global_variable_get(event_gvar);
             number_of_calls_global_variable_get_incr();
             break;
         case MYSQL_AUDIT_GLOBAL_VARIABLE_SET:
+            audit_global_variable_set(event_gvar);
             number_of_calls_global_variable_set_incr();
             break;
         default:
