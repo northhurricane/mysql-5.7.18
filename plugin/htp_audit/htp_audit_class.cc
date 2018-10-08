@@ -4,20 +4,19 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <sql_plugin.h>
-#include "ctrip_audit.h"
+//#include "htp_audit.h"
 #include <list>
 #include <ctype.h>
 #include <string>
 #include "config.h"
 #include "log.h"
+#include "htp_audit_vars.h"
 
-
-
-
+using namespace std;
 /* 审计事件处理 */
 
 /*解析general传入的user串*/
-static void ctrip_audit_general_event_get_user(
+static void htp_audit_general_event_get_user(
         const char *general_user, char *user)
 {
     int len = strlen(general_user);
@@ -33,8 +32,7 @@ static void ctrip_audit_general_event_get_user(
     user[user_len] = 0;
 }
 
-static int
-ctrip_audit_process_general_event(
+static int htp_audit_process_general_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -44,7 +42,7 @@ ctrip_audit_process_general_event(
 
     event_info_t info;
     char user[256];
-    ctrip_audit_general_event_get_user(event_general->general_user.str, user);
+    htp_audit_general_event_get_user(event_general->general_user.str, user);
     info.ip = event_general->general_ip.str;
     info.user = user;
     info.host = event_general->general_host.str;
@@ -53,32 +51,31 @@ ctrip_audit_process_general_event(
     info.command = event_general->general_command.str;
     info.query = event_general->general_query.str;
     info.sql_command = event_general->general_sql_command.str;
-
     //统计调用次数
     switch (event_general->event_subclass)
     {
         case MYSQL_AUDIT_GENERAL_LOG:
-            number_of_calls_general_log++;
+            number_of_calls_general_log_incr();
             break;
         case MYSQL_AUDIT_GENERAL_ERROR:
-            number_of_calls_general_error++;
+            number_of_calls_general_error_incr();
             break;
         case MYSQL_AUDIT_GENERAL_RESULT:
-            number_of_calls_general_result++;
+            number_of_calls_general_result_incr();
             break;
         case MYSQL_AUDIT_GENERAL_STATUS:
-            number_of_calls_general_status++;
+            number_of_calls_general_status_incr();
             break;
         default:
             break;
     }
 
-    if (ctrip_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT)
+    if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT)
     {
         return 0;
     }
 
-    number_of_records++;
+    number_of_records_incr();
     //进行审计
     switch (event_general->event_subclass)
     {
@@ -86,12 +83,12 @@ ctrip_audit_process_general_event(
             break;
         case MYSQL_AUDIT_GENERAL_ERROR:
             audit_general_error(event_general);
-            number_of_records_general_error++;
+            number_of_records_general_error_incr();
             break;
         case MYSQL_AUDIT_GENERAL_RESULT:
             break;
         case MYSQL_AUDIT_GENERAL_STATUS:
-            number_of_records_general_status++;
+            number_of_records_general_status_incr();
             audit_general_status(event_general);
             break;
         default:
@@ -100,8 +97,7 @@ ctrip_audit_process_general_event(
     return 0;
 }
 
-static int
-ctrip_audit_process_connection_event(
+static int htp_audit_process_connection_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -119,36 +115,36 @@ ctrip_audit_process_connection_event(
     switch (event_connection->event_subclass)
     {
         case MYSQL_AUDIT_CONNECTION_CONNECT:
-            number_of_calls_connection_connect++;
+            number_of_calls_connection_connect_incr();
             break;
         case MYSQL_AUDIT_CONNECTION_DISCONNECT:
-            number_of_calls_connection_disconnect++;
+            number_of_calls_connection_disconnect_incr();
             break;
         case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
-            number_of_calls_connection_change_user++;
+            number_of_calls_connection_change_user_incr();
             break;
         default:
             break;
     }
 
-    if (ctrip_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT)
+    if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT)
     {
         return 0;
     }
 
-    number_of_records++;
+    number_of_records_incr();
     switch (event_connection->event_subclass)
     {
         case MYSQL_AUDIT_CONNECTION_CONNECT:
-            number_of_records_connection_connect++;
+            number_of_records_connection_connect_incr();
             audit_connection_connect(event_connection);
             break;
         case MYSQL_AUDIT_CONNECTION_DISCONNECT:
-            number_of_records_connection_disconnect++;
+            number_of_records_connection_disconnect_incr();
             audit_connection_disconnect(event_connection);
             break;
         case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
-            number_of_records_connection_change_user++;
+            number_of_records_connection_change_user_incr();
             audit_connection_change_user(event_connection);
             break;
         default:
@@ -157,8 +153,7 @@ ctrip_audit_process_connection_event(
     return 0;
 }
 
-static int
-ctrip_audit_process_parse_event(
+static int htp_audit_process_parse_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -169,10 +164,10 @@ ctrip_audit_process_parse_event(
     switch (event_parse->event_subclass)
     {
         case MYSQL_AUDIT_PARSE_PREPARSE:
-            number_of_calls_parse_preparse++;
+            number_of_calls_parse_preparse_incr();
             break;
         case MYSQL_AUDIT_PARSE_POSTPARSE:
-            number_of_calls_parse_postparse++;
+            number_of_calls_parse_postparse_incr();
             break;
         default:
             break;
@@ -182,7 +177,7 @@ ctrip_audit_process_parse_event(
 
 
 /*static int
-ctrip_audit_process_auth_event(
+htp_audit_process_auth_event(
   MYSQL_THD thd __attribute__((unused))
   , unsigned int event_class
   ,const void *event)
@@ -224,32 +219,30 @@ ctrip_audit_process_auth_event(
   return 0;
   }*/
 
-hstatic int
-ctrip_audit_process_startup_event(
+static int htp_audit_process_startup_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
 {
     /* const struct mysql_event_server_startup *event_startup=
        (const struct mysql_event_server_startup *) event; */
-    number_of_calls_server_startup++;
+    number_of_calls_server_startup_incr();
     return 0;
 }
 
 static int
-ctrip_audit_process_shutdown_event(
+htp_audit_process_shutdown_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
 {
     /* const struct mysql_event_server_shutdown *event_startup=
        (const struct mysql_event_server_shutdown *) event; */
-    number_of_calls_server_shutdown++;
+    number_of_calls_server_shutdown_incr();
     return 0;
 }
 
-static int
-ctrip_audit_process_command_event(
+static int htp_audit_process_command_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -265,10 +258,10 @@ ctrip_audit_process_command_event(
     switch (event_command->event_subclass)
     {
         case MYSQL_AUDIT_COMMAND_START:
-            number_of_calls_command_start++;
+            number_of_calls_command_start_incr();
             break;
         case MYSQL_AUDIT_COMMAND_END:
-            number_of_calls_command_end++;
+            number_of_calls_command_end_incr();
             break;
         default:
             break;
@@ -276,8 +269,7 @@ ctrip_audit_process_command_event(
     return 0;
 }
 
-static int
-ctrip_audit_process_query_event(
+static int htp_audit_process_query_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -288,16 +280,16 @@ ctrip_audit_process_query_event(
     switch (event_query->event_subclass)
     {
         case MYSQL_AUDIT_QUERY_START:
-            number_of_calls_query_start++;
+            number_of_calls_query_start_incr();
             break;
         case MYSQL_AUDIT_QUERY_NESTED_START:
-            number_of_calls_query_nested_start++;
+            number_of_calls_query_nested_start_incr();
             break;
         case MYSQL_AUDIT_QUERY_STATUS_END:
-            number_of_calls_query_status_end++;
+            number_of_calls_query_status_end_incr();
             break;
         case MYSQL_AUDIT_QUERY_NESTED_STATUS_END:
-            number_of_calls_query_nested_status_end++;
+            number_of_calls_query_nested_status_end_incr();
             break;
         default:
             break;
@@ -305,8 +297,7 @@ ctrip_audit_process_query_event(
     return 0;
 }
 
-static int
-ctrip_audit_process_table_access_event(
+static int htp_audit_process_table_access_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -317,16 +308,16 @@ ctrip_audit_process_table_access_event(
     switch (event_table->event_subclass)
     {
         case MYSQL_AUDIT_TABLE_ACCESS_INSERT:
-            number_of_calls_table_access_insert++;
+            number_of_calls_table_access_insert_incr();
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_DELETE:
-            number_of_calls_table_access_delete++;
+            number_of_calls_table_access_delete_incr();
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_UPDATE:
-            number_of_calls_table_access_update++;
+            number_of_calls_table_access_update_incr();
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_READ:
-            number_of_calls_table_access_read++;
+            number_of_calls_table_access_read_incr();
             break;
         default:
             break;
@@ -334,8 +325,7 @@ ctrip_audit_process_table_access_event(
     return 0;
 }
 
-static int
-ctrip_audit_process_variable_event(
+static int htp_audit_process_variable_event(
         MYSQL_THD thd __attribute__((unused))
         , unsigned int event_class
         ,const void *event)
@@ -360,10 +350,10 @@ ctrip_audit_process_variable_event(
     switch (event_gvar->event_subclass)
     {
         case MYSQL_AUDIT_GLOBAL_VARIABLE_GET:
-            number_of_calls_global_variable_get++;
+            number_of_calls_global_variable_get_incr();
             break;
         case MYSQL_AUDIT_GLOBAL_VARIABLE_SET:
-            number_of_calls_global_variable_set++;
+            number_of_calls_global_variable_set_incr();
             break;
         default:
             break;
@@ -371,40 +361,40 @@ ctrip_audit_process_variable_event(
     return 0;
 }
 
-void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),
+void htp_audit_process_event(MYSQL_THD thd __attribute__((unused)),
                                       unsigned int event_class,
                                       const void *event)
 {
     switch (event_class)
     {
         case MYSQL_AUDIT_GENERAL_CLASS:
-            ctrip_audit_process_general_event(thd, event_class, event);
+            htp_audit_process_general_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_CONNECTION_CLASS:
-            ctrip_audit_process_connection_event(thd, event_class, event);
+            htp_audit_process_connection_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_PARSE_CLASS:
-            ctrip_audit_process_parse_event(thd, event_class, event);
+            htp_audit_process_parse_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_AUTHORIZATION_CLASS:
             break;
         case MYSQL_AUDIT_TABLE_ACCESS_CLASS:
-            ctrip_audit_process_table_access_event(thd, event_class, event);
+            htp_audit_process_table_access_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS:
-            ctrip_audit_process_variable_event(thd, event_class, event);
+            htp_audit_process_variable_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_SERVER_STARTUP_CLASS:
-            ctrip_audit_process_startup_event(thd, event_class, event);
+            htp_audit_process_startup_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS:
-            ctrip_audit_process_shutdown_event(thd, event_class, event);
+            htp_audit_process_shutdown_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_COMMAND_CLASS:
-            ctrip_audit_process_command_event(thd, event_class, event);
+            htp_audit_process_command_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_QUERY_CLASS:
-            ctrip_audit_process_query_event(thd, event_class, event);
+            htp_audit_process_query_event(thd, event_class, event);
             break;
         case MYSQL_AUDIT_STORED_PROGRAM_CLASS:
             break;

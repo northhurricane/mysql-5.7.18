@@ -42,6 +42,7 @@ void audit_connection_disconnect(const struct mysql_event_connection *event);
 void audit_connection_change_user(const struct mysql_event_connection *event);
 void audit_general_error(const struct mysql_event_general *event);
 void audit_general_status(const struct mysql_event_general *event);
+void ctrip_audit_process_event(MYSQL_THD thd __attribute__((unused)),unsigned int event_class,const void *event);
 
 
 #define CTRIP_AUDIT_LOG_LEVEL_INFO 1

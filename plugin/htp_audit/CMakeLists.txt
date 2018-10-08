@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-MYSQL_ADD_PLUGIN(htp_audit htp_audit_main.cc htp_audit_vars.cc htp_audit_class.cc htp_audit_filter.cc cJSON.c logger.cc config.c
-  MODULE_ONLY MODULE_OUTPUT_NAME "htp_audit")
+MYSQL_ADD_PLUGIN(htp_audit  htp_audit_filter.cc htp_audit_vars.cc htp_audit_class.cc  cJSON.c logger.cc config.c
+htp_audit_main.cc  MODULE_ONLY MODULE_OUTPUT_NAME "htp_audit")
 
-INSTALL(FILES ctrip_audit.cnf DESTINATION ${INSTALL_PLUGINDIR})
+#INSTALL(FILES htp_audit.cnf DESTINATION ${INSTALL_PLUGINDIR})

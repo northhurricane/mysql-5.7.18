@@ -1,7 +1,7 @@
-#include "htp_audit.h"
+//#include "htp_audit.h"
 #include <string.h>
-#include <stdlib.h>
-
+#include<stdlib.h>
+#include "htp_audit_vars.h"
 using namespace std;
 
 #define LOG_BUFFER_SIZE (1024 * 8)

@@ -48,6 +48,8 @@ extern "C" { /* Assume C declarations for C++   */
 
 #define CONFIG_ERROR_NOFILE (1)
 #define CONFIG_ERROR_LINE   (2)
+//#define HTP_AUDIT_CONFIG_FILE "htp_audit.cnf"
+
 
 struct config_err_struct
 {
