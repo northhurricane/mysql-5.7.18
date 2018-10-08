@@ -326,6 +326,7 @@ volatile int64_t number_of_calls_general_log;
 volatile int64_t number_of_calls_general_error;
 volatile int64_t number_of_calls_general_result;
 volatile int64_t number_of_calls_general_status;
+*/
 /* Count MYSQL_AUDIT_CONNECTION_CLASS event instances */
 /*
 volatile int64_t number_of_calls_connection_connect;
