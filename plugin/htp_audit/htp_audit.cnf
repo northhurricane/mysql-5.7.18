@@ -1,6 +1,6 @@
 [general]
-audit_file=ctrip_audit.log
-audit_error_file=ctrip_audit_error.log
+audit_file=htp_audit.log
+audit_error_file=htp_audit_error.log
 enable_buffer=1
 
 #[audit rule]
