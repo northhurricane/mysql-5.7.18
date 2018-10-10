@@ -287,31 +287,36 @@ void htp_audit_init_filter_item(filter_item_t *item) {
 
 void htp_audit_init_filter() {
   DBUG_ASSERT(filters.size() == 0);
-  for (int i = 0; i < MAX_FILTER_ITEMS; i++) {
+  for (int i = 0; i < MAX_FILTER_ITEMS; i++)
+  {
     filter_using_map[i] = FILTER_ITEM_UNUSABLE;
     htp_audit_init_filter_item(filter_items + i);
   }
 }
 
-void htp_audit_deinit_filter() {
+void htp_audit_deinit_filter()
+{
   filters.clear();
 }
 
 
-inline bool htp_audit_is_kv_unit_splitter(char c) {
+inline bool htp_audit_is_kv_unit_splitter(char c)
+{
   if (c == ';' || c == '\n' || c == '\r')
     return true;
   return false;
 }
 
 
-inline bool htp_audit_is_event_class_splitter(char c) {
+inline bool htp_audit_is_event_class_splitter(char c)
+{
   if (c == ':')
     return true;
   return false;
 }
 
-inline bool htp_audit_is_event_splitter(char c) {
+inline bool htp_audit_is_event_splitter(char c)
+{
   if (c == ';')
     return true;
 
@@ -321,7 +326,7 @@ inline bool htp_audit_is_event_splitter(char c) {
 /*获取event的信息*/
 static int htp_audit_get_event_inchar(
     const char *event, int event_len, const char **main_class, int *main_len, const char **sub_class,
-    int *sub_len) {
+    int *sub_len){
   int main_class_len = 0, sub_class_len = 0;
 
   *main_class = NULL;
@@ -330,7 +335,8 @@ static int htp_audit_get_event_inchar(
   *sub_len = 0;
 
   *main_class = event;
-  for (int i = 0; i < event_len; i++) {
+  for (int i = 0; i < event_len; i++)
+  {
     if (htp_audit_is_event_class_splitter(event[i]))
       break;
     main_class_len++;
@@ -356,18 +362,22 @@ static int htp_audit_get_event_inchar(
 static int htp_audit_get_event_init(
     const char *main_class, int main_len, int *main_class_int, const char *sub_class, int sub_len,
     int *sub_class_int) {
-  if (strncasecmp(main_class, HTP_AUDIT_EVENT_GENERAL_CLASS, main_len) == 0) {
+  if (strncasecmp(main_class, HTP_AUDIT_EVENT_GENERAL_CLASS, main_len) == 0)
+  {
     *main_class_int = MYSQL_AUDIT_GENERAL_CLASS;
-    if (sub_len == 0) {
+    if (sub_len == 0)
+    {
       *sub_class_int = EVENT_ALL;
       return 0;
     }
 
     if (
-        strncasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_ERROR, sub_len) == 0) {
+        strncasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_ERROR, sub_len) == 0)
+    {
       *sub_class_int = MYSQL_AUDIT_GENERAL_ERROR;
     } else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_STATUS, sub_len) == 0) {
+        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_STATUS, sub_len) == 0)
+    {
       *sub_class_int = MYSQL_AUDIT_GENERAL_STATUS;
     } else {
       return -1;
@@ -384,35 +394,43 @@ static int htp_audit_get_event_init(
     }
     */
   } else if (strncasecmp(
-      main_class, HTP_AUDIT_EVENT_CONNECTION_CLASS, main_len) == 0) {
+      main_class, HTP_AUDIT_EVENT_CONNECTION_CLASS, main_len) == 0)
+  {
     *main_class_int = MYSQL_AUDIT_CONNECTION_CLASS;
-    if (sub_len == 0) {
+    if (sub_len == 0)
+    {
       *sub_class_int = EVENT_ALL;
       return 0;
     }
 
     if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT, sub_len) == 0) {
+        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT, sub_len) == 0)
+    {
       *sub_class_int = MYSQL_AUDIT_CONNECTION_CONNECT;
     } else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT, sub_len) == 0) {
+        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT, sub_len) == 0)
+    {
       *sub_class_int = MYSQL_AUDIT_CONNECTION_DISCONNECT;
     } else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER, sub_len) == 0) {
+        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER, sub_len) == 0)
+    {
       *sub_class_int = MYSQL_AUDIT_CONNECTION_CHANGE_USER;
     } else {
       return -1;
     }
-  } else {
+  } else
+    {
     return -1;
   }
 
   return 0;
 }
 
-static int htp_audit_get_single_event_len(const char *event, int event_len) {
+static int htp_audit_get_single_event_len(const char *event, int event_len)
+{
   int single_event_len = 0;
-  for (int i = 0; i < event_len; i++) {
+  for (int i = 0; i < event_len; i++)
+  {
     if (htp_audit_is_event_splitter(event[i]))
       break;
     single_event_len++;
@@ -421,68 +439,103 @@ static int htp_audit_get_single_event_len(const char *event, int event_len) {
 }
 
 static void htp_audit_fill_event(
-    filter_item_t *item, int main_class, int sub_class) {
-  if (main_class == MYSQL_AUDIT_GENERAL_CLASS) {
+    filter_item_t *item, int main_class, int sub_class)
+{
+  if (main_class == MYSQL_AUDIT_GENERAL_CLASS)
+  {
     //item->general_events_setted = true;
-    if (sub_class == EVENT_ALL) {
+    if (sub_class == EVENT_ALL)
+    {
       item->audit_all_general = true;
-      for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++) {
+      for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++)
+      {
         item->general_events[i] = EVENT_SETTED;
       }
       return;
     }
 
     item->general_events[sub_class] = EVENT_SETTED;
-  } else if (main_class == MYSQL_AUDIT_CONNECTION_CLASS) {
+  } else if (main_class == MYSQL_AUDIT_CONNECTION_CLASS)
+  {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_CONNECTION_CLASS);
 
     //item->connection_events_setted = true;
     if (sub_class == EVENT_ALL) {
       item->audit_all_connection = true;
-      for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++) {
+      for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++)
+      {
         item->connection_events[i] = EVENT_SETTED;
       }
       return;
     }
 
     item->connection_events[sub_class] = EVENT_SETTED;
-  } else if (main_class == MYSQL_AUDIT_PARSE_CLASS) {
+  } else if (main_class == MYSQL_AUDIT_PARSE_CLASS)
+  {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_PARSE_CLASS);
-    if (sub_class == EVENT_ALL) {
+    if (sub_class == EVENT_ALL)
+    {
       item->audit_all_parse = true;
-      for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; item->parse_events[i++] = EVENT_UNSETTED);
+      for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; i++)
+      {
+        item->parse_events[i] = EVENT_UNSETTED;
+      }
       return;
     }
     item->parse_events[sub_class] = EVENT_SETTED;
-  } else if (main_class == MYSQL_AUDIT_AUTHORIZATION_CLASS) {
+  }
+  else if (main_class == MYSQL_AUDIT_AUTHORIZATION_CLASS)
+  {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_AUTHORIZATION_CLASS);
-    if (sub_class == EVENT_ALL) {
+    if (sub_class == EVENT_ALL)
+    {
       item->audit_all_parse = true;
-      for (int i = 0; i < MAX_FILTER_AUTHORIZATION_EVENTS; item->authorization_events[i++] = EVENT_UNSETTED);
+      for (int i = 0; i < MAX_FILTER_AUTHORIZATION_EVENTS; i++)
+      {
+        item->authorization_events[i] = EVENT_UNSETTED;
+      }
       return;
     }
     item->authorization_events[sub_class] = EVENT_SETTED;
-  } else if (main_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS) {
+  }
+  else if (main_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS)
+  {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS);
-    if (sub_class == EVENT_ALL) {
+    if (sub_class == EVENT_ALL)
+    {
       item->audit_all_parse = true;
-      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; item->table_access_events[i++] = EVENT_UNSETTED);
+      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++)
+      {
+        item->table_access_events[i] = EVENT_UNSETTED;
+      }
       return;
     }
     item->table_access_events[sub_class] = EVENT_SETTED;
-  } else if (main_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS) {
+  }
+  else if (main_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS)
+  {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS);
-    if (sub_class == EVENT_ALL) {
+    if (sub_class == EVENT_ALL)
+    {
       item->audit_all_parse = true;
-      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; item->table_access_events[i++] = EVENT_UNSETTED);
+      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++)
+      {
+        item->table_access_events[i] = EVENT_UNSETTED;
+      }
       return;
     }
     item->table_access_events[sub_class] = EVENT_SETTED;
-  } else if (main_class == MYSQL_AUDIT_COMMAND_CLASS) {
+  }
+  else if (main_class == MYSQL_AUDIT_COMMAND_CLASS)
+  {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_COMMAND_CLASS);
-    if (sub_class == EVENT_ALL) {
+    if (sub_class == EVENT_ALL)
+    {
       item->audit_all_parse = true;
-      for (int i = 0; i < MAX_FILTER_COMMAND_EVENTS; item->table_access_events[i++] = EVENT_UNSETTED);
+      for (int i = 0; i < MAX_FILTER_COMMAND_EVENTS; i++)
+      {
+        item->table_access_events[i] = EVENT_UNSETTED;
+      }
       return;
     }
     item->table_access_events[sub_class] = EVENT_SETTED;
@@ -501,11 +554,13 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
   int r = 0;
 
   //是否为审计全部信息
-  if (strcasecmp(event, SETTING_ALL_EVENT) == 0) {
+  if (strcasecmp(event, SETTING_ALL_EVENT) == 0)
+  {
     item->audit_all_event = true;
     return 0;
   }
-  while (index < event_len) {
+  while (index < event_len)
+  {
     event_pos = event + index;
 
     single_len = htp_audit_get_single_event_len(event_pos, rest_len);
@@ -519,7 +574,8 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
 
     r = htp_audit_get_event_init(main_class, main_class_len, &main_class_int, sub_class, sub_class_len,
                                  &sub_class_int);
-    if (r) {
+    if (r)
+    {
       item->event_setted = false;
       return -1;
     }
@@ -528,19 +584,22 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
     item->event_setted = true;
 
     index += single_len;
-    if (htp_audit_is_event_splitter(*(event + index))) {
+    if (htp_audit_is_event_splitter(*(event + index)))
+    {
       index++;
     }
     rest_len = event_len - index;
 
     DBUG_ASSERT(rest_len >= 0);
-    if (rest_len == 0) {
+    if (rest_len == 0)
+    {
       break;
     }
   }
 
   //检查event是否被设置
-  if (item->event_setted != true) {
+  if (item->event_setted != true)
+  {
     return -1;
   }
 
@@ -549,7 +608,8 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
 
 
 static int
-htp_audit_get_kv_unit(const char *current, const char **next, const char **k, int *k_len, const char **v, int *v_len) {
+htp_audit_get_kv_unit(const char *current, const char **next, const char **k, int *k_len, const char **v, int *v_len)
+{
   const char *index = current;
   const char *key = NULL;
   const char *value = NULL;
@@ -557,7 +617,8 @@ htp_audit_get_kv_unit(const char *current, const char **next, const char **k, in
   int k_counter = 0, v_counter = 0;
   bool in_key_phase = true;
   key = index;
-  while (*index != 0) {
+  while (*index != 0)
+  {
     if (htp_audit_is_kv_unit_splitter(*index))
       break;
 
@@ -565,14 +626,17 @@ htp_audit_get_kv_unit(const char *current, const char **next, const char **k, in
       in_key_phase = false;
       value = index + 1;
       index++;
-      if (htp_audit_is_kv_unit_splitter(*index)) {
+      if (htp_audit_is_kv_unit_splitter(*index))
+      {
         break;
       }
     }
 
-    if (in_key_phase) {
+    if (in_key_phase)
+    {
       k_counter++;
-    } else {
+    }
+    else {
       v_counter++;
     }
 
@@ -582,7 +646,8 @@ htp_audit_get_kv_unit(const char *current, const char **next, const char **k, in
   *k_len = k_counter;
   *v = value;
   *v_len = v_counter;
-  while (*index != 0) {
+  while (*index != 0)
+  {
     if (!htp_audit_is_kv_unit_splitter(*index))
       break;
     index++;
@@ -594,8 +659,10 @@ htp_audit_get_kv_unit(const char *current, const char **next, const char **k, in
 }
 
 
-int htp_audit_check_value_valid(const char *value, int length) {
-  for (int i = 0; i < length; i++) {
+int htp_audit_check_value_valid(const char *value, int length)
+{
+  for (int i = 0; i < length; i++)
+  {
     if ('a' <= value[i] && value[i] <= 'z')
       continue;
     if ('A' <= value[i] && value[i] <= 'Z')
@@ -609,7 +676,8 @@ int htp_audit_check_value_valid(const char *value, int length) {
   return 0;
 }
 
-static int htp_audit_parse_kv_unit(const char *current, const char **next, filter_item_t *item) {
+static int htp_audit_parse_kv_unit(const char *current, const char **next, filter_item_t *item)
+{
   const char *key = NULL;
   const char *value = NULL;
   int k_len = 0, v_len = 0;
@@ -619,7 +687,8 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
   if (r)
     return r;
 
-  if (strncasecmp(key, HTP_AUDIT_RULE_KEY_NAME, k_len) == 0) {
+  if (strncasecmp(key, HTP_AUDIT_RULE_KEY_NAME, k_len) == 0)
+  {
     if (item->name_setted == true)
       return -1;
 
@@ -629,7 +698,8 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
       return -1;
 
     item->name_setted = true;
-  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_HOST, k_len) == 0) {
+  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_HOST, k_len) == 0)
+  {
     if (item->host_setted == true)
       return -1;
 
@@ -640,7 +710,9 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
       return -1;
 
     item->host_setted = true;
-  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_USER, k_len) == 0) {
+  }
+  else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_USER, k_len) == 0)
+  {
     if (item->user_setted == true)
       return -1;
 
@@ -649,7 +721,8 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
     item->user_length = v_len;
 
     item->user_setted = true;
-  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_EVENT, k_len) == 0) {
+  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_EVENT, k_len) == 0)
+  {
     if (item->event_setted == true)
       return -1;
 
@@ -658,19 +731,23 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
       return -1;
 
     item->event_setted = true;
-  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_CMD, k_len) == 0) {
+  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_CMD, k_len) == 0)
+  {
     if (v_len >= MAX_FILTER_COMMAND_BUFFER_SIZE)
       return -1;
     strncpy(item->command, value, v_len);
     item->command[v_len] = 0;
     item->command_length = v_len;
-  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_SQL_CMD, k_len) == 0) {
+  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_SQL_CMD, k_len) == 0)
+  {
     if (v_len >= MAX_FILTER_SQL_COMMAND_BUFFER_SIZE)
       return -1;
     strncpy(item->sql_command, value, v_len);
     item->sql_command[v_len] = 0;
     item->sql_command_length = v_len;
-  } else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_SQL_KEYWORD, k_len) == 0) {
+  }
+  else if (strncasecmp(key, HTP_AUDIT_RULE_KEY_SQL_KEYWORD, k_len) == 0)
+  {
     if (v_len >= MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE)
       return -1;
     strncpy(item->sql_keyword, value, v_len);
@@ -683,12 +760,14 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
   return 0;
 }
 
-static int htp_audit_parse_input(const char *filter_str, filter_item_t *item) {
+static int htp_audit_parse_input(const char *filter_str, filter_item_t *item)
+{
   const char *current = filter_str;
   const char *next = NULL;
   int r;
 
-  while (current != NULL) {
+  while (current != NULL)
+  {
     r = htp_audit_parse_kv_unit(current, &next, item);
     if (r)
       return r;
@@ -698,24 +777,30 @@ static int htp_audit_parse_input(const char *filter_str, filter_item_t *item) {
   return 0;
 }
 
-int htp_audit_parse_filter(const char *filter_str, filter_item_t *item) {
+int htp_audit_parse_filter(const char *filter_str, filter_item_t *item)
+{
 
   item->host[0] = 0;
   item->user[0] = 0;
 
-  for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++) {
+  for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++)
+  {
     item->connection_events[i] = -1;
   }
-  for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++) {
+  for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++)
+  {
     item->general_events[i] = -1;
   }
 
   return htp_audit_parse_input(filter_str, item);
 }
 
-int htp_audit_add_filter(filter_item_t *item) {
-  for (int i = 0; i < MAX_FILTER_ITEMS; i++) {
-    if (filter_using_map[i] == FILTER_ITEM_UNUSABLE) {
+int htp_audit_add_filter(filter_item_t *item)
+{
+  for (int i = 0; i < MAX_FILTER_ITEMS; i++)
+  {
+    if (filter_using_map[i] == FILTER_ITEM_UNUSABLE)
+    {
       filters.push_back(i);
       filter_using_map[i] = FILTER_ITEM_USABLE;
       filter_items[i] = *item;
@@ -725,13 +810,16 @@ int htp_audit_add_filter(filter_item_t *item) {
   return (0);
 }
 
-int htp_audit_find_filter_by_name(const char *name) {
+int htp_audit_find_filter_by_name(const char *name)
+{
   list<int>::iterator it;
   filter_item_t *item;
-  for (it = filters.begin(); it != filters.end(); it++) {
+  for (it = filters.begin(); it != filters.end(); it++)
+  {
     int pos = *it;
     item = filter_items + pos;
-    if (strcasecmp(item->name, name) == 0) {
+    if (strcasecmp(item->name, name) == 0)
+    {
       //匹配到过滤内容，删除过滤内容
       return pos;
     }
@@ -739,13 +827,16 @@ int htp_audit_find_filter_by_name(const char *name) {
   return -1;
 }
 
-static int htp_audit_remove_filter_by_name(const char *name) {
+static int htp_audit_remove_filter_by_name(const char *name)
+{
   list<int>::iterator it;
   filter_item_t *item;
-  for (it = filters.begin(); it != filters.end(); it++) {
+  for (it = filters.begin(); it != filters.end(); it++)
+  {
     int pos = *it;
     item = filter_items + pos;
-    if (strcasecmp(item->name, name) == 0) {
+    if (strcasecmp(item->name, name) == 0)
+    {
       filter_using_map[pos] = FILTER_ITEM_USABLE;
       it = filters.erase(it);
       break;
@@ -754,19 +845,23 @@ static int htp_audit_remove_filter_by_name(const char *name) {
   return 0;
 }
 
-int htp_audit_remove_filter(remove_parse_t *removes) {
+int htp_audit_remove_filter(remove_parse_t *removes)
+{
   int i;
 
-  for (i = 0; i < removes->count; i++) {
+  for (i = 0; i < removes->count; i++)
+  {
     htp_audit_remove_filter_by_name(removes->removes[i]);
   }
   return 0;
 }
 
-int htp_audit_remove_rule_check_exist(remove_parse_t *removes) {
+int htp_audit_remove_rule_check_exist(remove_parse_t *removes)
+{
   int i;
 
-  for (i = 0; i < removes->count; i++) {
+  for (i = 0; i < removes->count; i++)
+  {
     if (htp_audit_find_filter_by_name(removes->removes[i]) == -1)
       return (-1);
   }
@@ -774,14 +869,16 @@ int htp_audit_remove_rule_check_exist(remove_parse_t *removes) {
   return 0;
 }
 
-int htp_audit_parse_remove_input(const char *remove_str, remove_parse_t *parse) {
+int htp_audit_parse_remove_input(const char *remove_str, remove_parse_t *parse)
+{
   const char *key = NULL;
   const char *value = NULL;
   const char *current = NULL, *next = NULL;
   int k_len = 0, v_len = 0;
 
   current = remove_str;
-  while (current != NULL) {
+  while (current != NULL)
+  {
     htp_audit_get_kv_unit(current, &next, &key, &k_len, &value, &v_len);
 
     remove_parse_add_item(parse, value, v_len);
@@ -791,7 +888,8 @@ int htp_audit_parse_remove_input(const char *remove_str, remove_parse_t *parse) 
   return 0;
 }
 
-inline int get_sub_class_index(const int sub_class) {
+inline int get_sub_class_index(const int sub_class)
+{
   int sub_class_index, sub_class_value;
   for (sub_class_index = 0, sub_class_value = sub_class;
        sub_class_value > 0; sub_class_value = sub_class_value >> 1, sub_class_index++);
@@ -799,7 +897,8 @@ inline int get_sub_class_index(const int sub_class) {
 }
 
 filter_result_enum
-htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int event_class) {
+htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int event_class)
+{
   /*
   //host
   if ((info->ip != NULL && strlen(info->ip) != 0
@@ -817,7 +916,8 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
     return NOT_AUDIT_EVENT;
 */
   //event
-  if (item->audit_all_event != true) {
+  if (item->audit_all_event != true)
+  {
     if (info->main_class == MYSQL_AUDIT_GENERAL_CLASS &&
         item->general_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
       return NOT_AUDIT_EVENT;
@@ -844,27 +944,36 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
       return NOT_AUDIT_EVENT;
   }
 
-  if (event_class == MYSQL_AUDIT_GENERAL_CLASS) {
+  if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
+  {
     //command & sql_command & query
     //command is toppest level and query is lowest level
-    if (item->command_length > 0) {
-      if (info->command != NULL && strlen(info->command) > 0) {
-        if (strcasecmp(info->command, item->command) != 0) {
+    if (item->command_length > 0)
+    {
+      if (info->command != NULL && strlen(info->command) > 0)
+      {
+        if (strcasecmp(info->command, item->command) != 0)
+        {
           return NOT_AUDIT_EVENT;
         }
       }
     }
 
-    if (item->sql_command_length > 0) {
-      if (info->sql_command != NULL && strlen(info->sql_command) > 0) {
-        if (strcasecmp(info->sql_command, item->sql_command) != 0) {
+    if (item->sql_command_length > 0)
+    {
+      if (info->sql_command != NULL && strlen(info->sql_command) > 0)
+      {
+        if (strcasecmp(info->sql_command, item->sql_command) != 0)
+        {
           return NOT_AUDIT_EVENT;
         }
       }
     }
 
-    if (item->sql_keyword_length > 0) {
-      if (info->query != NULL && strlen(info->query) != 0) {
+    if (item->sql_keyword_length > 0)
+    {
+      if (info->query != NULL && strlen(info->query) != 0)
+      {
         /*char tmp_info_query[MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE];
         char tmp_item_keyword[MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE];
 
@@ -885,7 +994,8 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
           i++;
         }
         */
-        if (strcasestr(info->query, item->sql_keyword) == NULL) {
+        if (strcasestr(info->query, item->sql_keyword) == NULL)
+        {
           return NOT_AUDIT_EVENT;
         }
       }
@@ -896,13 +1006,15 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
   return AUDIT_EVENT;
 }
 
-filter_result_enum htp_audit_filter_event(event_info_t *info, unsigned int event_class) {
+filter_result_enum htp_audit_filter_event(event_info_t *info, unsigned int event_class)
+{
   if (filters.size() == 0)
     return NOT_AUDIT_EVENT;
 
   list<int>::iterator it;
   filter_item_t *item;
-  for (it = filters.begin(); it != filters.end(); it++) {
+  for (it = filters.begin(); it != filters.end(); it++)
+  {
     int pos = *it;
     item = filter_items + pos;
     if (htp_audit_filter_event(info, item, event_class) == AUDIT_EVENT)
