@@ -3,6 +3,7 @@
 #include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
+#include <string.h>
 //#include "ctrip_audit.h"
 #include "htp_audit_filter.h"
 #include "htp_audit_vars.h"
@@ -142,6 +143,50 @@ void audit_connection_change_user(const struct mysql_event_connection *event) {
 /*
   
  */
+void audit_general_log(const struct mysql_event_general *event) {
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_LOG);
+
+  char current_str[100];
+  //to do : 获取当前时间
+  time_t current;
+  struct tm current_broken;
+  current = time(NULL);
+  localtime_r(&current, &current_broken);
+
+  strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
+
+  cJSON *root;
+  root = cJSON_CreateObject();
+  cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("general"));
+  if (event->general_user.str != NULL)
+    cJSON_AddItemToObject(root, "user",
+                          cJSON_CreateString(event->general_user.str));
+  if (event->general_host.str != NULL)
+    cJSON_AddItemToObject(root, "host",
+                          cJSON_CreateString(event->general_host.str));
+  if (event->general_ip.str != NULL)
+    cJSON_AddItemToObject(root, "ip",
+                          cJSON_CreateString(event->general_ip.str));
+  if (event->general_sql_command.str != NULL)
+    cJSON_AddItemToObject(root, "command_class",
+                          cJSON_CreateString(event->general_sql_command.str));
+  if (event->general_query.length > 0)
+    cJSON_AddItemToObject(root, "sqltext",
+                          cJSON_CreateString(event->general_query.str));
+  cJSON_AddItemToObject(root, "code",
+                        cJSON_CreateNumber(event->general_error_code));
+
+
+  //获得json字符串，输出到审计日志
+  char *json_str = cJSON_Print(root);
+  Logger::GetELogger()->Write(json_str, ",");
+
+  //释放资源
+  cJSON_Delete(root);
+  free(json_str);
+}
+
 void audit_general_error(const struct mysql_event_general *event) {
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_ERROR);
 
@@ -229,6 +274,48 @@ void audit_general_status(const struct mysql_event_general *event) {
   free(json_str);
 }
 
+void audit_general_result(const struct mysql_event_general *event) {
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_RESULT);
+
+  char current_str[100];
+  //to do : 获取当前时间
+  time_t current;
+  struct tm current_broken;
+  current = time(NULL);
+  localtime_r(&current, &current_broken);
+
+  strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
+
+  cJSON *root;
+  root = cJSON_CreateObject();
+  cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("general"));
+  if (event->general_user.str != NULL)
+    cJSON_AddItemToObject(root, "user",
+                          cJSON_CreateString(event->general_user.str));
+  if (event->general_host.str != NULL)
+    cJSON_AddItemToObject(root, "host",
+                          cJSON_CreateString(event->general_host.str));
+  if (event->general_ip.str != NULL)
+    cJSON_AddItemToObject(root, "ip",
+                          cJSON_CreateString(event->general_ip.str));
+  if (event->general_sql_command.str != NULL)
+    cJSON_AddItemToObject(root, "command_class",
+                          cJSON_CreateString(event->general_sql_command.str));
+  if (event->general_query.length > 0)
+    cJSON_AddItemToObject(root, "sqltext",
+                          cJSON_CreateString(event->general_query.str));
+  cJSON_AddItemToObject(root, "code",
+                        cJSON_CreateNumber(event->general_error_code));
+
+  //获得json字符串，输出到审计日志
+  char *json_str = cJSON_Print(root);
+  Logger::GetLogger()->Write(json_str, ",");
+
+  //释放资源
+  cJSON_Delete(root);
+  free(json_str);
+}
 
 
 //new audit feature,added by gqhao 2018-10-08
@@ -534,6 +621,33 @@ void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *ev
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("shutdown"));
   cJSON_AddItemToObject(root, "code", cJSON_CreateNumber(event->exit_code));
   cJSON_AddItemToObject(root, "reason", cJSON_CreateNumber(event->reason));
+  //获得json字符串，输出到审计日志
+  char *json_str = cJSON_Print(root);
+  Logger::GetELogger()->Write(json_str, ",");
+
+  //释放资源
+  cJSON_Delete(root);
+  free(json_str);
+}
+
+void audit_server_startup_startup(const struct mysql_event_server_startup *event) {
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_SERVER_STARTUP_STARTUP);
+
+  char current_str[100];
+  //to do : 获取当前时间
+  time_t current;
+  struct tm current_broken;
+  current = time(NULL);
+  localtime_r(&current, &current_broken);
+
+  strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
+  char start_para[3000]={0};
+  for(unsigned int i=0;i<event->argc;i++,strcat(start_para,event->argv[i]));
+  cJSON *root;
+  root = cJSON_CreateObject();
+  cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("startup"));
+  cJSON_AddItemToObject(root, "start_paras", cJSON_CreateString(start_para));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
   Logger::GetELogger()->Write(json_str, ",");

@@ -237,12 +237,20 @@ void htp_audit_init_filter_item(filter_item_t *item) {
   item->audit_all_event = false;
   item->audit_all_general = false;
   item->audit_all_connection = false;
-  for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++) {
-    item->general_events[i] = EVENT_UNSETTED;
-  }
-  for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++) {
-    item->connection_events[i] = EVENT_UNSETTED;
-  }
+  item->audit_all_authorization=false;
+  item->audit_all_global_variable=false;
+  item->audit_all_parse=false;
+  item->audit_all_query=false;
+  item->audit_all_table_access=false;
+  item->audit_all_command=false;
+  for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS;item->general_events[i++] = EVENT_UNSETTED);
+  for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; item->connection_events[i++] = EVENT_UNSETTED);
+  for (int i=0;i<MAX_FILTER_PARSE_EVENTS;item->parse_events[i++]=EVENT_UNSETTED);
+  for (int i=0;i<MAX_FILTER_AUTHORIZATION_EVENTS;item->authorization_events[i++]=EVENT_UNSETTED);
+  for (int i=0;i<MAX_FILTER_TABLE_ACCESS_EVENTS;item->table_access_events[i++]=EVENT_UNSETTED);
+  for (int i=0;i<MAX_FILTER_GLOBAL_VARIABLE_EVENTS;item->global_variable_events[i++]=EVENT_UNSETTED);
+  for (int i=0;i<MAX_FILTER_QUERY_EVENTS;item->query_events[i++]=EVENT_UNSETTED);
+  for (int i=0;i<MAX_FILTER_COMMAND_EVENTS;item->command_events[i++]=EVENT_UNSETTED);
   item->command_setted = false;
   item->command[0] = 0;
   item->command_length = 0;
@@ -402,7 +410,8 @@ static void htp_audit_fill_event(
     }
 
     item->general_events[sub_class] = EVENT_SETTED;
-  } else {
+  }
+  else if (main_class==MYSQL_AUDIT_CONNECTION_CLASS) {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_CONNECTION_CLASS);
 
     //item->connection_events_setted = true;
@@ -416,6 +425,56 @@ static void htp_audit_fill_event(
 
     item->connection_events[sub_class] = EVENT_SETTED;
   }
+  else if (main_class==MYSQL_AUDIT_PARSE_CLASS) {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_PARSE_CLASS);
+    if (sub_class == EVENT_ALL) {
+      item->audit_all_parse = true;
+      for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; item->parse_events[i++] = EVENT_UNSETTED);
+      return;
+    }
+      item->parse_events[sub_class]=EVENT_SETTED;
+  }
+  else if(main_class==MYSQL_AUDIT_AUTHORIZATION_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_AUTHORIZATION_CLASS);
+    if (sub_class==EVENT_ALL){
+      item->audit_all_parse=true;
+      for(int i=0;i<MAX_FILTER_AUTHORIZATION_EVENTS;item->authorization_events[i++]=EVENT_UNSETTED);
+      return;
+    }
+    item->authorization_events[sub_class]=EVENT_SETTED;
+  }
+  else if(main_class==MYSQL_AUDIT_TABLE_ACCESS_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS);
+    if (sub_class==EVENT_ALL){
+      item->audit_all_parse=true;
+      for(int i=0;i<MAX_FILTER_TABLE_ACCESS_EVENTS;item->table_access_events[i++]=EVENT_UNSETTED);
+      return;
+    }
+    item->table_access_events[sub_class]=EVENT_SETTED;
+  }
+  else if(main_class==MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS);
+    if (sub_class==EVENT_ALL){
+      item->audit_all_parse=true;
+      for(int i=0;i<MAX_FILTER_TABLE_ACCESS_EVENTS;item->table_access_events[i++]=EVENT_UNSETTED);
+      return;
+    }
+    item->table_access_events[sub_class]=EVENT_SETTED;
+  }
+  else if(main_class==MYSQL_AUDIT_COMMAND_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_COMMAND_CLASS);
+    if (sub_class==EVENT_ALL){
+      item->audit_all_parse=true;
+      for(int i=0;i<MAX_FILTER_COMMAND_EVENTS;item->table_access_events[i++]=EVENT_UNSETTED);
+      return;
+    }
+    item->table_access_events[sub_class]=EVENT_SETTED;
+  }
+
 }
 
 
@@ -719,8 +778,15 @@ int htp_audit_parse_remove_input(const char *remove_str, remove_parse_t *parse) 
   return 0;
 }
 
+inline int get_sub_class_index(const int sub_class)
+{
+  int sub_class_index,sub_class_value;
+  for(sub_class_index=0,sub_class_value=sub_class;sub_class_value>0;sub_class_value=sub_class_value>>1,sub_class_index++);
+  return (sub_class==0? 0:sub_class_index);
+}
 filter_result_enum
 htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int event_class) {
+  /*
   //host
   if ((info->ip != NULL && strlen(info->ip) != 0
        && item->host_length != 0
@@ -735,19 +801,28 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
       && item->user_length != 0
       && strncmp(info->user, item->user, item->user_length) != 0)
     return NOT_AUDIT_EVENT;
-
+*/
   //event
   if (item->audit_all_event != true) {
-    if (info->main_class == MYSQL_AUDIT_GENERAL_CLASS) {
-      if (item->general_events[info->sub_class] != EVENT_SETTED)
+    if (info->main_class == MYSQL_AUDIT_GENERAL_CLASS && item->general_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
         return NOT_AUDIT_EVENT;
-    } else {
-      if (item->connection_events[info->sub_class] != EVENT_SETTED)
+    else if(info->main_class==MYSQL_AUDIT_CONNECTION_CLASS && item->connection_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
         return NOT_AUDIT_EVENT;
-    }
+    else if(info->main_class==MYSQL_AUDIT_PARSE_CLASS && item->parse_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if(info->main_class==MYSQL_AUDIT_COMMAND_CLASS && item->command_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if(info->main_class==MYSQL_AUDIT_AUTHORIZATION_CLASS && item->authorization_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if(info->main_class==MYSQL_AUDIT_TABLE_ACCESS_CLASS && item->table_access_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if(info->main_class==MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS && item->global_variable_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if(info->main_class==MYSQL_AUDIT_QUERY_CLASS && item->query_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
   }
 
-  if (MYSQL_AUDIT_GENERAL_CLASS == event_class) {
+  if (event_class==MYSQL_AUDIT_GENERAL_CLASS) {
     //command & sql_command & query
     //command is toppest level and query is lowest level
     if (item->command_length > 0) {
@@ -793,7 +868,8 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
         }
       }
     }
-  } else {
+  }
+  else {
   }
 
   return AUDIT_EVENT;

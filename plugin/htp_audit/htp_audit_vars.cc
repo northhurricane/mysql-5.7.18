@@ -230,7 +230,7 @@ static void htp_audit_rules_2_str(rules2str_buffer_t *buffer) {
   }
 }
 
-#define HTP_AUDIT_VAR(x) volatile int number_of_calls_ ## x;
+#define HTP_AUDIT_VAR(x) static volatile int number_of_calls_ ## x;
 
 
 /* Count MYSQL_AUDIT_GENERAL_CLASS event instances */
@@ -243,7 +243,7 @@ HTP_AUDIT_VAR(general_status)
 HTP_AUDIT_VAR(connection_connect)
 HTP_AUDIT_VAR(connection_disconnect)
 HTP_AUDIT_VAR(connection_change_user)
-HTP_AUDIT_VAR(connection_pre_authenticate)
+//HTP_AUDIT_VAR(connection_pre_authenticate)
 
 /* Count MYSQL_AUDIT_PARSE_CLASS event instances */
 HTP_AUDIT_VAR(parse_preparse)
@@ -423,6 +423,8 @@ void number_of_calls_authorization_proxy_incr() {
 
 /*被审计的事件统计*/
 static volatile int64_t number_of_records; /* for SHOW STATUS, see below */
+#define HTP_AUDIT_VAR_RECORD(x) static volatile int number_of_records_ ## x;
+/*
 static volatile int64_t number_of_records_general_log;
 static volatile int64_t number_of_records_general_error;
 static volatile int64_t number_of_records_general_result;
@@ -430,11 +432,63 @@ static volatile int64_t number_of_records_general_status;
 static volatile int64_t number_of_records_connection_connect;
 static volatile int64_t number_of_records_connection_disconnect;
 static volatile int64_t number_of_records_connection_change_user;
+*/
+
+
+/* Count MYSQL_AUDIT_GENERAL_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(general_log)
+HTP_AUDIT_VAR_RECORD(general_error)
+HTP_AUDIT_VAR_RECORD(general_result)
+HTP_AUDIT_VAR_RECORD(general_status)
+
+/* Count MYSQL_AUDIT_CONNECTION_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(connection_connect)
+HTP_AUDIT_VAR_RECORD(connection_disconnect)
+HTP_AUDIT_VAR_RECORD(connection_change_user)
+//HTP_AUDIT_VAR_RECORD(connection_pre_authenticate)
+
+/* Count MYSQL_AUDIT_PARSE_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(parse_preparse)
+HTP_AUDIT_VAR_RECORD(parse_postparse)
+
+/* Count MYSQL_AUDIT_COMMAND_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(command_start)
+HTP_AUDIT_VAR_RECORD(command_end)
+
+/* Count MYSQL_AUDIT_AUTHORIZATION_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(authorization_user)
+HTP_AUDIT_VAR_RECORD(authorization_db)
+HTP_AUDIT_VAR_RECORD(authorization_table)
+HTP_AUDIT_VAR_RECORD(authorization_column)
+HTP_AUDIT_VAR_RECORD(authorization_procedure)
+HTP_AUDIT_VAR_RECORD(authorization_proxy)
+
+/* Count MYSQL_AUDIT_QUERY_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(query_start)
+HTP_AUDIT_VAR_RECORD(query_nested_start)
+HTP_AUDIT_VAR_RECORD(query_status_end)
+HTP_AUDIT_VAR_RECORD(query_nested_status_end)
+
+/* Count MYSQL_AUDIT_SERVER_STARTUP_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(server_startup)
+
+/* Count MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(server_shutdown)
+
+/* Count MYSQL_AUDIT_TABLE_ACCESS_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(table_access_insert)
+HTP_AUDIT_VAR_RECORD(table_access_delete)
+HTP_AUDIT_VAR_RECORD(table_access_update)
+HTP_AUDIT_VAR_RECORD(table_access_read)
+
+/* Count MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(global_variable_get)
+HTP_AUDIT_VAR_RECORD(global_variable_set)
+
 
 void number_of_records_incr() {
   number_of_records++;
 }
-
 void number_of_records_general_log_incr() {
   number_of_records_general_log++;
 }
@@ -463,6 +517,94 @@ void number_of_records_connection_change_user_incr() {
   number_of_records_connection_change_user++;
 }
 
+void number_of_records_parse_preparse_incr() {
+  number_of_records_parse_preparse++;
+}
+
+void number_of_records_parse_postparse_incr() {
+  number_of_records_parse_postparse++;
+}
+
+void number_of_records_server_startup_incr() {
+  number_of_records_server_startup++;
+}
+
+void number_of_records_server_shutdown_incr() {
+  number_of_records_server_shutdown++;
+}
+
+void number_of_records_command_start_incr() {
+  number_of_records_command_start++;
+}
+
+void number_of_records_command_end_incr() {
+  number_of_records_command_end++;
+}
+
+void number_of_records_query_start_incr() {
+  number_of_records_query_start++;
+}
+
+void number_of_records_query_nested_start_incr() {
+  number_of_records_query_nested_start++;
+}
+
+void number_of_records_query_status_end_incr() {
+  number_of_records_query_status_end++;
+}
+
+void number_of_records_query_nested_status_end_incr() {
+  number_of_records_query_nested_status_end++;
+}
+
+void number_of_records_table_access_insert_incr() {
+  number_of_records_table_access_insert++;
+}
+
+void number_of_records_table_access_delete_incr() {
+  number_of_records_table_access_delete++;
+}
+
+void number_of_records_table_access_update_incr() {
+  number_of_records_table_access_update++;
+}
+
+void number_of_records_table_access_read_incr() {
+  number_of_records_table_access_read++;
+}
+
+void number_of_records_global_variable_get_incr() {
+  number_of_records_global_variable_get++;
+}
+
+void number_of_records_global_variable_set_incr() {
+  number_of_records_global_variable_set++;
+}
+
+void number_of_records_authorization_user_incr() {
+  number_of_records_authorization_user++;
+}
+
+void number_of_records_authorization_db_incr() {
+  number_of_records_authorization_db++;
+}
+
+void number_of_records_authorization_table_incr() {
+  number_of_records_authorization_table++;
+}
+
+void number_of_records_authorization_column_incr() {
+  number_of_records_authorization_column++;
+}
+
+void number_of_records_authorization_procedure_incr() {
+  number_of_records_authorization_procedure++;
+}
+
+void number_of_records_authorization_proxy_incr() {
+  number_of_records_authorization_proxy++;
+}
+
 /*
   Plugin status variables for SHOW STATUS
 */
@@ -473,51 +615,182 @@ struct st_mysql_show_var htp_audit_status[] =
                SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_log_called",
             (char *) &number_of_calls_general_log,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_error_called",
             (char *) &number_of_calls_general_error,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_result_called",
             (char *) &number_of_calls_general_result,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_status_called",
             (char *) &number_of_calls_general_status,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_connect_called",
             (char *) &number_of_calls_connection_connect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_disconnect_called",
             (char *) &number_of_calls_connection_disconnect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_change_user_called",
             (char *) &number_of_calls_connection_change_user,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_parse_preparse_called",
+            (char *) &number_of_calls_parse_preparse,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_parse_postparse_called",
+            (char *) &number_of_calls_general_error,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_command_start_called",
+            (char *) &number_of_calls_command_start,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_command_end_called",
+            (char *) &number_of_calls_command_end,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_user_called",
+            (char *) &number_of_calls_authorization_user,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_db_called",
+            (char *) &number_of_calls_authorization_db,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_table_called",
+            (char *) &number_of_calls_authorization_table,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_column_called",
+            (char *) &number_of_calls_authorization_column,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_procedure_called",
+            (char *) &number_of_calls_authorization_procedure,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_proxy_called",
+            (char *) &number_of_calls_authorization_proxy,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_start_called",
+            (char *) &number_of_calls_query_start,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_nested_start_called",
+            (char *) &number_of_calls_query_nested_start,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_status_end_called",
+            (char *) &number_of_calls_query_status_end,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_nested_status_end_called",
+            (char *) &number_of_calls_query_nested_status_end,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_server_startup_called",
+            (char *) &number_of_calls_server_startup,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_server_shutdown_called",
+            (char *) &number_of_calls_server_shutdown,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_insert_called",
+            (char *) &number_of_calls_table_access_insert,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_delete_called",
+            (char *) &number_of_calls_table_access_delete,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_update_called",
+            (char *) &number_of_calls_table_access_update,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_read_called",
+            (char *) &number_of_calls_table_access_read,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_global_variable_get_called",
+            (char *) &number_of_calls_global_variable_get,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_global_variable_set_called",
+            (char *) &number_of_calls_global_variable_set,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
 
         {"Htp_audit_recorded",
             (char *) &number_of_records,
                SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_log_recorded",
             (char *) &number_of_records_general_log,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_error_recorded",
             (char *) &number_of_records_general_error,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_result_recorded",
             (char *) &number_of_records_general_result,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_status_recorded",
             (char *) &number_of_records_general_status,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_connect_recorded",
             (char *) &number_of_records_connection_connect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_disconnect_recorded",
             (char *) &number_of_records_connection_disconnect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_change_user_recorded",
             (char *) &number_of_records_connection_change_user,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_parse_preparse_recorded",
+            (char *) &number_of_records_parse_preparse,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_parse_postparse_recorded",
+            (char *) &number_of_records_general_error,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_command_start_recorded",
+            (char *) &number_of_records_command_start,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_command_end_recorded",
+            (char *) &number_of_records_command_end,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_user_recorded",
+            (char *) &number_of_records_authorization_user,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_db_recorded",
+            (char *) &number_of_records_authorization_db,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_table_recorded",
+            (char *) &number_of_records_authorization_table,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_column_recorded",
+            (char *) &number_of_records_authorization_column,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_procedure_recorded",
+            (char *) &number_of_records_authorization_procedure,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_authorization_proxy_recorded",
+            (char *) &number_of_records_authorization_proxy,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_start_recorded",
+            (char *) &number_of_records_query_start,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_nested_start_recorded",
+            (char *) &number_of_records_query_nested_start,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_status_end_recorded",
+            (char *) &number_of_records_query_status_end,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_query_nested_status_end_recorded",
+            (char *) &number_of_records_query_nested_status_end,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_server_startup_recorded",
+            (char *) &number_of_records_server_startup,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_server_shutdown_recorded",
+            (char *) &number_of_records_server_shutdown,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_insert_recorded",
+            (char *) &number_of_records_table_access_insert,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_delete_recorded",
+            (char *) &number_of_records_table_access_delete,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_update_recorded",
+            (char *) &number_of_records_table_access_update,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_table_access_read_recorded",
+            (char *) &number_of_records_table_access_read,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_global_variable_get_recorded",
+            (char *) &number_of_records_global_variable_get,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_global_variable_set_recorded",
+            (char *) &number_of_records_global_variable_set,
+            SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {0, 0, SHOW_UNDEF,    SHOW_SCOPE_GLOBAL}
     };
 
@@ -531,7 +804,27 @@ void htp_audit_init_status() {
   number_of_calls_connection_connect = 0;
   number_of_calls_connection_disconnect = 0;
   number_of_calls_connection_change_user = 0;
-
+  number_of_calls_parse_preparse = 0;
+  number_of_calls_parse_postparse = 0;
+  number_of_calls_command_start = 0;
+  number_of_calls_command_end = 0;
+  number_of_calls_authorization_user = 0;
+  number_of_calls_authorization_db = 0;
+  number_of_calls_authorization_table = 0;
+  number_of_calls_authorization_column = 0;
+  number_of_calls_authorization_procedure = 0;
+  number_of_calls_authorization_proxy = 0;
+  number_of_calls_query_start = 0;
+  number_of_calls_query_nested_start = 0;
+  number_of_calls_query_status_end = 0;
+  number_of_calls_query_nested_status_end = 0;
+  number_of_calls_server_startup = 0;
+  number_of_calls_table_access_insert = 0;
+  number_of_calls_table_access_update = 0;
+  number_of_calls_table_access_delete = 0;
+  number_of_calls_table_access_read = 0;
+  number_of_calls_global_variable_get = 0;
+  number_of_calls_global_variable_set = 0;
   number_of_records = 0;
   number_of_records_general_log = 0;
   number_of_records_general_error = 0;
@@ -540,6 +833,28 @@ void htp_audit_init_status() {
   number_of_records_connection_connect = 0;
   number_of_records_connection_disconnect = 0;
   number_of_records_connection_change_user = 0;
+  number_of_records_parse_preparse = 0;
+  number_of_records_parse_postparse = 0;
+  number_of_records_command_start = 0;
+  number_of_records_command_end = 0;
+  number_of_records_authorization_user = 0;
+  number_of_records_authorization_db = 0;
+  number_of_records_authorization_table = 0;
+  number_of_records_authorization_column = 0;
+  number_of_records_authorization_procedure = 0;
+  number_of_records_authorization_proxy = 0;
+  number_of_records_query_start = 0;
+  number_of_records_query_nested_start = 0;
+  number_of_records_query_status_end = 0;
+  number_of_records_query_nested_status_end = 0;
+  number_of_records_server_startup = 0;
+  number_of_records_table_access_insert = 0;
+  number_of_records_table_access_update = 0;
+  number_of_records_table_access_delete = 0;
+  number_of_records_table_access_read = 0;
+  number_of_records_global_variable_get = 0;
+  number_of_records_global_variable_set = 0;
+
 }
 
 void htp_audit_deinit_status() {

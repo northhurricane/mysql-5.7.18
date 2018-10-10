@@ -73,12 +73,14 @@ static int htp_audit_process_general_event(
   //进行审计
   switch (event_general->event_subclass) {
     case MYSQL_AUDIT_GENERAL_LOG:
+      audit_general_log(event_general);
       break;
     case MYSQL_AUDIT_GENERAL_ERROR:
       audit_general_error(event_general);
       number_of_records_general_error_incr();
       break;
     case MYSQL_AUDIT_GENERAL_RESULT:
+      audit_general_result(event_general);
       break;
     case MYSQL_AUDIT_GENERAL_STATUS:
       number_of_records_general_status_incr();
@@ -144,7 +146,14 @@ static int htp_audit_process_parse_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event) {
   const struct mysql_event_parse
       *event_parse = (const struct mysql_event_parse *) event;
-
+  event_info_t info;
+  info.main_class=MYSQL_AUDIT_PARSE_CLASS;
+  info.sub_class=event_parse->event_subclass;
+  info.query=event_parse->query.str;
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
+  number_of_records_incr();
   switch (event_parse->event_subclass) {
     case MYSQL_AUDIT_PARSE_PREPARSE:
       audit_parse_preparse(event_parse);
@@ -175,6 +184,13 @@ htp_audit_process_auth_event(
        event_grant->requested_privilege,
        event_grant->granted_privilege);
 */
+  event_info_t info;
+  info.main_class=MYSQL_AUDIT_AUTHORIZATION_CLASS;
+  info.sub_class=event_grant->event_subclass;
+  info.query=event_grant->query.str;
+  info.database=event_grant->database.str;
+  info.table=event_grant->table.str;
+
   switch (event_grant->event_subclass) {
     case MYSQL_AUDIT_AUTHORIZATION_USER:
       audit_authorization_user(event_grant);
@@ -203,14 +219,48 @@ htp_audit_process_auth_event(
     default:
       break;
   }
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
+
+  switch (event_grant->event_subclass) {
+    case MYSQL_AUDIT_AUTHORIZATION_USER:
+      audit_authorization_user(event_grant);
+      number_of_records_authorization_user_incr();
+      break;
+    case MYSQL_AUDIT_AUTHORIZATION_DB:
+      audit_authorization_db(event_grant);
+      number_of_records_authorization_db_incr();
+      break;
+    case MYSQL_AUDIT_AUTHORIZATION_TABLE:
+      audit_authorization_table(event_grant);
+      number_of_records_authorization_table_incr();
+      break;
+    case MYSQL_AUDIT_AUTHORIZATION_COLUMN:
+      audit_authorization_column(event_grant);
+      number_of_records_authorization_column_incr();
+      break;
+    case MYSQL_AUDIT_AUTHORIZATION_PROCEDURE:
+      audit_authorization_procedure(event_grant);
+      number_of_records_authorization_procedure_incr();
+      break;
+    case MYSQL_AUDIT_AUTHORIZATION_PROXY:
+      audit_authorization_proxy(event_grant);
+      number_of_records_authorization_proxy_incr();
+      break;
+    default:
+      break;
+  }
   return 0;
 }
 
 static int htp_audit_process_startup_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event) {
-  /* const struct mysql_event_server_startup *event_startup=
-   (const struct mysql_event_server_startup *) event; */
+  const struct mysql_event_server_startup *event_startup=
+      (const struct mysql_event_server_startup *) event;
+  audit_server_startup_startup(event_startup);
   number_of_calls_server_startup_incr();
+  number_of_records_server_startup_incr();
   return 0;
 }
 
@@ -219,15 +269,9 @@ htp_audit_process_shutdown_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event) {
   const struct mysql_event_server_shutdown *event_shutdown =
       (const struct mysql_event_server_shutdown *) event;
-
-  switch (event_shutdown->event_subclass) {
-    case MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN:
-      audit_server_shutdown_shutdown(event_shutdown);
-      number_of_calls_server_shutdown_incr();
-      break;
-    default:
-      break;
-  }
+    audit_server_shutdown_shutdown(event_shutdown);
+    number_of_calls_server_shutdown_incr();
+    number_of_records_server_shutdown_incr();
 
   return 0;
 }
@@ -241,15 +285,32 @@ static int htp_audit_process_command_event(
 
   //debug test for deinit
   //  sleep(10);
+  event_info_t info;
+  info.main_class=MYSQL_AUDIT_COMMAND_CLASS;
+  info.sub_class=event_command ->event_subclass;
+
+  switch (event_command->event_subclass) {
+    case MYSQL_AUDIT_COMMAND_START:
+      number_of_calls_command_start_incr();
+      break;
+    case MYSQL_AUDIT_COMMAND_END:
+      number_of_calls_command_end_incr();
+      break;
+    default:
+      break;
+  }
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
 
   switch (event_command->event_subclass) {
     case MYSQL_AUDIT_COMMAND_START:
       audit_command_start(event_command);
-      number_of_calls_command_start_incr();
+      number_of_records_command_start_incr();
       break;
     case MYSQL_AUDIT_COMMAND_END:
       audit_command_end(event_command);
-      number_of_calls_command_end_incr();
+      number_of_records_command_end_incr();
       break;
     default:
       break;
@@ -262,26 +323,51 @@ static int htp_audit_process_query_event(
   const struct mysql_event_query *event_query =
       (const struct mysql_event_query *) event;
 
+  event_info_t info;
+  info.main_class=MYSQL_AUDIT_QUERY_CLASS;
+  info.sub_class=event_query->event_subclass;
+
   switch (event_query->event_subclass) {
     case MYSQL_AUDIT_QUERY_START:
-      audit_query_start(event_query);
       number_of_calls_query_start_incr();
       break;
     case MYSQL_AUDIT_QUERY_NESTED_START:
-      audit_query_nested_start(event_query);
       number_of_calls_query_nested_start_incr();
       break;
     case MYSQL_AUDIT_QUERY_STATUS_END:
-      audit_query_status_end(event_query);
       number_of_calls_query_status_end_incr();
       break;
     case MYSQL_AUDIT_QUERY_NESTED_STATUS_END:
-      audit_query_nested_status_end(event_query);
       number_of_calls_query_nested_status_end_incr();
       break;
     default:
       break;
   }
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
+
+  switch (event_query->event_subclass) {
+    case MYSQL_AUDIT_QUERY_START:
+      audit_query_start(event_query);
+      number_of_records_query_start_incr();
+      break;
+    case MYSQL_AUDIT_QUERY_NESTED_START:
+      audit_query_nested_start(event_query);
+      number_of_records_query_nested_start_incr();
+      break;
+    case MYSQL_AUDIT_QUERY_STATUS_END:
+      audit_query_status_end(event_query);
+      number_of_records_query_status_end_incr();
+      break;
+    case MYSQL_AUDIT_QUERY_NESTED_STATUS_END:
+      audit_query_nested_status_end(event_query);
+      number_of_records_query_nested_status_end_incr();
+      break;
+    default:
+      break;
+  }
+
   return 0;
 }
 
@@ -290,22 +376,45 @@ static int htp_audit_process_table_access_event(
   const struct mysql_event_table_access *event_table =
       (const struct mysql_event_table_access *) event;
 
+  event_info_t info;
+  info.main_class=MYSQL_AUDIT_TABLE_ACCESS_CLASS;
+  info.sub_class=event_table->event_subclass;
+
   switch (event_table->event_subclass) {
     case MYSQL_AUDIT_TABLE_ACCESS_INSERT:
-      audit_table_access_insert(event_table);
       number_of_calls_table_access_insert_incr();
       break;
     case MYSQL_AUDIT_TABLE_ACCESS_DELETE:
-      audit_table_access_delete(event_table);
       number_of_calls_table_access_delete_incr();
       break;
     case MYSQL_AUDIT_TABLE_ACCESS_UPDATE:
-      audit_table_access_update(event_table);
       number_of_calls_table_access_update_incr();
       break;
     case MYSQL_AUDIT_TABLE_ACCESS_READ:
-      audit_table_access_read(event_table);
       number_of_calls_table_access_read_incr();
+      break;
+    default:
+      break;
+  }
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
+  switch (event_table->event_subclass) {
+    case MYSQL_AUDIT_TABLE_ACCESS_INSERT:
+      audit_table_access_insert(event_table);
+      number_of_records_table_access_insert_incr();
+      break;
+    case MYSQL_AUDIT_TABLE_ACCESS_DELETE:
+      audit_table_access_delete(event_table);
+      number_of_records_table_access_delete_incr();
+      break;
+    case MYSQL_AUDIT_TABLE_ACCESS_UPDATE:
+      audit_table_access_update(event_table);
+      number_of_records_table_access_update_incr();
+      break;
+    case MYSQL_AUDIT_TABLE_ACCESS_READ:
+      audit_table_access_read(event_table);
+      number_of_records_table_access_read_incr();
       break;
     default:
       break;
@@ -331,15 +440,32 @@ static int htp_audit_process_variable_event(
     (int) (sizeof(buffer) - 16)),
     event_gvar->variable_value.str);
     buffer[buffer_data]= '\0';*/
+  event_info_t info;
+  info.main_class=MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS;
+  info.sub_class=event_gvar->event_subclass;
 
   switch (event_gvar->event_subclass) {
     case MYSQL_AUDIT_GLOBAL_VARIABLE_GET:
-      audit_global_variable_get(event_gvar);
       number_of_calls_global_variable_get_incr();
       break;
     case MYSQL_AUDIT_GLOBAL_VARIABLE_SET:
-      audit_global_variable_set(event_gvar);
       number_of_calls_global_variable_set_incr();
+      break;
+    default:
+      break;
+  }
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
+  switch (event_gvar->event_subclass) {
+    case MYSQL_AUDIT_GLOBAL_VARIABLE_GET:
+
+      audit_global_variable_get(event_gvar);
+      number_of_records_global_variable_get_incr();
+      break;
+    case MYSQL_AUDIT_GLOBAL_VARIABLE_SET:
+      audit_global_variable_set(event_gvar);
+      number_of_records_global_variable_set_incr();
       break;
     default:
       break;

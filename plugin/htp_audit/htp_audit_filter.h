@@ -45,9 +45,13 @@ void audit_connection_disconnect(const struct mysql_event_connection *event);
 
 void audit_connection_change_user(const struct mysql_event_connection *event);
 
+void audit_general_log(const struct mysql_event_general *event);
+
 void audit_general_error(const struct mysql_event_general *event);
 
 void audit_general_status(const struct mysql_event_general *event);
+
+void audit_general_result(const struct mysql_event_general *event);
 
 void audit_parse_preparse(const struct mysql_event_parse *event);
 
@@ -66,6 +70,8 @@ void audit_authorization_procedure(const struct mysql_event_authorization *event
 void audit_authorization_proxy(const struct mysql_event_authorization *event);
 
 void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *event);
+
+void audit_server_startup_startup(const struct mysql_event_server_startup *event);
 
 void audit_command_start(const struct mysql_event_command *event);
 
@@ -144,6 +150,13 @@ void htp_audit_deinit_lock();
 //根据plugin_audit的subclass的数目决定
 #define MAX_FILTER_GENERAL_EVENTS (4)
 #define MAX_FILTER_CONNECTION_EVENTS (3)
+#define MAX_FILTER_PARSE_EVENTS (2)
+#define MAX_FILTER_COMMAND_EVENTS (2)
+#define MAX_FILTER_AUTHORIZATION_EVENTS (6)
+#define MAX_FILTER_TABLE_ACCESS_EVENTS (4)
+#define MAX_FILTER_GLOBAL_VARIABLE_EVENTS (2)
+#define MAX_FILTER_QUERY_EVENTS (4)
+
 
 #define MAX_FILTER_COMMAND (128)
 #define MAX_FILTER_COMMAND_BUFFER_SIZE (MAX_FILTER_COMMAND + 1)
@@ -224,7 +237,6 @@ class Logger {
     ~Logger();
 };
 
-
 struct filter_item_struct {
   bool name_setted;
   char name[MAX_FILTER_NAME_BUFFER_SIZE];
@@ -244,6 +256,18 @@ struct filter_item_struct {
   bool audit_all_general;  //event=general
   int general_events[MAX_FILTER_GENERAL_EVENTS];
   //bool general_events_setted;
+  bool audit_all_parse;
+  int  parse_events[MAX_FILTER_PARSE_EVENTS];
+  bool audit_all_authorization;
+  int  authorization_events[MAX_FILTER_AUTHORIZATION_EVENTS];
+  bool audit_all_table_access;
+  int  table_access_events[MAX_FILTER_TABLE_ACCESS_EVENTS];
+  bool audit_all_global_variable;
+  int  global_variable_events[MAX_FILTER_GLOBAL_VARIABLE_EVENTS];
+  bool audit_all_query;
+  int  query_events[MAX_FILTER_QUERY_EVENTS];
+  bool audit_all_command;
+  int  command_events[MAX_FILTER_COMMAND_EVENTS];
   bool command_setted;
   char command[MAX_FILTER_COMMAND_BUFFER_SIZE];
   int command_length;
@@ -253,6 +277,7 @@ struct filter_item_struct {
   bool sql_keyword_setted;
   char sql_keyword[MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE];
   int sql_keyword_length;
+
 };
 
 typedef struct filter_item_struct filter_item_t;
@@ -268,6 +293,8 @@ struct event_info_struct {
   const char *command;
   const char *query;
   const char *sql_command;
+  const char *database;
+  const char *table;
 };
 typedef struct event_info_struct event_info_t;
 

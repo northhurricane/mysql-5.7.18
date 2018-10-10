@@ -24,7 +24,6 @@ struct rules2str_buffer_struct {
 };
 typedef struct rules2str_buffer_struct rules2str_buffer_t;
 
-
 void number_of_calls_incr();
 
 void number_of_calls_general_log_incr();
@@ -87,6 +86,8 @@ void number_of_calls_authorization_proxy_incr();
 
 void number_of_records_incr();
 
+void number_of_records_incr();
+
 void number_of_records_general_log_incr();
 
 void number_of_records_general_error_incr();
@@ -100,6 +101,50 @@ void number_of_records_connection_connect_incr();
 void number_of_records_connection_disconnect_incr();
 
 void number_of_records_connection_change_user_incr();
+
+void number_of_records_parse_preparse_incr();
+
+void number_of_records_parse_postparse_incr();
+
+void number_of_records_server_startup_incr();
+
+void number_of_records_server_shutdown_incr();
+
+void number_of_records_command_start_incr();
+
+void number_of_records_command_end_incr();
+
+void number_of_records_query_start_incr();
+
+void number_of_records_query_nested_start_incr();
+
+void number_of_records_query_status_end_incr();
+
+void number_of_records_query_nested_status_end_incr();
+
+void number_of_records_table_access_insert_incr();
+
+void number_of_records_table_access_delete_incr();
+
+void number_of_records_table_access_update_incr();
+
+void number_of_records_table_access_read_incr();
+
+void number_of_records_global_variable_get_incr();
+
+void number_of_records_global_variable_set_incr();
+
+void number_of_records_authorization_user_incr();
+
+void number_of_records_authorization_db_incr();
+
+void number_of_records_authorization_table_incr();
+
+void number_of_records_authorization_column_incr();
+
+void number_of_records_authorization_procedure_incr();
+
+void number_of_records_authorization_proxy_incr();
 
 void htp_audit_deinit_status();
 
