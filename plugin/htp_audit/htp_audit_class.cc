@@ -147,9 +147,9 @@ static int htp_audit_process_parse_event(
   const struct mysql_event_parse
       *event_parse = (const struct mysql_event_parse *) event;
   event_info_t info;
-  info.main_class=MYSQL_AUDIT_PARSE_CLASS;
-  info.sub_class=event_parse->event_subclass;
-  info.query=event_parse->query.str;
+  info.main_class = MYSQL_AUDIT_PARSE_CLASS;
+  info.sub_class = event_parse->event_subclass;
+  info.query = event_parse->query.str;
   if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
     return 0;
   }
@@ -185,11 +185,11 @@ htp_audit_process_auth_event(
        event_grant->granted_privilege);
 */
   event_info_t info;
-  info.main_class=MYSQL_AUDIT_AUTHORIZATION_CLASS;
-  info.sub_class=event_grant->event_subclass;
-  info.query=event_grant->query.str;
-  info.database=event_grant->database.str;
-  info.table=event_grant->table.str;
+  info.main_class = MYSQL_AUDIT_AUTHORIZATION_CLASS;
+  info.sub_class = event_grant->event_subclass;
+  info.query = event_grant->query.str;
+  info.database = event_grant->database.str;
+  info.table = event_grant->table.str;
 
   switch (event_grant->event_subclass) {
     case MYSQL_AUDIT_AUTHORIZATION_USER:
@@ -256,7 +256,7 @@ htp_audit_process_auth_event(
 
 static int htp_audit_process_startup_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event) {
-  const struct mysql_event_server_startup *event_startup=
+  const struct mysql_event_server_startup *event_startup =
       (const struct mysql_event_server_startup *) event;
   audit_server_startup_startup(event_startup);
   number_of_calls_server_startup_incr();
@@ -269,9 +269,9 @@ htp_audit_process_shutdown_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event) {
   const struct mysql_event_server_shutdown *event_shutdown =
       (const struct mysql_event_server_shutdown *) event;
-    audit_server_shutdown_shutdown(event_shutdown);
-    number_of_calls_server_shutdown_incr();
-    number_of_records_server_shutdown_incr();
+  audit_server_shutdown_shutdown(event_shutdown);
+  number_of_calls_server_shutdown_incr();
+  number_of_records_server_shutdown_incr();
 
   return 0;
 }
@@ -286,8 +286,8 @@ static int htp_audit_process_command_event(
   //debug test for deinit
   //  sleep(10);
   event_info_t info;
-  info.main_class=MYSQL_AUDIT_COMMAND_CLASS;
-  info.sub_class=event_command ->event_subclass;
+  info.main_class = MYSQL_AUDIT_COMMAND_CLASS;
+  info.sub_class = event_command->event_subclass;
 
   switch (event_command->event_subclass) {
     case MYSQL_AUDIT_COMMAND_START:
@@ -324,8 +324,8 @@ static int htp_audit_process_query_event(
       (const struct mysql_event_query *) event;
 
   event_info_t info;
-  info.main_class=MYSQL_AUDIT_QUERY_CLASS;
-  info.sub_class=event_query->event_subclass;
+  info.main_class = MYSQL_AUDIT_QUERY_CLASS;
+  info.sub_class = event_query->event_subclass;
 
   switch (event_query->event_subclass) {
     case MYSQL_AUDIT_QUERY_START:
@@ -377,8 +377,8 @@ static int htp_audit_process_table_access_event(
       (const struct mysql_event_table_access *) event;
 
   event_info_t info;
-  info.main_class=MYSQL_AUDIT_TABLE_ACCESS_CLASS;
-  info.sub_class=event_table->event_subclass;
+  info.main_class = MYSQL_AUDIT_TABLE_ACCESS_CLASS;
+  info.sub_class = event_table->event_subclass;
 
   switch (event_table->event_subclass) {
     case MYSQL_AUDIT_TABLE_ACCESS_INSERT:
@@ -441,8 +441,8 @@ static int htp_audit_process_variable_event(
     event_gvar->variable_value.str);
     buffer[buffer_data]= '\0';*/
   event_info_t info;
-  info.main_class=MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS;
-  info.sub_class=event_gvar->event_subclass;
+  info.main_class = MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS;
+  info.sub_class = event_gvar->event_subclass;
 
   switch (event_gvar->event_subclass) {
     case MYSQL_AUDIT_GLOBAL_VARIABLE_GET:

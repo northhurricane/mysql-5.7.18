@@ -641,8 +641,8 @@ void audit_server_startup_startup(const struct mysql_event_server_startup *event
   localtime_r(&current, &current_broken);
 
   strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
-  char start_para[3000]={0};
-  for(unsigned int i=0;i<event->argc;i++,strcat(start_para,event->argv[i]));
+  char start_para[3000] = {0};
+  for (unsigned int i = 0; i < event->argc; i++, strcat(start_para, event->argv[i]));
   cJSON *root;
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
