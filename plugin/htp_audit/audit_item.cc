@@ -629,7 +629,8 @@ void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *ev
   cJSON_Delete(root);
   free(json_str);
 }
-
+//case mysql server startup error,becase of mysql's bug,startup argvs error
+/*
 void audit_server_startup_startup(const struct mysql_event_server_startup *event) {
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_SERVER_STARTUP_STARTUP);
 
@@ -656,7 +657,7 @@ void audit_server_startup_startup(const struct mysql_event_server_startup *event
   cJSON_Delete(root);
   free(json_str);
 }
-
+*/
 //MYSQL_AUDIT_COMMAND_ALL
 
 void audit_command_start(const struct mysql_event_command *event) {

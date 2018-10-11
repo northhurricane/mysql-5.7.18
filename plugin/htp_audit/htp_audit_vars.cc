@@ -346,6 +346,7 @@ void number_of_calls_server_startup_incr() {
 }
 
 void number_of_calls_server_shutdown_incr() {
+  printf("%d\n",number_of_calls_server_shutdown);
   number_of_calls_server_shutdown++;
 }
 
@@ -639,7 +640,7 @@ struct st_mysql_show_var htp_audit_status[] =
             (char *) &number_of_calls_parse_preparse,
                SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_postparse_called",
-            (char *) &number_of_calls_general_error,
+            (char *) &number_of_calls_parse_postparse,
                SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_command_start_called",
             (char *) &number_of_calls_command_start,
@@ -817,9 +818,11 @@ void htp_audit_init_status() {
   number_of_calls_authorization_proxy = 0;
   number_of_calls_query_start = 0;
   number_of_calls_query_nested_start = 0;
+  number_of_calls_query_nested_start = 0;
   number_of_calls_query_status_end = 0;
   number_of_calls_query_nested_status_end = 0;
   number_of_calls_server_startup = 0;
+  number_of_calls_server_shutdown = 0;
   number_of_calls_table_access_insert = 0;
   number_of_calls_table_access_update = 0;
   number_of_calls_table_access_delete = 0;
@@ -849,6 +852,7 @@ void htp_audit_init_status() {
   number_of_records_query_status_end = 0;
   number_of_records_query_nested_status_end = 0;
   number_of_records_server_startup = 0;
+  number_of_records_server_shutdown=0;
   number_of_records_table_access_insert = 0;
   number_of_records_table_access_update = 0;
   number_of_records_table_access_delete = 0;

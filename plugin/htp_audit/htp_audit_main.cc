@@ -141,7 +141,8 @@ static int htp_audit_rules_from_config(config_group_t *group) {
       filter_item.sql_command[config_item->value_len] = 0;
       filter_item.sql_command_length = config_item->value_len;
       filter_item.sql_command_setted = true;
-    } else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_SQL_KEYWORD) == 0) {
+    }
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_SQL_KEYWORD) == 0) {
       if (filter_item.sql_keyword_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate sql_keyword setting in group %d",
@@ -225,7 +226,8 @@ static int htp_audit_init_env_from_config(config_t *config) {
                        "group %d error", group->number);
         return -1;
       }
-    } else if (strcasecmp(group->name, HTP_AUDIT_GENERAL_GROUP_NAME) == 0) {
+    }
+    else if (strcasecmp(group->name, HTP_AUDIT_GENERAL_GROUP_NAME) == 0) {
       if (htp_audit_general_from_config(group))
         return -1;
     } else {
@@ -293,7 +295,6 @@ static int htp_audit_plugin_deinit(void *arg __attribute__((unused))) {
   if (!probe_quiting_condition()) {
     return 1;
   }
-
   htp_audit_deinit_lock();
 
   htp_audit_deinit_status();

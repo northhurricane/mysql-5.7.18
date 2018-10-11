@@ -256,9 +256,9 @@ htp_audit_process_auth_event(
 
 static int htp_audit_process_startup_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event) {
-  const struct mysql_event_server_startup *event_startup =
-      (const struct mysql_event_server_startup *) event;
-  audit_server_startup_startup(event_startup);
+  //const struct mysql_event_server_startup *event_startup =
+  //    (const struct mysql_event_server_startup *) event;
+  //audit_server_startup_startup(event_startup);
   number_of_calls_server_startup_incr();
   number_of_records_server_startup_incr();
   return 0;
