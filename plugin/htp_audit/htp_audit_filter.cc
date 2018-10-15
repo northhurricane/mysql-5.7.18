@@ -376,20 +376,19 @@ static int htp_audit_get_event_init(
         sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_STATUS, sub_len) == 0) {
       *sub_class_int = MYSQL_AUDIT_GENERAL_STATUS;
     }
-    else {
-      return -1;
-    }
-    /* 现在不支持，如果进行配置，则报告错误
-    if (strncasecmp(sub_class, CTRIP_AUDIT_EVENT_GENERAL_SUB_LOG, sub_len) == 0)
+    else if (strncasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_LOG, sub_len) == 0)
     {
-      return -1;
+      *sub_class_int = MYSQL_AUDIT_GENERAL_LOG;
     }
     else if (strncasecmp(
-      sub_class, CTRIP_AUDIT_EVENT_GENERAL_SUB_RESULT, sub_len) == 0)
+        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_RESULT, sub_len) == 0)
+    {
+      *sub_class_int = MYSQL_AUDIT_GENERAL_RESULT;
+    }
+    else
     {
       return -1;
     }
-    */
   }
   else if (strncasecmp(
       main_class, HTP_AUDIT_EVENT_CONNECTION_CLASS, main_len) == 0) {
@@ -415,8 +414,109 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-  else {
-    return -1;
+  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_PARSE, main_len) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_PARSE_CLASS;
+    if (sub_len==0)
+    {
+      *sub_class_int=EVENT_ALL;
+      return 0;
+    }
+    if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_PARSE_SUB_PREPARE, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_PARSE_PREPARSE;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_PARSE_SUB_POSTPARE, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_PARSE_POSTPARSE;
+    }
+    else {
+      return -1;
+    }
+  }
+  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_AUTHORIZATION, main_len) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_AUTHORIZATION_CLASS;
+    if (sub_len==0)
+    {
+      *sub_class_int=EVENT_ALL;
+      return 0;
+    }
+    if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_USER, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_USER;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_DB, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_DB;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_TABLE, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_TABLE;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_COLUMN, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_COLUMN;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROCEDURE, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_PROCEDURE;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROXY, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_PROXY;
+    }
+    else {
+      return -1;
+    }
+  }
+  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_TABLE_ACCESS, main_len) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_TABLE_ACCESS_CLASS;
+    if (sub_len==0)
+    {
+      *sub_class_int=EVENT_ALL;
+      return 0;
+    }
+    if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_READ, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_READ;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_INSERT, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_INSERT;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_UPDATE, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_UPDATE;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_DELETE, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_DELETE;
+    }
+    else {
+      return -1;
+    }
+  }
+  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE, main_len) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS;
+    if (sub_len==0)
+    {
+      *sub_class_int=EVENT_ALL;
+      return 0;
+    }
+    if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_GET, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_GET;
+    }
+    else if (strncasecmp(
+        sub_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_SET, sub_len) == 0) {
+      *sub_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_SET;
+    }
+    else {
+      return -1;
+    }
   }
 
   return 0;
