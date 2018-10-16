@@ -316,6 +316,13 @@ inline bool htp_audit_is_event_class_splitter(char c) {
   return false;
 }
 
+inline bool htp_audit_is_event_subclass_splitter(char c)
+{
+  if (c == ',')
+    return true;
+  return false;
+}
+
 inline bool htp_audit_is_event_splitter(char c) {
   if (c == ';')
     return true;
@@ -324,6 +331,7 @@ inline bool htp_audit_is_event_splitter(char c) {
 }
 
 /*获取event的信息*/
+/*
 static int htp_audit_get_event_inchar(
     const char *event, int event_len, const char **main_class, int *main_len, const char **sub_class,
     int *sub_len) {
@@ -356,32 +364,31 @@ static int htp_audit_get_event_inchar(
 
   return 0;
 }
-
+*/
 /*获取class对应的宏定义内容*/
 static int htp_audit_get_event_init(
-    const char *main_class, int main_len, int *main_class_int, const char *sub_class, int sub_len,
-    int *sub_class_int) {
-  if (strncasecmp(main_class, HTP_AUDIT_EVENT_GENERAL_CLASS, main_len) == 0) {
+    const char *main_class, int *main_class_int, const char *sub_class,int *sub_class_int) {
+  if (strcasecmp(main_class, HTP_AUDIT_EVENT_GENERAL_CLASS) == 0) {
     *main_class_int = MYSQL_AUDIT_GENERAL_CLASS;
-    if (sub_len == 0) {
+    if (strlen(sub_class) == 0) {
       *sub_class_int = EVENT_ALL;
       return 0;
     }
 
     if (
-        strncasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_ERROR, sub_len) == 0) {
+        strcasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_ERROR) == 0) {
       *sub_class_int = MYSQL_AUDIT_GENERAL_ERROR;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_STATUS, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_STATUS) == 0) {
       *sub_class_int = MYSQL_AUDIT_GENERAL_STATUS;
     }
-    else if (strncasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_LOG, sub_len) == 0)
+    else if (strcasecmp(sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_LOG) == 0)
     {
       *sub_class_int = MYSQL_AUDIT_GENERAL_LOG;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_RESULT, sub_len) == 0)
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_GENERAL_SUB_RESULT) == 0)
     {
       *sub_class_int = MYSQL_AUDIT_GENERAL_RESULT;
     }
@@ -390,128 +397,128 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-  else if (strncasecmp(
-      main_class, HTP_AUDIT_EVENT_CONNECTION_CLASS, main_len) == 0) {
+  else if (strcasecmp(
+      main_class, HTP_AUDIT_EVENT_CONNECTION_CLASS) == 0) {
     *main_class_int = MYSQL_AUDIT_CONNECTION_CLASS;
-    if (sub_len == 0) {
+    if (strlen(sub_class) == 0) {
       *sub_class_int = EVENT_ALL;
       return 0;
     }
 
-    if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT, sub_len) == 0) {
+    if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT) == 0) {
       *sub_class_int = MYSQL_AUDIT_CONNECTION_CONNECT;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT) == 0) {
       *sub_class_int = MYSQL_AUDIT_CONNECTION_DISCONNECT;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER) == 0) {
       *sub_class_int = MYSQL_AUDIT_CONNECTION_CHANGE_USER;
     }
     else {
       return -1;
     }
   }
-  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_PARSE, main_len) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_PARSE) == 0)
   {
     *main_class_int = MYSQL_AUDIT_PARSE_CLASS;
-    if (sub_len==0)
+    if (strlen(sub_class)==0)
     {
       *sub_class_int=EVENT_ALL;
       return 0;
     }
-    if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_PARSE_SUB_PREPARE, sub_len) == 0) {
+    if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_PARSE_SUB_PREPARE) == 0) {
       *sub_class_int = MYSQL_AUDIT_PARSE_PREPARSE;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_PARSE_SUB_POSTPARE, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_PARSE_SUB_POSTPARE) == 0) {
       *sub_class_int = MYSQL_AUDIT_PARSE_POSTPARSE;
     }
     else {
       return -1;
     }
   }
-  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_AUTHORIZATION, main_len) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_AUTHORIZATION) == 0)
   {
     *main_class_int = MYSQL_AUDIT_AUTHORIZATION_CLASS;
-    if (sub_len==0)
+    if (strlen(sub_class)==0)
     {
       *sub_class_int=EVENT_ALL;
       return 0;
     }
-    if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_USER, sub_len) == 0) {
+    if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_USER) == 0) {
       *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_USER;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_DB, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_DB) == 0) {
       *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_DB;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_TABLE, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_TABLE) == 0) {
       *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_TABLE;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_COLUMN, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_COLUMN) == 0) {
       *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_COLUMN;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROCEDURE, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROCEDURE) == 0) {
       *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_PROCEDURE;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROXY, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROXY) == 0) {
       *sub_class_int = MYSQL_AUDIT_AUTHORIZATION_PROXY;
     }
     else {
       return -1;
     }
   }
-  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_TABLE_ACCESS, main_len) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_TABLE_ACCESS) == 0)
   {
     *main_class_int = MYSQL_AUDIT_TABLE_ACCESS_CLASS;
-    if (sub_len==0)
+    if (strlen(sub_class)==0)
     {
       *sub_class_int=EVENT_ALL;
       return 0;
     }
-    if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_READ, sub_len) == 0) {
+    if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_READ) == 0) {
       *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_READ;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_INSERT, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_INSERT) == 0) {
       *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_INSERT;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_UPDATE, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_UPDATE) == 0) {
       *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_UPDATE;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_DELETE, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_DELETE) == 0) {
       *sub_class_int = MYSQL_AUDIT_TABLE_ACCESS_DELETE;
     }
     else {
       return -1;
     }
   }
-  else if (strncasecmp(main_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE, main_len) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE) == 0)
   {
     *main_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS;
-    if (sub_len==0)
+    if (strlen(sub_class)==0)
     {
       *sub_class_int=EVENT_ALL;
       return 0;
     }
-    if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_GET, sub_len) == 0) {
+    if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_GET) == 0) {
       *sub_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_GET;
     }
-    else if (strncasecmp(
-        sub_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_SET, sub_len) == 0) {
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_SET) == 0) {
       *sub_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_SET;
     }
     else {
@@ -620,53 +627,79 @@ static void htp_audit_fill_event(
 
 
 int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item) {
-  int index = 0, rest_len = event_len;
-  const char *event_pos;
-  const char *main_class, *sub_class;
-  int main_class_len, sub_class_len;
+  //int index = 0, rest_len = event_len;
+  char event_matrix[4000] = {0};
+  char *event_parse=event_matrix;
+  //const char *main_class, *sub_class;
+  //int main_class_len, sub_class_len;
   int main_class_int, sub_class_int;
-  int single_len;
   int r = 0;
-
+  int single_event_len = 0;
+  unsigned  int sub_class_len = 0;
+  char sub_event[4000] = {0};
+  unsigned  int main_class_len = 0;
+  char main_class_name[40] = {0};
+  char sub_class_name[40] = {0};
+  unsigned  int for_index = 0;
   //是否为审计全部信息
   if (strcasecmp(event, SETTING_ALL_EVENT) == 0) {
     item->audit_all_event = true;
     return 0;
   }
-  while (index < event_len) {
-    event_pos = event + index;
+  strcpy(event_parse, event);
 
-    single_len = htp_audit_get_single_event_len(event_pos, rest_len);
-    DBUG_ASSERT(single_len >= 0);
+  while (strlen(event_parse)) {
+    main_class_name[0] = 0;
+    sub_class_name[0] = 0;
+    single_event_len = htp_audit_get_single_event_len(event_parse, event_len);
+    strncpy(sub_event, event_parse + 1, single_event_len - 2);
+    sub_event[single_event_len - 2] = 0;
+    main_class_len = 0;
+    for (for_index = 0; for_index < strlen(sub_event); for_index++) {
+      if (htp_audit_is_event_class_splitter(sub_event[for_index]))
+        break;
+      main_class_len++;
+    }
+    strncpy(main_class_name, sub_event, main_class_len);
+    main_class_name[main_class_len] = 0;
+    if (main_class_len == strlen(sub_event)) {
+      r = htp_audit_get_event_init(main_class_name, &main_class_int, sub_class_name, &sub_class_int);
+      if (r) {
+        item->event_setted = false;
+        return -1;
+      }
+      htp_audit_fill_event(item, main_class_int, sub_class_int);
+      item->event_setted = true;
+    }
+    strncpy(sub_event, sub_event + main_class_len + 1, strlen(sub_event) - main_class_len);
+    sub_event[strlen(sub_event) - main_class_len] = 0;
+    while (strlen(sub_event)) {
+      sub_class_len = 0;
+      sub_class_name[0] = 0;
+      for (for_index = 0; for_index < strlen(sub_event); for_index++) {
+        if (htp_audit_is_event_subclass_splitter(sub_event[for_index]))
+          break;
+        sub_class_len++;
+      }
+      strncpy(sub_class_name, sub_event, sub_class_len);
+      sub_class_name[sub_class_len] = 0;
 
-    if (single_len == 0) {
-      return -1;
+      r = htp_audit_get_event_init(main_class_name, &main_class_int, sub_class_name, &sub_class_int);
+      if (r) {
+        item->event_setted = false;
+        return -1;
+      }
+      htp_audit_fill_event(item, main_class_int, sub_class_int);
+      item->event_setted = true;
+      strncpy(sub_event, sub_event + sub_class_len + 1, strlen(sub_event) - sub_class_len);
+      sub_event[strlen(sub_event) - sub_class_len] = 0;
     }
 
-    htp_audit_get_event_inchar(event_pos, single_len, &main_class, &main_class_len, &sub_class, &sub_class_len);
+    event_parse += single_event_len;
+    if (event_parse[0] == ';')
+      event_parse += 1;
 
-    r = htp_audit_get_event_init(main_class, main_class_len, &main_class_int, sub_class, sub_class_len,
-                                 &sub_class_int);
-    if (r) {
-      item->event_setted = false;
-      return -1;
-    }
-
-    htp_audit_fill_event(item, main_class_int, sub_class_int);
-    item->event_setted = true;
-
-    index += single_len;
-    if (htp_audit_is_event_splitter(*(event + index))) {
-      index++;
-    }
-    rest_len = event_len - index;
-
-    DBUG_ASSERT(rest_len >= 0);
-    if (rest_len == 0) {
-      break;
-    }
   }
-
   //检查event是否被设置
   if (item->event_setted != true) {
     return -1;

@@ -230,7 +230,7 @@ static void htp_audit_rules_2_str(rules2str_buffer_t *buffer) {
   }
 }
 
-#define HTP_AUDIT_VAR(x) static volatile int number_of_calls_ ## x;
+#define HTP_AUDIT_VAR(x) static volatile int64_t number_of_calls_ ## x;
 
 
 /* Count MYSQL_AUDIT_GENERAL_CLASS event instances */
@@ -257,9 +257,6 @@ HTP_AUDIT_VAR(command_end)
 HTP_AUDIT_VAR(authorization_user)
 HTP_AUDIT_VAR(authorization_db)
 HTP_AUDIT_VAR(authorization_table)
-HTP_AUDIT_VAR(authorization_column)
-HTP_AUDIT_VAR(authorization_procedure)
-HTP_AUDIT_VAR(authorization_proxy)
 
 /* Count MYSQL_AUDIT_QUERY_CLASS event instances */
 HTP_AUDIT_VAR(query_start)
@@ -270,6 +267,9 @@ HTP_AUDIT_VAR(query_nested_status_end)
 /* Count MYSQL_AUDIT_SERVER_STARTUP_CLASS event instances */
 HTP_AUDIT_VAR(server_startup)
 
+HTP_AUDIT_VAR(authorization_column)
+HTP_AUDIT_VAR(authorization_procedure)
+HTP_AUDIT_VAR(authorization_proxy)
 /* Count MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS event instances */
 HTP_AUDIT_VAR(server_shutdown)
 
@@ -346,7 +346,7 @@ void number_of_calls_server_startup_incr() {
 }
 
 void number_of_calls_server_shutdown_incr() {
-  printf("%d\n",number_of_calls_server_shutdown);
+//  printf("%d\n",number_of_calls_server_shutdown);
   number_of_calls_server_shutdown++;
 }
 
