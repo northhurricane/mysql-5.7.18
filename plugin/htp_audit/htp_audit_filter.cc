@@ -223,6 +223,13 @@ int htp_audit_reorg_filter_item(filter_item_t *filter_item) {
   return 0;
 };
 
+inline int get_sub_class_index(const int sub_class) {
+  int sub_class_index, sub_class_value;
+  for (sub_class_index = 0, sub_class_value = sub_class;
+       sub_class_value > 1; sub_class_value = sub_class_value >> 1, sub_class_index++);
+  return (sub_class <= 0 ? sub_class : sub_class_index);
+}
+
 
 void htp_audit_init_filter_item(filter_item_t *item) {
   item->name_setted = false;
@@ -365,6 +372,16 @@ static int htp_audit_get_event_inchar(
   return 0;
 }
 */
+static int htp_audit_get_single_event_len(const char *event, int event_len) {
+  int single_event_len = 0;
+  for (int i = 0; i < event_len; i++) {
+    if (htp_audit_is_event_splitter(event[i]))
+      break;
+    single_event_len++;
+  }
+  return single_event_len;
+}
+
 /*获取class对应的宏定义内容*/
 static int htp_audit_get_event_init(
     const char *main_class, int *main_class_int, const char *sub_class,int *sub_class_int) {
@@ -421,7 +438,7 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_PARSE) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_PARSE_CLASS) == 0)
   {
     *main_class_int = MYSQL_AUDIT_PARSE_CLASS;
     if (strlen(sub_class)==0)
@@ -441,7 +458,7 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_AUTHORIZATION) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_AUTHORIZATION_CLASS) == 0)
   {
     *main_class_int = MYSQL_AUDIT_AUTHORIZATION_CLASS;
     if (strlen(sub_class)==0)
@@ -477,7 +494,7 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_TABLE_ACCESS) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS) == 0)
   {
     *main_class_int = MYSQL_AUDIT_TABLE_ACCESS_CLASS;
     if (strlen(sub_class)==0)
@@ -505,7 +522,7 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE) == 0)
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS) == 0)
   {
     *main_class_int = MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS;
     if (strlen(sub_class)==0)
@@ -525,22 +542,35 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
-
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_COMMAND_CLASS) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_COMMAND_CLASS;
+    if (strlen(sub_class)==0)
+    {
+      *sub_class_int=EVENT_ALL;
+      return 0;
+    }
+    if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_COMMAND_SUB_START) == 0) {
+      *sub_class_int = MYSQL_AUDIT_COMMAND_START;
+    }
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_COMMAND_SUB_END) == 0) {
+      *sub_class_int = MYSQL_AUDIT_COMMAND_END;
+    }
+    else {
+      return -1;
+    }
+  }
+  else
+    return -1;
   return 0;
 }
 
-static int htp_audit_get_single_event_len(const char *event, int event_len) {
-  int single_event_len = 0;
-  for (int i = 0; i < event_len; i++) {
-    if (htp_audit_is_event_splitter(event[i]))
-      break;
-    single_event_len++;
-  }
-  return single_event_len;
-}
 
 static void htp_audit_fill_event(
     filter_item_t *item, int main_class, int sub_class) {
+  sub_class=get_sub_class_index(sub_class);
   if (main_class == MYSQL_AUDIT_GENERAL_CLASS) {
     //item->general_events_setted = true;
     if (sub_class == EVENT_ALL) {
@@ -572,7 +602,7 @@ static void htp_audit_fill_event(
     if (sub_class == EVENT_ALL) {
       item->audit_all_parse = true;
       for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; i++) {
-        item->parse_events[i] = EVENT_UNSETTED;
+        item->parse_events[i] = EVENT_SETTED;
       }
       return;
     }
@@ -581,9 +611,9 @@ static void htp_audit_fill_event(
   else if (main_class == MYSQL_AUDIT_AUTHORIZATION_CLASS) {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_AUTHORIZATION_CLASS);
     if (sub_class == EVENT_ALL) {
-      item->audit_all_parse = true;
+      item->audit_all_authorization = true;
       for (int i = 0; i < MAX_FILTER_AUTHORIZATION_EVENTS; i++) {
-        item->authorization_events[i] = EVENT_UNSETTED;
+        item->authorization_events[i] = EVENT_SETTED;
       }
       return;
     }
@@ -592,9 +622,9 @@ static void htp_audit_fill_event(
   else if (main_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS) {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS);
     if (sub_class == EVENT_ALL) {
-      item->audit_all_parse = true;
+      item->audit_all_table_access = true;
       for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++) {
-        item->table_access_events[i] = EVENT_UNSETTED;
+        item->table_access_events[i] = EVENT_SETTED;
       }
       return;
     }
@@ -603,25 +633,27 @@ static void htp_audit_fill_event(
   else if (main_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS) {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS);
     if (sub_class == EVENT_ALL) {
-      item->audit_all_parse = true;
-      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++) {
-        item->table_access_events[i] = EVENT_UNSETTED;
+      item->audit_all_global_variable = true;
+      for (int i = 0; i < MAX_FILTER_GLOBAL_VARIABLE_EVENTS; i++) {
+        item->global_variable_events[i] = EVENT_SETTED;
       }
       return;
     }
-    item->table_access_events[sub_class] = EVENT_SETTED;
+    item->global_variable_events[sub_class] = EVENT_SETTED;
   }
   else if (main_class == MYSQL_AUDIT_COMMAND_CLASS) {
     DBUG_ASSERT(main_class == MYSQL_AUDIT_COMMAND_CLASS);
     if (sub_class == EVENT_ALL) {
-      item->audit_all_parse = true;
+      item->audit_all_command = true;
       for (int i = 0; i < MAX_FILTER_COMMAND_EVENTS; i++) {
-        item->table_access_events[i] = EVENT_UNSETTED;
+        item->command_events[i] = EVENT_SETTED;
       }
       return;
     }
-    item->table_access_events[sub_class] = EVENT_SETTED;
+    item->command_events[sub_class] = EVENT_SETTED;
   }
+  else
+    return;
 
 }
 
@@ -646,14 +678,17 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
     item->audit_all_event = true;
     return 0;
   }
-  strcpy(event_parse, event);
+  strncpy(event_parse, event, 3999);
+  event_parse[4000]=0;
 
   while (strlen(event_parse)) {
     main_class_name[0] = 0;
     sub_class_name[0] = 0;
-    single_event_len = htp_audit_get_single_event_len(event_parse, event_len);
+    single_event_len = htp_audit_get_single_event_len(event_parse, strlen(event_parse));
     strncpy(sub_event, event_parse + 1, single_event_len - 2);
     sub_event[single_event_len - 2] = 0;
+    if (sub_event[strlen(sub_event)]=='}')
+      sub_event[strlen(sub_event)-1]=0;
     main_class_len = 0;
     for (for_index = 0; for_index < strlen(sub_event); for_index++) {
       if (htp_audit_is_event_class_splitter(sub_event[for_index]))
@@ -670,9 +705,13 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
       }
       htp_audit_fill_event(item, main_class_int, sub_class_int);
       item->event_setted = true;
+      sub_event[0]=0;
     }
-    strncpy(sub_event, sub_event + main_class_len + 1, strlen(sub_event) - main_class_len);
-    sub_event[strlen(sub_event) - main_class_len] = 0;
+    else
+    {
+      strncpy(sub_event, sub_event + main_class_len + 1, strlen(sub_event) - main_class_len);
+    }
+    //sub_event[strlen(sub_event) - main_class_len-1] = 0;
     while (strlen(sub_event)) {
       sub_class_len = 0;
       sub_class_name[0] = 0;
@@ -691,8 +730,11 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
       }
       htp_audit_fill_event(item, main_class_int, sub_class_int);
       item->event_setted = true;
-      strncpy(sub_event, sub_event + sub_class_len + 1, strlen(sub_event) - sub_class_len);
-      sub_event[strlen(sub_event) - sub_class_len] = 0;
+      if (strlen(sub_event)==sub_class_len)
+        sub_event[0]=0;
+      else
+        strncpy(sub_event, sub_event + sub_class_len + 1, strlen(sub_event) - sub_class_len);
+      //sub_event[strlen(sub_event) - sub_class_len] = 0;
     }
 
     event_parse += single_event_len;
@@ -986,12 +1028,6 @@ int htp_audit_parse_remove_input(const char *remove_str, remove_parse_t *parse) 
   return 0;
 }
 
-inline int get_sub_class_index(const int sub_class) {
-  int sub_class_index, sub_class_value;
-  for (sub_class_index = 0, sub_class_value = sub_class;
-       sub_class_value > 0; sub_class_value = sub_class_value >> 1, sub_class_index++);
-  return (sub_class == 0 ? 0 : sub_class_index);
-}
 
 filter_result_enum
 htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int event_class) {

@@ -123,23 +123,26 @@ void htp_audit_deinit_lock();
 #define HTP_AUDIT_EVENT_CLASS_INVALID (-1)
 
 #define HTP_AUDIT_EVENT_ALL "all"
-
+// general events
 #define HTP_AUDIT_EVENT_GENERAL_CLASS "general"
 #define HTP_AUDIT_EVENT_GENERAL_SUB_LOG "log"
 #define HTP_AUDIT_EVENT_GENERAL_SUB_ERROR "error"
 #define HTP_AUDIT_EVENT_GENERAL_SUB_RESULT "result"
 #define HTP_AUDIT_EVENT_GENERAL_SUB_STATUS "status"
 
+// connection events
 #define HTP_AUDIT_EVENT_CONNECTION_CLASS "connection"
 #define HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT "connect"
 #define HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT "disconnect"
 #define HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER "change user"
 
-#define HTP_AUDIT_EVENT_PARSE "parse"
+// parse events
+#define HTP_AUDIT_EVENT_PARSE_CLASS "parse"
 #define HTP_AUDIT_EVENT_PARSE_SUB_PREPARE "prepare"
 #define HTP_AUDIT_EVENT_PARSE_SUB_POSTPARE "postpare"
 
-#define HTP_AUDIT_EVENT_AUTHORIZATION "authorization"
+// authorization events
+#define HTP_AUDIT_EVENT_AUTHORIZATION_CLASS "authorization"
 #define HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_USER "user"
 #define HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_DB "db"
 #define HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_TABLE "table"
@@ -147,16 +150,22 @@ void htp_audit_deinit_lock();
 #define HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROCEDURE "procedure"
 #define HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROXY "proxy"
 
-#define HTP_AUDIT_EVENT_TABLE_ACCESS "table_access"
+// table access events
+#define HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS "table access"
 #define HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_READ "read"
 #define HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_INSERT "insert"
 #define HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_UPDATE "update"
 #define HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_DELETE "delete"
 
-#define HTP_AUDIT_EVENT_GLOBAL_VARIABLE "global_variable"
+// global variable events
+#define HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS "global variable"
 #define HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_GET "get"
 #define HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_SET "set"
 
+// command events
+#define HTP_AUDIT_EVENT_COMMAND_CLASS "command"
+#define HTP_AUDIT_EVENT_COMMAND_SUB_START "start"
+#define HTP_AUDIT_EVENT_COMMAND_SUB_END "end"
 
 /* 审计事件过滤 */
 #define MAX_FILTER_NAME_LENGTH (128)

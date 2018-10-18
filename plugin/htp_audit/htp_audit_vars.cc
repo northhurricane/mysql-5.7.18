@@ -60,13 +60,47 @@ static int rules2str_buffer_reset(rules2str_buffer_t *buffer) {
 }
 
 const char *general_events[] = {
-    HTP_AUDIT_EVENT_GENERAL_SUB_LOG, HTP_AUDIT_EVENT_GENERAL_SUB_ERROR, HTP_AUDIT_EVENT_GENERAL_SUB_RESULT,
+    HTP_AUDIT_EVENT_GENERAL_SUB_LOG,
+    HTP_AUDIT_EVENT_GENERAL_SUB_ERROR,
+    HTP_AUDIT_EVENT_GENERAL_SUB_RESULT,
     HTP_AUDIT_EVENT_GENERAL_SUB_STATUS
 };
 
 const char *connection_events[] = {
-    HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT, HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT,
+    HTP_AUDIT_EVENT_CONNECTION_SUB_CONNECT,
+    HTP_AUDIT_EVENT_CONNECTION_SUB_DISCONNECT,
     HTP_AUDIT_EVENT_CONNECTION_SUB_CHANGE_USER
+};
+
+const char *parse_events[] = {
+    HTP_AUDIT_EVENT_PARSE_SUB_PREPARE,
+    HTP_AUDIT_EVENT_PARSE_SUB_POSTPARE
+};
+
+const char *authorization_events[] = {
+    HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_USER,
+    HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_DB,
+    HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_TABLE,
+    HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_COLUMN,
+    HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROCEDURE,
+    HTP_AUDIT_EVENT_AUTHORIZAITON_SUB_PROXY
+};
+
+const char *table_access_events[] = {
+    HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_READ,
+    HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_INSERT,
+    HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_UPDATE,
+    HTP_AUDIT_EVENT_TABLE_ACCESS_SUB_DELETE
+};
+
+const char *global_variable_events[] = {
+    HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_GET,
+    HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_SET
+};
+
+const char *command_events[] = {
+    HTP_AUDIT_EVENT_COMMAND_SUB_START,
+    HTP_AUDIT_EVENT_COMMAND_SUB_END
 };
 
 static void htp_audit_rule_2_str(
@@ -111,7 +145,7 @@ static void htp_audit_rule_2_str(
     strcpy(buffer_index, audit_all);
     buffer_index += strlen(audit_all);
   } else {
-    const char *event_head = "event=";
+    const char *event_head = "event={";
     strcpy(buffer_index, event_head);
     buffer_index += strlen(event_head);
     bool need_semicolon = false;
@@ -121,53 +155,305 @@ static void htp_audit_rule_2_str(
       const char *all_general = HTP_AUDIT_EVENT_GENERAL_CLASS;
       strcpy(buffer_index, all_general);
       buffer_index += strlen(all_general);
+      strcpy(buffer_index,"}");
+      buffer_index++;
       need_semicolon = true;
     } else {
+      need_semicolon=false;
+      strcpy(buffer_index,HTP_AUDIT_EVENT_GENERAL_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_GENERAL_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
       for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++) {
         if (item->general_events[i] == EVENT_SETTED) {
-          if (need_semicolon) {
-            strcpy(buffer_index, ";");
-            buffer_index++;
-          }
-          strcpy(buffer_index, HTP_AUDIT_EVENT_GENERAL_CLASS);
-          buffer_index += strlen(HTP_AUDIT_EVENT_GENERAL_CLASS);
-          strcpy(buffer_index, ":");
-          buffer_index++;
+        //  if (need_semicolon) {
+        //    strcpy(buffer_index, ";");
+         //   buffer_index++;
+         // }
           strcpy(buffer_index, general_events[i]);
           buffer_index += strlen(general_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
           need_semicolon = true;
         }
       }
     }
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_GENERAL_CLASS);
+      *buffer_index=0;
+    }
+
+    need_semicolon=false;
 
     //connection event
     if (item->audit_all_connection) {
-      if (need_semicolon) {
-        strcpy(buffer_index, ";");
-        buffer_index++;
-      }
-
       const char *all_connection = HTP_AUDIT_EVENT_CONNECTION_CLASS;
       strcpy(buffer_index, all_connection);
       buffer_index += strlen(all_connection);
+      strcpy(buffer_index,"}");
+      buffer_index++;
       need_semicolon = true;
     } else {
+      strcpy(buffer_index,HTP_AUDIT_EVENT_CONNECTION_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_CONNECTION_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
       for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++) {
         if (item->connection_events[i] == EVENT_SETTED) {
-          if (need_semicolon) {
-            strcpy(buffer_index, ";");
-            buffer_index++;
-          }
-          strcpy(buffer_index, HTP_AUDIT_EVENT_CONNECTION_CLASS);
-          buffer_index += strlen(HTP_AUDIT_EVENT_CONNECTION_CLASS);
-          strcpy(buffer_index, ":");
-          buffer_index++;
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
           strcpy(buffer_index, connection_events[i]);
           buffer_index += strlen(connection_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
           need_semicolon = true;
         }
       }
     }
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_CONNECTION_CLASS);
+      *buffer_index=0;
+    }
+
+    need_semicolon=false;
+
+    //parse event
+    if (item->audit_all_parse) {
+      const char *all_parse = HTP_AUDIT_EVENT_PARSE_CLASS;
+      strcpy(buffer_index, all_parse);
+      buffer_index += strlen(all_parse);
+      strcpy(buffer_index,"}");
+      buffer_index++;
+      need_semicolon = true;
+    } else {
+      strcpy(buffer_index,HTP_AUDIT_EVENT_PARSE_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_PARSE_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
+      for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; i++) {
+        if (item->parse_events[i] == EVENT_SETTED) {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
+          strcpy(buffer_index, parse_events[i]);
+          buffer_index += strlen(parse_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
+          need_semicolon = true;
+        }
+      }
+     }
+
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_PARSE_CLASS);
+      *buffer_index=0;
+    }
+
+    need_semicolon=false;
+
+    //authorization event
+    if (item->audit_all_authorization) {
+      const char *all_authorization = HTP_AUDIT_EVENT_AUTHORIZATION_CLASS;
+      strcpy(buffer_index, all_authorization);
+      buffer_index += strlen(all_authorization);
+      strcpy(buffer_index,"}");
+      buffer_index++;
+      need_semicolon = true;
+    } else {
+      strcpy(buffer_index,HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
+      for (int i = 0; i < MAX_FILTER_AUTHORIZATION_EVENTS; i++) {
+        if (item->authorization_events[i] == EVENT_SETTED) {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
+          strcpy(buffer_index, authorization_events[i]);
+          buffer_index += strlen(authorization_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
+          need_semicolon = true;
+        }
+      }
+    }
+
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
+      *buffer_index=0;
+    }
+
+    need_semicolon=false;
+
+    //table_access event
+    if (item->audit_all_table_access) {
+      const char *all_table_access = HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS;
+      strcpy(buffer_index, all_table_access);
+      buffer_index += strlen(all_table_access);
+      strcpy(buffer_index,"}");
+      buffer_index++;
+      need_semicolon = true;
+    } else {
+      strcpy(buffer_index,HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
+      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++) {
+        if (item->table_access_events[i] == EVENT_SETTED) {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
+          strcpy(buffer_index, table_access_events[i]);
+          buffer_index += strlen(table_access_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
+          need_semicolon = true;
+        }
+      }
+    }
+
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
+      *buffer_index=0;
+    }
+
+    need_semicolon=false;
+
+    //global_variable event
+    if (item->audit_all_global_variable) {
+      const char *all_global_variable = HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS;
+      strcpy(buffer_index, all_global_variable);
+      buffer_index += strlen(all_global_variable);
+      strcpy(buffer_index,"}");
+      buffer_index++;
+      need_semicolon = true;
+    } else {
+      strcpy(buffer_index,HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
+      for (int i = 0; i < MAX_FILTER_GLOBAL_VARIABLE_EVENTS; i++) {
+        if (item->global_variable_events[i] == EVENT_SETTED) {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
+          strcpy(buffer_index, global_variable_events[i]);
+          buffer_index += strlen(global_variable_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
+          need_semicolon = true;
+        }
+      }
+    }
+
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
+      *buffer_index=0;
+    }
+
+    //command event
+    if (item->audit_all_command) {
+      const char *all_command = HTP_AUDIT_EVENT_COMMAND_CLASS;
+      strcpy(buffer_index, all_command);
+      buffer_index += strlen(all_command);
+      strcpy(buffer_index,"}");
+      buffer_index++;
+      need_semicolon = true;
+    } else {
+      strcpy(buffer_index,HTP_AUDIT_EVENT_COMMAND_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_COMMAND_CLASS);
+      strcpy(buffer_index,":");
+      buffer_index++;
+      for (int i = 0; i < MAX_FILTER_COMMAND_EVENTS; i++) {
+        if (item->command_events[i] == EVENT_SETTED) {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
+          strcpy(buffer_index, command_events[i]);
+          buffer_index += strlen(command_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
+          need_semicolon = true;
+        }
+      }
+    }
+
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index,"};{");
+      buffer_index+=3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index-=strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
+      *buffer_index=0;
+    }
+
+    if(*(buffer_index-1)== '{')
+    {
+      buffer_index-=2;
+      *buffer_index=0;
+    }
+    //buffer_index--;
+    // *buffer_index=0;
+
   }
   //command
   if (item->command_length != 0) {
