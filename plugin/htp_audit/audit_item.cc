@@ -35,7 +35,8 @@
   , "user":"mysql user"
   }
 */
-void audit_connection_connect(const struct mysql_event_connection *event) {
+void audit_connection_connect(const struct mysql_event_connection *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_CONNECTION_CONNECT);
 
   char current_str[100];
@@ -70,7 +71,8 @@ void audit_connection_connect(const struct mysql_event_connection *event) {
   free(json_str);
 }
 
-void audit_connection_disconnect(const struct mysql_event_connection *event) {
+void audit_connection_disconnect(const struct mysql_event_connection *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_CONNECTION_DISCONNECT);
 
   char current_str[100];
@@ -103,7 +105,8 @@ void audit_connection_disconnect(const struct mysql_event_connection *event) {
   free(json_str);
 }
 
-void audit_connection_change_user(const struct mysql_event_connection *event) {
+void audit_connection_change_user(const struct mysql_event_connection *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_CONNECTION_CHANGE_USER);
 
   char current_str[100];
@@ -143,7 +146,8 @@ void audit_connection_change_user(const struct mysql_event_connection *event) {
 /*
   
  */
-void audit_general_log(const struct mysql_event_general *event) {
+void audit_general_log(const struct mysql_event_general *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_LOG);
 
   char current_str[100];
@@ -187,7 +191,8 @@ void audit_general_log(const struct mysql_event_general *event) {
   free(json_str);
 }
 
-void audit_general_error(const struct mysql_event_general *event) {
+void audit_general_error(const struct mysql_event_general *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_ERROR);
 
   char current_str[100];
@@ -231,7 +236,8 @@ void audit_general_error(const struct mysql_event_general *event) {
   free(json_str);
 }
 
-void audit_general_status(const struct mysql_event_general *event) {
+void audit_general_status(const struct mysql_event_general *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_STATUS);
 
   char current_str[100];
@@ -274,7 +280,8 @@ void audit_general_status(const struct mysql_event_general *event) {
   free(json_str);
 }
 
-void audit_general_result(const struct mysql_event_general *event) {
+void audit_general_result(const struct mysql_event_general *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GENERAL_RESULT);
 
   char current_str[100];
@@ -321,7 +328,8 @@ void audit_general_result(const struct mysql_event_general *event) {
 //new audit feature,added by gqhao 2018-10-08
 
 // AUDIT_PARSET PROCESS PART
-void audit_parse_preparse(const struct mysql_event_parse *event) {
+void audit_parse_preparse(const struct mysql_event_parse *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_PARSE_PREPARSE);
 
   char current_str[100];
@@ -351,7 +359,8 @@ void audit_parse_preparse(const struct mysql_event_parse *event) {
   free(json_str);
 }
 
-void audit_parse_postparse(const struct mysql_event_parse *event) {
+void audit_parse_postparse(const struct mysql_event_parse *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_PARSE_POSTPARSE);
 
   char current_str[100];
@@ -385,7 +394,8 @@ void audit_parse_postparse(const struct mysql_event_parse *event) {
 // MYSQL_AUDIT_AUTHORIZATION_USER
 
 
-void audit_authorization_user(const struct mysql_event_authorization *event) {
+void audit_authorization_user(const struct mysql_event_authorization *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_AUTHORIZATION_USER);
 
   char current_str[100];
@@ -421,7 +431,8 @@ void audit_authorization_user(const struct mysql_event_authorization *event) {
   free(json_str);
 }
 
-void audit_authorization_db(const struct mysql_event_authorization *event) {
+void audit_authorization_db(const struct mysql_event_authorization *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_AUTHORIZATION_DB);
 
   char current_str[100];
@@ -457,7 +468,8 @@ void audit_authorization_db(const struct mysql_event_authorization *event) {
   free(json_str);
 }
 
-void audit_authorization_table(const struct mysql_event_authorization *event) {
+void audit_authorization_table(const struct mysql_event_authorization *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_AUTHORIZATION_TABLE);
 
   char current_str[100];
@@ -493,7 +505,8 @@ void audit_authorization_table(const struct mysql_event_authorization *event) {
   free(json_str);
 }
 
-void audit_authorization_column(const struct mysql_event_authorization *event) {
+void audit_authorization_column(const struct mysql_event_authorization *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_AUTHORIZATION_COLUMN);
 
   char current_str[100];
@@ -529,7 +542,8 @@ void audit_authorization_column(const struct mysql_event_authorization *event) {
   free(json_str);
 }
 
-void audit_authorization_procedure(const struct mysql_event_authorization *event) {
+void audit_authorization_procedure(const struct mysql_event_authorization *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_AUTHORIZATION_PROCEDURE);
 
   char current_str[100];
@@ -565,7 +579,8 @@ void audit_authorization_procedure(const struct mysql_event_authorization *event
   free(json_str);
 }
 
-void audit_authorization_proxy(const struct mysql_event_authorization *event) {
+void audit_authorization_proxy(const struct mysql_event_authorization *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_AUTHORIZATION_PROXY);
 
   char current_str[100];
@@ -603,7 +618,8 @@ void audit_authorization_proxy(const struct mysql_event_authorization *event) {
 
 //MYSQL_AUDIT_SERVER_SHUTDOWN_ALL
 
-void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *event) {
+void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN);
 
   char current_str[100];
@@ -660,7 +676,8 @@ void audit_server_startup_startup(const struct mysql_event_server_startup *event
 */
 //MYSQL_AUDIT_COMMAND_ALL
 
-void audit_command_start(const struct mysql_event_command *event) {
+void audit_command_start(const struct mysql_event_command *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_COMMAND_START);
 
   char current_str[100];
@@ -688,7 +705,8 @@ void audit_command_start(const struct mysql_event_command *event) {
   free(json_str);
 }
 
-void audit_command_end(const struct mysql_event_command *event) {
+void audit_command_end(const struct mysql_event_command *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_COMMAND_END);
 
   char current_str[100];
@@ -719,7 +737,8 @@ void audit_command_end(const struct mysql_event_command *event) {
 
 //MYSQL_AUDIT_QUERY_ALL
 
-void audit_query_start(const struct mysql_event_query *event) {
+void audit_query_start(const struct mysql_event_query *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_QUERY_START);
 
   char current_str[100];
@@ -749,8 +768,8 @@ void audit_query_start(const struct mysql_event_query *event) {
   free(json_str);
 }
 
-
-void audit_query_nested_start(const struct mysql_event_query *event) {
+void audit_query_nested_start(const struct mysql_event_query *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_QUERY_NESTED_START);
 
   char current_str[100];
@@ -780,7 +799,8 @@ void audit_query_nested_start(const struct mysql_event_query *event) {
   free(json_str);
 }
 
-void audit_query_status_end(const struct mysql_event_query *event) {
+void audit_query_status_end(const struct mysql_event_query *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_QUERY_STATUS_END);
 
   char current_str[100];
@@ -810,7 +830,8 @@ void audit_query_status_end(const struct mysql_event_query *event) {
   free(json_str);
 }
 
-void audit_query_nested_status_end(const struct mysql_event_query *event) {
+void audit_query_nested_status_end(const struct mysql_event_query *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_QUERY_NESTED_STATUS_END);
 
   char current_str[100];
@@ -842,7 +863,8 @@ void audit_query_nested_status_end(const struct mysql_event_query *event) {
 
 //MYSQL_AUDIT_TABLE_ACCESS_ALL
 
-void audit_table_access_read(const struct mysql_event_table_access *event) {
+void audit_table_access_read(const struct mysql_event_table_access *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_TABLE_ACCESS_READ);
 
   char current_str[100];
@@ -875,7 +897,8 @@ void audit_table_access_read(const struct mysql_event_table_access *event) {
   free(json_str);
 }
 
-void audit_table_access_insert(const struct mysql_event_table_access *event) {
+void audit_table_access_insert(const struct mysql_event_table_access *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_TABLE_ACCESS_INSERT);
 
   char current_str[100];
@@ -908,7 +931,8 @@ void audit_table_access_insert(const struct mysql_event_table_access *event) {
   free(json_str);
 }
 
-void audit_table_access_update(const struct mysql_event_table_access *event) {
+void audit_table_access_update(const struct mysql_event_table_access *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_TABLE_ACCESS_UPDATE);
 
   char current_str[100];
@@ -941,7 +965,8 @@ void audit_table_access_update(const struct mysql_event_table_access *event) {
   free(json_str);
 }
 
-void audit_table_access_delete(const struct mysql_event_table_access *event) {
+void audit_table_access_delete(const struct mysql_event_table_access *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_TABLE_ACCESS_DELETE);
 
   char current_str[100];
@@ -976,7 +1001,8 @@ void audit_table_access_delete(const struct mysql_event_table_access *event) {
 
 //MYSQL_AUDIT_GLOBAL_VARIABLE_ALL
 
-void audit_global_variable_get(const struct mysql_event_global_variable *event) {
+void audit_global_variable_get(const struct mysql_event_global_variable *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GLOBAL_VARIABLE_GET);
 
   char current_str[100];
@@ -1007,7 +1033,8 @@ void audit_global_variable_get(const struct mysql_event_global_variable *event) 
   free(json_str);
 }
 
-void audit_global_variable_set(const struct mysql_event_global_variable *event) {
+void audit_global_variable_set(const struct mysql_event_global_variable *event)
+{
   DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_GLOBAL_VARIABLE_SET);
 
   char current_str[100];

@@ -39,7 +39,8 @@ static char *version = version_inner;
 extern list<int> filters;
 extern filter_item_t filter_items[];
 
-static int rules2str_buffer_init(rules2str_buffer_t *buffer) {
+static int rules2str_buffer_init(rules2str_buffer_t *buffer)
+{
   buffer->buffer = buffer->buffer_inner;
   buffer->buffer_size = RULES2STR_BUFFER_LEN;
   buffer->buffer[0] = 0;
@@ -47,12 +48,14 @@ static int rules2str_buffer_init(rules2str_buffer_t *buffer) {
   return 0;
 }
 
-static void rules2str_buffer_deinit(rules2str_buffer_t *buffer) {
+static void rules2str_buffer_deinit(rules2str_buffer_t *buffer)
+{
   if (buffer->buffer != buffer->buffer_inner)
     free(buffer->buffer);
 }
 
-static int rules2str_buffer_reset(rules2str_buffer_t *buffer) {
+static int rules2str_buffer_reset(rules2str_buffer_t *buffer)
+{
   if (buffer->buffer != buffer->buffer_inner)
     free(buffer->buffer);
   rules2str_buffer_init(buffer);
@@ -98,13 +101,21 @@ const char *global_variable_events[] = {
     HTP_AUDIT_EVENT_GLOBAL_VARIABLE_SUB_SET
 };
 
+const char *query_events[] = {
+    HTP_AUDIT_EVENT_QUERY_SUB_START,
+    HTP_AUDIT_EVENT_QUERY_SUB_NESTED_START,
+    HTP_AUDIT_EVENT_QUERY_SUB_STATUS_END,
+    HTP_AUDIT_EVENT_QUERY_SUB_NESTED_STATUS_END
+};
+
 const char *command_events[] = {
     HTP_AUDIT_EVENT_COMMAND_SUB_START,
     HTP_AUDIT_EVENT_COMMAND_SUB_END
 };
 
 static void htp_audit_rule_2_str(
-    filter_item_t *item, char *buffer, int size) {
+    filter_item_t *item, char *buffer, int size)
+{
   char *buffer_index = buffer;
 
   //name
@@ -115,7 +126,8 @@ static void htp_audit_rule_2_str(
   strcpy(buffer_index, item->name);
   buffer_index += strlen(item->name);
   //host
-  if (item->host_length != 0) {
+  if (item->host_length != 0)
+  {
     strcpy(buffer_index, "\n");
     buffer_index += 1;
     strcpy(buffer_index, HTP_AUDIT_RULE_KEY_HOST);
@@ -126,7 +138,8 @@ static void htp_audit_rule_2_str(
     buffer_index += item->host_length;
   }
   //user
-  if (item->user_length != 0) {
+  if (item->user_length != 0)
+  {
     strcpy(buffer_index, "\n");
     buffer_index += 1;
     strcpy(buffer_index, HTP_AUDIT_RULE_KEY_USER);
@@ -139,37 +152,45 @@ static void htp_audit_rule_2_str(
   //event
   strcpy(buffer_index, "\n");
   buffer_index += 1;
-  if (item->audit_all_event == true) {
+  if (item->audit_all_event == true)
+  {
     //all event setted
     const char *audit_all = "event=all";
     strcpy(buffer_index, audit_all);
     buffer_index += strlen(audit_all);
-  } else {
+  }
+  else
+  {
     const char *event_head = "event={";
     strcpy(buffer_index, event_head);
     buffer_index += strlen(event_head);
     bool need_semicolon = false;
 
     //general event
-    if (item->audit_all_general) {
+    if (item->audit_all_general)
+    {
       const char *all_general = HTP_AUDIT_EVENT_GENERAL_CLASS;
       strcpy(buffer_index, all_general);
       buffer_index += strlen(all_general);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      need_semicolon=false;
-      strcpy(buffer_index,HTP_AUDIT_EVENT_GENERAL_CLASS);
+    }
+    else
+    {
+      need_semicolon = false;
+      strcpy(buffer_index, HTP_AUDIT_EVENT_GENERAL_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_GENERAL_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++) {
-        if (item->general_events[i] == EVENT_SETTED) {
-        //  if (need_semicolon) {
-        //    strcpy(buffer_index, ";");
-         //   buffer_index++;
-         // }
+      for (int i = 0; i < MAX_FILTER_GENERAL_EVENTS; i++)
+      {
+        if (item->general_events[i] == EVENT_SETTED)
+        {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
           strcpy(buffer_index, general_events[i]);
           buffer_index += strlen(general_events[i]);
           strcpy(buffer_index, ",");
@@ -181,33 +202,38 @@ static void htp_audit_rule_2_str(
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_GENERAL_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_GENERAL_CLASS);
+      *buffer_index = 0;
     }
 
-    need_semicolon=false;
+    need_semicolon = false;
 
     //connection event
-    if (item->audit_all_connection) {
+    if (item->audit_all_connection)
+    {
       const char *all_connection = HTP_AUDIT_EVENT_CONNECTION_CLASS;
       strcpy(buffer_index, all_connection);
       buffer_index += strlen(all_connection);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      strcpy(buffer_index,HTP_AUDIT_EVENT_CONNECTION_CLASS);
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_CONNECTION_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_CONNECTION_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++) {
-        if (item->connection_events[i] == EVENT_SETTED) {
+      for (int i = 0; i < MAX_FILTER_CONNECTION_EVENTS; i++)
+      {
+        if (item->connection_events[i] == EVENT_SETTED)
+        {
           //  if (need_semicolon) {
           //    strcpy(buffer_index, ";");
           //   buffer_index++;
@@ -223,33 +249,38 @@ static void htp_audit_rule_2_str(
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_CONNECTION_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_CONNECTION_CLASS);
+      *buffer_index = 0;
     }
 
-    need_semicolon=false;
+    need_semicolon = false;
 
     //parse event
-    if (item->audit_all_parse) {
+    if (item->audit_all_parse)
+    {
       const char *all_parse = HTP_AUDIT_EVENT_PARSE_CLASS;
       strcpy(buffer_index, all_parse);
       buffer_index += strlen(all_parse);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      strcpy(buffer_index,HTP_AUDIT_EVENT_PARSE_CLASS);
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_PARSE_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_PARSE_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; i++) {
-        if (item->parse_events[i] == EVENT_SETTED) {
+      for (int i = 0; i < MAX_FILTER_PARSE_EVENTS; i++)
+      {
+        if (item->parse_events[i] == EVENT_SETTED)
+        {
           //  if (need_semicolon) {
           //    strcpy(buffer_index, ";");
           //   buffer_index++;
@@ -261,38 +292,43 @@ static void htp_audit_rule_2_str(
           need_semicolon = true;
         }
       }
-     }
+    }
 
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_PARSE_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_PARSE_CLASS);
+      *buffer_index = 0;
     }
 
-    need_semicolon=false;
+    need_semicolon = false;
 
     //authorization event
-    if (item->audit_all_authorization) {
+    if (item->audit_all_authorization)
+    {
       const char *all_authorization = HTP_AUDIT_EVENT_AUTHORIZATION_CLASS;
       strcpy(buffer_index, all_authorization);
       buffer_index += strlen(all_authorization);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      strcpy(buffer_index,HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_AUTHORIZATION_EVENTS; i++) {
-        if (item->authorization_events[i] == EVENT_SETTED) {
+      for (int i = 0; i < MAX_FILTER_AUTHORIZATION_EVENTS; i++)
+      {
+        if (item->authorization_events[i] == EVENT_SETTED)
+        {
           //  if (need_semicolon) {
           //    strcpy(buffer_index, ";");
           //   buffer_index++;
@@ -309,33 +345,38 @@ static void htp_audit_rule_2_str(
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_AUTHORIZATION_CLASS);
+      *buffer_index = 0;
     }
 
-    need_semicolon=false;
+    need_semicolon = false;
 
     //table_access event
-    if (item->audit_all_table_access) {
+    if (item->audit_all_table_access)
+    {
       const char *all_table_access = HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS;
       strcpy(buffer_index, all_table_access);
       buffer_index += strlen(all_table_access);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      strcpy(buffer_index,HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++) {
-        if (item->table_access_events[i] == EVENT_SETTED) {
+      for (int i = 0; i < MAX_FILTER_TABLE_ACCESS_EVENTS; i++)
+      {
+        if (item->table_access_events[i] == EVENT_SETTED)
+        {
           //  if (need_semicolon) {
           //    strcpy(buffer_index, ";");
           //   buffer_index++;
@@ -352,33 +393,38 @@ static void htp_audit_rule_2_str(
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_TABLE_ACCESS_CLASS);
+      *buffer_index = 0;
     }
 
-    need_semicolon=false;
+    need_semicolon = false;
 
     //global_variable event
-    if (item->audit_all_global_variable) {
+    if (item->audit_all_global_variable)
+    {
       const char *all_global_variable = HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS;
       strcpy(buffer_index, all_global_variable);
       buffer_index += strlen(all_global_variable);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      strcpy(buffer_index,HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_GLOBAL_VARIABLE_EVENTS; i++) {
-        if (item->global_variable_events[i] == EVENT_SETTED) {
+      for (int i = 0; i < MAX_FILTER_GLOBAL_VARIABLE_EVENTS; i++)
+      {
+        if (item->global_variable_events[i] == EVENT_SETTED)
+        {
           //  if (need_semicolon) {
           //    strcpy(buffer_index, ";");
           //   buffer_index++;
@@ -395,31 +441,36 @@ static void htp_audit_rule_2_str(
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
+      *buffer_index = 0;
     }
 
     //command event
-    if (item->audit_all_command) {
+    if (item->audit_all_command)
+    {
       const char *all_command = HTP_AUDIT_EVENT_COMMAND_CLASS;
       strcpy(buffer_index, all_command);
       buffer_index += strlen(all_command);
-      strcpy(buffer_index,"}");
+      strcpy(buffer_index, "}");
       buffer_index++;
       need_semicolon = true;
-    } else {
-      strcpy(buffer_index,HTP_AUDIT_EVENT_COMMAND_CLASS);
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_COMMAND_CLASS);
       buffer_index += strlen(HTP_AUDIT_EVENT_COMMAND_CLASS);
-      strcpy(buffer_index,":");
+      strcpy(buffer_index, ":");
       buffer_index++;
-      for (int i = 0; i < MAX_FILTER_COMMAND_EVENTS; i++) {
-        if (item->command_events[i] == EVENT_SETTED) {
+      for (int i = 0; i < MAX_FILTER_COMMAND_EVENTS; i++)
+      {
+        if (item->command_events[i] == EVENT_SETTED)
+        {
           //  if (need_semicolon) {
           //    strcpy(buffer_index, ";");
           //   buffer_index++;
@@ -436,27 +487,74 @@ static void htp_audit_rule_2_str(
     if (need_semicolon)
     {
       buffer_index--;
-      strcpy(buffer_index,"};{");
-      buffer_index+=3;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
     }
     else
     {
       buffer_index--;
-      buffer_index-=strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
-      *buffer_index=0;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_COMMAND_CLASS);
+      *buffer_index = 0;
     }
 
-    if(*(buffer_index-1)== '{')
+    //query event
+    if (item->audit_all_query)
     {
-      buffer_index-=2;
-      *buffer_index=0;
+      const char *all_query = HTP_AUDIT_EVENT_QUERY_CLASS;
+      strcpy(buffer_index, all_query);
+      buffer_index += strlen(all_query);
+      strcpy(buffer_index, "}");
+      buffer_index++;
+      need_semicolon = true;
+    }
+    else
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_QUERY_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_QUERY_CLASS);
+      strcpy(buffer_index, ":");
+      buffer_index++;
+      for (int i = 0; i < MAX_FILTER_QUERY_EVENTS; i++)
+      {
+        if (item->query_events[i] == EVENT_SETTED)
+        {
+          //  if (need_semicolon) {
+          //    strcpy(buffer_index, ";");
+          //   buffer_index++;
+          // }
+          strcpy(buffer_index, query_events[i]);
+          buffer_index += strlen(query_events[i]);
+          strcpy(buffer_index, ",");
+          buffer_index++;
+          need_semicolon = true;
+        }
+      }
+    }
+
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_QUERY_CLASS);
+      *buffer_index = 0;
+    }
+
+    if (*(buffer_index - 1) == '{')
+    {
+      buffer_index -= 2;
+      *buffer_index = 0;
     }
     //buffer_index--;
     // *buffer_index=0;
 
   }
   //command
-  if (item->command_length != 0) {
+  if (item->command_length != 0)
+  {
     strcpy(buffer_index, "\n");
     buffer_index += 1;
     strcpy(buffer_index, HTP_AUDIT_RULE_KEY_CMD);
@@ -467,7 +565,8 @@ static void htp_audit_rule_2_str(
     buffer_index += item->command_length;
   }
   //sql_command
-  if (item->sql_command_length != 0) {
+  if (item->sql_command_length != 0)
+  {
     strcpy(buffer_index, "\n");
     buffer_index += 1;
     strcpy(buffer_index, HTP_AUDIT_RULE_KEY_SQL_CMD);
@@ -478,7 +577,8 @@ static void htp_audit_rule_2_str(
     buffer_index += item->sql_command_length;
   }
   //sql_keyword
-  if (item->sql_keyword_length != 0) {
+  if (item->sql_keyword_length != 0)
+  {
     strcpy(buffer_index, "\n");
     buffer_index += 1;
     strcpy(buffer_index, HTP_AUDIT_RULE_KEY_SQL_KEYWORD);
@@ -492,9 +592,11 @@ static void htp_audit_rule_2_str(
   buffer_index += 1;
 }
 
-static void rules2str_buffer_write(const char *rule, rules2str_buffer_t *buffer) {
+static void rules2str_buffer_write(const char *rule, rules2str_buffer_t *buffer)
+{
   int len = strlen(rule);
-  if ((buffer->occupied_bytes + len) >= buffer->buffer_size) {
+  if ((buffer->occupied_bytes + len) >= buffer->buffer_size)
+  {
     //TODO:重新分配空间
   }
   char *start = buffer->buffer + buffer->occupied_bytes;
@@ -502,13 +604,15 @@ static void rules2str_buffer_write(const char *rule, rules2str_buffer_t *buffer)
   buffer->occupied_bytes += len;
 }
 
-static void htp_audit_rules_2_str(rules2str_buffer_t *buffer) {
+static void htp_audit_rules_2_str(rules2str_buffer_t *buffer)
+{
   char temp_rule_buffer[RULE_ITEM_BUFFER_LEN];
 
   rules2str_buffer_reset(buffer);
   list<int>::iterator it;
   filter_item_t *item;
-  for (it = filters.begin(); it != filters.end(); it++) {
+  for (it = filters.begin(); it != filters.end(); it++)
+  {
     int pos = *it;
     item = filter_items + pos;
     htp_audit_rule_2_str(item, temp_rule_buffer, sizeof(temp_rule_buffer));
@@ -587,130 +691,160 @@ volatile int64_t number_of_calls_connection_connect;
 volatile int64_t number_of_calls_connection_disconnect;
 volatile int64_t number_of_calls_connection_change_user;
 */
-void number_of_calls_incr() {
+void number_of_calls_incr()
+{
   number_of_calls++;
 }
 
-void number_of_calls_general_log_incr() {
+void number_of_calls_general_log_incr()
+{
   number_of_calls_general_log++;
 }
 
-void number_of_calls_general_error_incr() {
+void number_of_calls_general_error_incr()
+{
   number_of_calls_general_error++;
 }
 
-void number_of_calls_general_result_incr() {
+void number_of_calls_general_result_incr()
+{
   number_of_calls_general_result++;
 }
 
-void number_of_calls_general_status_incr() {
+void number_of_calls_general_status_incr()
+{
   number_of_calls_general_status++;
 }
 
-void number_of_calls_connection_connect_incr() {
+void number_of_calls_connection_connect_incr()
+{
   number_of_calls_connection_connect++;
 }
 
-void number_of_calls_connection_disconnect_incr() {
+void number_of_calls_connection_disconnect_incr()
+{
   number_of_calls_connection_disconnect++;
 }
 
-void number_of_calls_connection_change_user_incr() {
+void number_of_calls_connection_change_user_incr()
+{
   number_of_calls_connection_change_user++;
 }
 
-void number_of_calls_parse_preparse_incr() {
+void number_of_calls_parse_preparse_incr()
+{
   number_of_calls_parse_preparse++;
 }
 
-void number_of_calls_parse_postparse_incr() {
+void number_of_calls_parse_postparse_incr()
+{
   number_of_calls_parse_postparse++;
 }
 
-void number_of_calls_server_startup_incr() {
+void number_of_calls_server_startup_incr()
+{
   number_of_calls_server_startup++;
 }
 
-void number_of_calls_server_shutdown_incr() {
+void number_of_calls_server_shutdown_incr()
+{
 //  printf("%d\n",number_of_calls_server_shutdown);
   number_of_calls_server_shutdown++;
 }
 
-void number_of_calls_command_start_incr() {
+void number_of_calls_command_start_incr()
+{
   number_of_calls_command_start++;
 }
 
-void number_of_calls_command_end_incr() {
+void number_of_calls_command_end_incr()
+{
   number_of_calls_command_end++;
 }
 
-void number_of_calls_query_start_incr() {
+void number_of_calls_query_start_incr()
+{
   number_of_calls_query_start++;
 }
 
-void number_of_calls_query_nested_start_incr() {
+void number_of_calls_query_nested_start_incr()
+{
   number_of_calls_query_nested_start++;
 }
 
-void number_of_calls_query_status_end_incr() {
+void number_of_calls_query_status_end_incr()
+{
   number_of_calls_query_status_end++;
 }
 
-void number_of_calls_query_nested_status_end_incr() {
+void number_of_calls_query_nested_status_end_incr()
+{
   number_of_calls_query_nested_status_end++;
 }
 
-void number_of_calls_table_access_insert_incr() {
+void number_of_calls_table_access_insert_incr()
+{
   number_of_calls_table_access_insert++;
 }
 
-void number_of_calls_table_access_delete_incr() {
+void number_of_calls_table_access_delete_incr()
+{
   number_of_calls_table_access_delete++;
 }
 
-void number_of_calls_table_access_update_incr() {
+void number_of_calls_table_access_update_incr()
+{
   number_of_calls_table_access_update++;
 }
 
-void number_of_calls_table_access_read_incr() {
+void number_of_calls_table_access_read_incr()
+{
   number_of_calls_table_access_read++;
 }
 
-void number_of_calls_global_variable_get_incr() {
+void number_of_calls_global_variable_get_incr()
+{
   number_of_calls_global_variable_get++;
 }
 
-void number_of_calls_global_variable_set_incr() {
+void number_of_calls_global_variable_set_incr()
+{
   number_of_calls_global_variable_set++;
 }
 
-void number_of_calls_authorization_user_incr() {
+void number_of_calls_authorization_user_incr()
+{
   number_of_calls_authorization_user++;
 }
 
-void number_of_calls_authorization_db_incr() {
+void number_of_calls_authorization_db_incr()
+{
   number_of_calls_authorization_db++;
 }
 
-void number_of_calls_authorization_table_incr() {
+void number_of_calls_authorization_table_incr()
+{
   number_of_calls_authorization_table++;
 }
 
-void number_of_calls_authorization_column_incr() {
+void number_of_calls_authorization_column_incr()
+{
   number_of_calls_authorization_column++;
 }
 
-void number_of_calls_authorization_procedure_incr() {
+void number_of_calls_authorization_procedure_incr()
+{
   number_of_calls_authorization_procedure++;
 }
 
-void number_of_calls_authorization_proxy_incr() {
+void number_of_calls_authorization_proxy_incr()
+{
   number_of_calls_authorization_proxy++;
 }
 
 /*被审计的事件统计*/
 static volatile int64_t number_of_records; /* for SHOW STATUS, see below */
-#define HTP_AUDIT_VAR_RECORD(x) static volatile int number_of_records_ ## x;
+#define HTP_AUDIT_VAR_RECORD(x) static volatile int64_t number_of_records_ ## x;
 /*
 static volatile int64_t number_of_records_general_log;
 static volatile int64_t number_of_records_general_error;
@@ -772,124 +906,153 @@ HTP_AUDIT_VAR_RECORD(table_access_read)
 HTP_AUDIT_VAR_RECORD(global_variable_get)
 HTP_AUDIT_VAR_RECORD(global_variable_set)
 
-
-void number_of_records_incr() {
+void number_of_records_incr()
+{
   number_of_records++;
 }
 
-void number_of_records_general_log_incr() {
+void number_of_records_general_log_incr()
+{
   number_of_records_general_log++;
 }
 
-void number_of_records_general_error_incr() {
+void number_of_records_general_error_incr()
+{
   number_of_records_general_error++;
 }
 
-void number_of_records_general_result_incr() {
+void number_of_records_general_result_incr()
+{
   number_of_records_general_result++;
 }
 
-void number_of_records_general_status_incr() {
+void number_of_records_general_status_incr()
+{
   number_of_records_general_status++;
 }
 
-void number_of_records_connection_connect_incr() {
+void number_of_records_connection_connect_incr()
+{
   number_of_records_connection_connect++;
 }
 
-void number_of_records_connection_disconnect_incr() {
+void number_of_records_connection_disconnect_incr()
+{
   number_of_records_connection_disconnect++;
 }
 
-void number_of_records_connection_change_user_incr() {
+void number_of_records_connection_change_user_incr()
+{
   number_of_records_connection_change_user++;
 }
 
-void number_of_records_parse_preparse_incr() {
+void number_of_records_parse_preparse_incr()
+{
   number_of_records_parse_preparse++;
 }
 
-void number_of_records_parse_postparse_incr() {
+void number_of_records_parse_postparse_incr()
+{
   number_of_records_parse_postparse++;
 }
 
-void number_of_records_server_startup_incr() {
+void number_of_records_server_startup_incr()
+{
   number_of_records_server_startup++;
 }
 
-void number_of_records_server_shutdown_incr() {
+void number_of_records_server_shutdown_incr()
+{
   number_of_records_server_shutdown++;
 }
 
-void number_of_records_command_start_incr() {
+void number_of_records_command_start_incr()
+{
   number_of_records_command_start++;
 }
 
-void number_of_records_command_end_incr() {
+void number_of_records_command_end_incr()
+{
   number_of_records_command_end++;
 }
 
-void number_of_records_query_start_incr() {
+void number_of_records_query_start_incr()
+{
   number_of_records_query_start++;
 }
 
-void number_of_records_query_nested_start_incr() {
+void number_of_records_query_nested_start_incr()
+{
   number_of_records_query_nested_start++;
 }
 
-void number_of_records_query_status_end_incr() {
+void number_of_records_query_status_end_incr()
+{
   number_of_records_query_status_end++;
 }
 
-void number_of_records_query_nested_status_end_incr() {
+void number_of_records_query_nested_status_end_incr()
+{
   number_of_records_query_nested_status_end++;
 }
 
-void number_of_records_table_access_insert_incr() {
+void number_of_records_table_access_insert_incr()
+{
   number_of_records_table_access_insert++;
 }
 
-void number_of_records_table_access_delete_incr() {
+void number_of_records_table_access_delete_incr()
+{
   number_of_records_table_access_delete++;
 }
 
-void number_of_records_table_access_update_incr() {
+void number_of_records_table_access_update_incr()
+{
   number_of_records_table_access_update++;
 }
 
-void number_of_records_table_access_read_incr() {
+void number_of_records_table_access_read_incr()
+{
   number_of_records_table_access_read++;
 }
 
-void number_of_records_global_variable_get_incr() {
+void number_of_records_global_variable_get_incr()
+{
   number_of_records_global_variable_get++;
 }
 
-void number_of_records_global_variable_set_incr() {
+void number_of_records_global_variable_set_incr()
+{
   number_of_records_global_variable_set++;
 }
 
-void number_of_records_authorization_user_incr() {
+void number_of_records_authorization_user_incr()
+{
   number_of_records_authorization_user++;
 }
 
-void number_of_records_authorization_db_incr() {
+void number_of_records_authorization_db_incr()
+{
   number_of_records_authorization_db++;
 }
 
-void number_of_records_authorization_table_incr() {
+void number_of_records_authorization_table_incr()
+{
   number_of_records_authorization_table++;
 }
 
-void number_of_records_authorization_column_incr() {
+void number_of_records_authorization_column_incr()
+{
   number_of_records_authorization_column++;
 }
 
-void number_of_records_authorization_procedure_incr() {
+void number_of_records_authorization_procedure_incr()
+{
   number_of_records_authorization_procedure++;
 }
 
-void number_of_records_authorization_proxy_incr() {
+void number_of_records_authorization_proxy_incr()
+{
   number_of_records_authorization_proxy++;
 }
 
@@ -899,191 +1062,191 @@ void number_of_records_authorization_proxy_incr() {
 struct st_mysql_show_var htp_audit_status[] =
     {
         {"Htp_audit_called",
-            (char *) &number_of_calls,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_log_called",
-            (char *) &number_of_calls_general_log,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_general_log,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_error_called",
-            (char *) &number_of_calls_general_error,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_general_error,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_result_called",
-            (char *) &number_of_calls_general_result,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_general_result,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_status_called",
-            (char *) &number_of_calls_general_status,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_general_status,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_connect_called",
-            (char *) &number_of_calls_connection_connect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_connection_connect,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_disconnect_called",
-            (char *) &number_of_calls_connection_disconnect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_connection_disconnect,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_change_user_called",
-            (char *) &number_of_calls_connection_change_user,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_connection_change_user,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_preparse_called",
-            (char *) &number_of_calls_parse_preparse,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_parse_preparse,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_postparse_called",
-            (char *) &number_of_calls_parse_postparse,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_parse_postparse,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_command_start_called",
-            (char *) &number_of_calls_command_start,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_command_start,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_command_end_called",
-            (char *) &number_of_calls_command_end,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_command_end,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_user_called",
-            (char *) &number_of_calls_authorization_user,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_authorization_user,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_db_called",
-            (char *) &number_of_calls_authorization_db,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_authorization_db,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_table_called",
-            (char *) &number_of_calls_authorization_table,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_authorization_table,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_column_called",
-            (char *) &number_of_calls_authorization_column,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_authorization_column,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_procedure_called",
-            (char *) &number_of_calls_authorization_procedure,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_authorization_procedure,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_proxy_called",
-            (char *) &number_of_calls_authorization_proxy,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_authorization_proxy,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_start_called",
-            (char *) &number_of_calls_query_start,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_query_start,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_nested_start_called",
-            (char *) &number_of_calls_query_nested_start,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_query_nested_start,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_status_end_called",
-            (char *) &number_of_calls_query_status_end,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_query_status_end,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_nested_status_end_called",
-            (char *) &number_of_calls_query_nested_status_end,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_query_nested_status_end,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_server_startup_called",
-            (char *) &number_of_calls_server_startup,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_server_startup,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_server_shutdown_called",
-            (char *) &number_of_calls_server_shutdown,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_server_shutdown,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_insert_called",
-            (char *) &number_of_calls_table_access_insert,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_table_access_insert,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_delete_called",
-            (char *) &number_of_calls_table_access_delete,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_table_access_delete,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_update_called",
-            (char *) &number_of_calls_table_access_update,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_table_access_update,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_read_called",
-            (char *) &number_of_calls_table_access_read,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_table_access_read,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_global_variable_get_called",
-            (char *) &number_of_calls_global_variable_get,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_global_variable_get,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_global_variable_set_called",
-            (char *) &number_of_calls_global_variable_set,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_calls_global_variable_set,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
 
         {"Htp_audit_recorded",
-            (char *) &number_of_records,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_log_recorded",
-            (char *) &number_of_records_general_log,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_general_log,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_error_recorded",
-            (char *) &number_of_records_general_error,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_general_error,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_result_recorded",
-            (char *) &number_of_records_general_result,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_general_result,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_general_status_recorded",
-            (char *) &number_of_records_general_status,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_general_status,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_connect_recorded",
-            (char *) &number_of_records_connection_connect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_connection_connect,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_disconnect_recorded",
-            (char *) &number_of_records_connection_disconnect,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_connection_disconnect,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_change_user_recorded",
-            (char *) &number_of_records_connection_change_user,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_connection_change_user,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_preparse_recorded",
-            (char *) &number_of_records_parse_preparse,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_parse_preparse,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_postparse_recorded",
-            (char *) &number_of_records_general_error,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_general_error,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_command_start_recorded",
-            (char *) &number_of_records_command_start,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_command_start,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_command_end_recorded",
-            (char *) &number_of_records_command_end,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_command_end,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_user_recorded",
-            (char *) &number_of_records_authorization_user,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_authorization_user,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_db_recorded",
-            (char *) &number_of_records_authorization_db,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_authorization_db,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_table_recorded",
-            (char *) &number_of_records_authorization_table,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_authorization_table,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_column_recorded",
-            (char *) &number_of_records_authorization_column,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_authorization_column,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_procedure_recorded",
-            (char *) &number_of_records_authorization_procedure,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_authorization_procedure,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_authorization_proxy_recorded",
-            (char *) &number_of_records_authorization_proxy,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_authorization_proxy,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_start_recorded",
-            (char *) &number_of_records_query_start,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_query_start,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_nested_start_recorded",
-            (char *) &number_of_records_query_nested_start,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_query_nested_start,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_status_end_recorded",
-            (char *) &number_of_records_query_status_end,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_query_status_end,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_query_nested_status_end_recorded",
-            (char *) &number_of_records_query_nested_status_end,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_query_nested_status_end,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_server_startup_recorded",
-            (char *) &number_of_records_server_startup,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_server_startup,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_server_shutdown_recorded",
-            (char *) &number_of_records_server_shutdown,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_server_shutdown,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_insert_recorded",
-            (char *) &number_of_records_table_access_insert,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_table_access_insert,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_delete_recorded",
-            (char *) &number_of_records_table_access_delete,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_table_access_delete,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_update_recorded",
-            (char *) &number_of_records_table_access_update,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_table_access_update,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_table_access_read_recorded",
-            (char *) &number_of_records_table_access_read,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_table_access_read,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_global_variable_get_recorded",
-            (char *) &number_of_records_global_variable_get,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+         (char *) &number_of_records_global_variable_get,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_global_variable_set_recorded",
-            (char *) &number_of_records_global_variable_set,
-               SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-        {0, 0, SHOW_UNDEF,    SHOW_SCOPE_GLOBAL}
+         (char *) &number_of_records_global_variable_set,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}
     };
 
-
-void htp_audit_init_status() {
+void htp_audit_init_status()
+{
   number_of_calls = 0;
   number_of_calls_general_log = 0;
   number_of_calls_general_error = 0;
@@ -1138,7 +1301,7 @@ void htp_audit_init_status() {
   number_of_records_query_status_end = 0;
   number_of_records_query_nested_status_end = 0;
   number_of_records_server_startup = 0;
-  number_of_records_server_shutdown=0;
+  number_of_records_server_shutdown = 0;
   number_of_records_table_access_insert = 0;
   number_of_records_table_access_update = 0;
   number_of_records_table_access_delete = 0;
@@ -1148,10 +1311,10 @@ void htp_audit_init_status() {
 
 }
 
-void htp_audit_deinit_status() {
+void htp_audit_deinit_status()
+{
   //do nothing now
 }
-
 
 static rules2str_buffer_t rules_buffer;
 
@@ -1255,7 +1418,6 @@ static MYSQL_SYSVAR_STR(error_log_file, error_log_file
 , NULL, NULL
 , DEFAULT_ERROR_LOG_FILE);
 
-
 static MYSQL_SYSVAR_STR(rules, rules
 , PLUGIN_VAR_READONLY
 | PLUGIN_VAR_NOCMDOPT
@@ -1313,17 +1475,16 @@ static MYSQL_SYSVAR_STR(version, version
 , NULL, NULL
 , NULL);
 
-
 struct st_mysql_sys_var *htp_audit_sys_var[] = {
     MYSQL_SYSVAR(log_file), MYSQL_SYSVAR(error_log_file), MYSQL_SYSVAR(rules), MYSQL_SYSVAR(add_rule),
     MYSQL_SYSVAR(remove_rule), MYSQL_SYSVAR(enable_buffer), MYSQL_SYSVAR(flush_log), MYSQL_SYSVAR(buffer_size),
     MYSQL_SYSVAR(version), 0
 };
 
-
 bool variable_initialized = false;
 
-void htp_audit_init_variable() {
+void htp_audit_init_variable()
+{
   rules2str_buffer_init(&rules_buffer);
 
   htp_audit_rules_2_str(&rules_buffer);
@@ -1339,7 +1500,8 @@ void htp_audit_init_variable() {
   variable_initialized = true;
 }
 
-void htp_audit_deinit_variable() {
+void htp_audit_deinit_variable()
+{
   if (!variable_initialized)
     return;
 
@@ -1375,9 +1537,11 @@ static int htp_audit_add_rule_validate(
 
   htp_audit_lock_filter_and_var();
 
-  switch (0) {
+  switch (0)
+  {
     case 0:
-      if (filters.size() >= MAX_FILTER_ITEMS) {
+      if (filters.size() >= MAX_FILTER_ITEMS)
+      {
         success = false;
         break;
       }
@@ -1414,7 +1578,6 @@ static void htp_audit_add_rule_update(
   DBUG_PRINT("add rule update value", ("str: %s", str));
   char *dup_str = NULL;
 
-
   if (str == NULL)
     DBUG_VOID_RETURN;
 
@@ -1425,7 +1588,8 @@ static void htp_audit_add_rule_update(
   htp_audit_lock_filter_and_var();
 
   {
-    if (add_rule != NULL) {
+    if (add_rule != NULL)
+    {
       free(add_rule);
     }
 
@@ -1512,7 +1676,8 @@ static void htp_audit_remove_rule_update(
   htp_audit_lock_filter_and_var();
 
   {
-    if (remove_rule != NULL) {
+    if (remove_rule != NULL)
+    {
       free(remove_rule);
     }
     remove_rule = dup_str;
@@ -1547,10 +1712,13 @@ static void htp_audit_set_enable_buffer_update(
   if (nvalue == enable_buffer)
     DBUG_VOID_RETURN;
 
-  if (nvalue == FALSE) {
+  if (nvalue == FALSE)
+  {
     Logger::GetLogger()->EnableBuffer(false);
     Logger::GetELogger()->EnableBuffer(false);
-  } else {
+  }
+  else
+  {
     Logger::GetLogger()->EnableBuffer(true);
     Logger::GetELogger()->EnableBuffer(true);
   }
@@ -1559,7 +1727,6 @@ static void htp_audit_set_enable_buffer_update(
 
   DBUG_VOID_RETURN;
 }
-
 
 static int htp_audit_flush_log_validate(
     /*=============================*/
@@ -1574,13 +1741,17 @@ static int htp_audit_flush_log_validate(
   long long tmp;
 
   value->val_int(value, &tmp);
-  if (tmp) {
+  if (tmp)
+  {
     int ret = Logger::FlushNew();
-    if (ret) {
+    if (ret)
+    {
       //    *static_cast<long long*>(save) = TRUE;
       //    *(my_bool*) save = TRUE;
       DBUG_RETURN(ret);
-    } else {
+    }
+    else
+    {
       //*static_cast<long long*>(save) = FALSE;
       //    *(my_bool*) save = FALSE;
       DBUG_RETURN(0);

@@ -38,7 +38,6 @@ using namespace std;
 #define MAX_BUFFER_SIZE (4 * 1024)
 #define MIN_BUFFER_SIZE (32)
 
-
 void audit_connection_connect(const struct mysql_event_connection *event);
 
 void audit_connection_disconnect(const struct mysql_event_connection *event);
@@ -167,6 +166,13 @@ void htp_audit_deinit_lock();
 #define HTP_AUDIT_EVENT_COMMAND_SUB_START "start"
 #define HTP_AUDIT_EVENT_COMMAND_SUB_END "end"
 
+// query events
+#define HTP_AUDIT_EVENT_QUERY_CLASS "query"
+#define HTP_AUDIT_EVENT_QUERY_SUB_START "start"
+#define HTP_AUDIT_EVENT_QUERY_SUB_NESTED_START "nested start"
+#define HTP_AUDIT_EVENT_QUERY_SUB_STATUS_END "end"
+#define HTP_AUDIT_EVENT_QUERY_SUB_NESTED_STATUS_END "nested end"
+
 /* 审计事件过滤 */
 #define MAX_FILTER_NAME_LENGTH (128)
 #define MAX_FILTER_NAME_BUFFER_SIZE (MAX_FILTER_NAME_LENGTH + 1)
@@ -188,7 +194,6 @@ void htp_audit_deinit_lock();
 #define MAX_FILTER_GLOBAL_VARIABLE_EVENTS (2)
 #define MAX_FILTER_QUERY_EVENTS (4)
 
-
 #define MAX_FILTER_COMMAND (128)
 #define MAX_FILTER_COMMAND_BUFFER_SIZE (MAX_FILTER_COMMAND + 1)
 #define MAX_FILTER_SQL_COMMAND (128)
@@ -205,10 +210,10 @@ void htp_audit_deinit_lock();
 /*只指定主类型的情况，没有指定子类型。如general;connection，表示general的所有类型都进行过滤*/
 #define EVENT_ALL   (-1)
 
-enum filter_result_enum {
+enum filter_result_enum
+{
   AUDIT_EVENT, NOT_AUDIT_EVENT
 };
-
 
 void htp_audit_logf(
     int level,  /*!< in: warning level */
@@ -218,57 +223,61 @@ void htp_audit_logf(
 
 class LogBuffer;
 
-class Logger {
-  public :
-    /*
-      return : 0 success, -1 fail
-     */
-    static int Initialize(const char *log, const char *elog, my_bool enable_buffer);
+class Logger
+{
+ public :
+  /*
+    return : 0 success, -1 fail
+   */
+  static int Initialize(const char *log, const char *elog, my_bool enable_buffer);
 
-    /*
-      return : 0 success, -1 fail
-     */
-    static int Deinitialize();
+  /*
+    return : 0 success, -1 fail
+   */
+  static int Deinitialize();
 
-    static Logger *GetLogger();
+  static Logger *GetLogger();
 
-    static Logger *GetELogger();
+  static Logger *GetELogger();
 
-    /*已有信息写入文件，保存老文件为备份，并创建新的log文件*/
-    static int FlushNew();
+  /*已有信息写入文件，保存老文件为备份，并创建新的log文件*/
+  static int FlushNew();
 
-    /* 设置日志缓冲区的大小，以KB大小计算*/
-    static int SetBufferSize(int size);
+  /* 设置日志缓冲区的大小，以KB大小计算*/
+  static int SetBufferSize(int size);
 
-    void Write(const char *info, const char *splitter);
+  void Write(const char *info, const char *splitter);
 
-    void EnableBuffer(bool enable);
+  void EnableBuffer(bool enable);
 
-  private :
-    char *file_name_;
-    bool enable_buffer_;
-    FILE *file_;
-    LogBuffer *log_buffer_;
-    mysql_mutex_t lock_;
+ private :
+  char *file_name_;
+  bool enable_buffer_;
+  FILE *file_;
+  LogBuffer *log_buffer_;
+  mysql_mutex_t lock_;
 
-    inline void Lock() {
-      mysql_mutex_lock(&lock_);
-    }
+  inline void Lock()
+  {
+    mysql_mutex_lock(&lock_);
+  }
 
-    inline void Unlock() {
-      mysql_mutex_unlock(&lock_);
-    }
+  inline void Unlock()
+  {
+    mysql_mutex_unlock(&lock_);
+  }
 
-    int FlushNewInner();
+  int FlushNewInner();
 
-    int SetBufferSizeInner(int);
+  int SetBufferSizeInner(int);
 
-    Logger(const char *path);
+  Logger(const char *path);
 
-    ~Logger();
+  ~Logger();
 };
 
-struct filter_item_struct {
+struct filter_item_struct
+{
   bool name_setted;
   char name[MAX_FILTER_NAME_BUFFER_SIZE];
   bool host_setted;
@@ -315,7 +324,8 @@ typedef struct filter_item_struct filter_item_t;
 
 void htp_audit_init_filter_item(filter_item_t *item);
 
-struct event_info_struct {
+struct event_info_struct
+{
   const char *host;
   const char *ip;
   const char *user;
@@ -330,12 +340,12 @@ struct event_info_struct {
 typedef struct event_info_struct event_info_t;
 
 #define MAX_REMOVE_ITEM MAX_FILTER_ITEMS
-struct remove_parse_struct {
+struct remove_parse_struct
+{
   int count;
   char removes[MAX_REMOVE_ITEM][MAX_FILTER_NAME_BUFFER_SIZE];
 };
 typedef struct remove_parse_struct remove_parse_t;
-
 
 void htp_audit_init_filter_item(filter_item_t *item);
 

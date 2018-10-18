@@ -16,7 +16,8 @@
 #define RULE_ITEM_BUFFER_LEN (32 * 1024)
 #define RULES2STR_BUFFER_LEN (32 * 1024)
 
-struct rules2str_buffer_struct {
+struct rules2str_buffer_struct
+{
   char *buffer;     //buffer指针
   char buffer_inner[RULES2STR_BUFFER_LEN];   //初始缓冲区
   int buffer_size;    //buffer的长度
