@@ -163,6 +163,7 @@ void audit_general_log(const struct mysql_event_general *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("general"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("log"));
   if (event->general_user.str != NULL)
     cJSON_AddItemToObject(root, "user",
                           cJSON_CreateString(event->general_user.str));
@@ -208,6 +209,7 @@ void audit_general_error(const struct mysql_event_general *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("general"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("error"));
   if (event->general_user.str != NULL)
     cJSON_AddItemToObject(root, "user",
                           cJSON_CreateString(event->general_user.str));
@@ -253,6 +255,7 @@ void audit_general_status(const struct mysql_event_general *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("general"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("status"));
   if (event->general_user.str != NULL)
     cJSON_AddItemToObject(root, "user",
                           cJSON_CreateString(event->general_user.str));
@@ -297,6 +300,7 @@ void audit_general_result(const struct mysql_event_general *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("general"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("result"));
   if (event->general_user.str != NULL)
     cJSON_AddItemToObject(root, "user",
                           cJSON_CreateString(event->general_user.str));
@@ -345,6 +349,7 @@ void audit_parse_preparse(const struct mysql_event_parse *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("parse"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("preparse"));
   if (event->query.length > 0)
     cJSON_AddItemToObject(root, "sqltext",
                           cJSON_CreateString(event->query.str));
@@ -376,6 +381,7 @@ void audit_parse_postparse(const struct mysql_event_parse *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("parse"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("postparse"));
   if (event->query.length > 0)
     cJSON_AddItemToObject(root, "sqltext",
                           cJSON_CreateString(event->query.str));
@@ -411,6 +417,7 @@ void audit_authorization_user(const struct mysql_event_authorization *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("authorization"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("user"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -424,7 +431,7 @@ void audit_authorization_user(const struct mysql_event_authorization *event)
   cJSON_AddItemToObject(root, "granted_privilege", cJSON_CreateNumber(event->granted_privilege));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -448,6 +455,7 @@ void audit_authorization_db(const struct mysql_event_authorization *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("authorization"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("db"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -461,7 +469,7 @@ void audit_authorization_db(const struct mysql_event_authorization *event)
   cJSON_AddItemToObject(root, "granted_privilege", cJSON_CreateNumber(event->granted_privilege));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -485,6 +493,7 @@ void audit_authorization_table(const struct mysql_event_authorization *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("authorization"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("table"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -498,7 +507,7 @@ void audit_authorization_table(const struct mysql_event_authorization *event)
   cJSON_AddItemToObject(root, "granted_privilege", cJSON_CreateNumber(event->granted_privilege));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -522,6 +531,7 @@ void audit_authorization_column(const struct mysql_event_authorization *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("authorization"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("column"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -535,7 +545,7 @@ void audit_authorization_column(const struct mysql_event_authorization *event)
   cJSON_AddItemToObject(root, "granted_privilege", cJSON_CreateNumber(event->granted_privilege));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -559,6 +569,7 @@ void audit_authorization_procedure(const struct mysql_event_authorization *event
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("authorization"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("procedure"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -572,7 +583,7 @@ void audit_authorization_procedure(const struct mysql_event_authorization *event
   cJSON_AddItemToObject(root, "granted_privilege", cJSON_CreateNumber(event->granted_privilege));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -596,6 +607,7 @@ void audit_authorization_proxy(const struct mysql_event_authorization *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("authorization"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("proxy"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -609,7 +621,7 @@ void audit_authorization_proxy(const struct mysql_event_authorization *event)
   cJSON_AddItemToObject(root, "granted_privilege", cJSON_CreateNumber(event->granted_privilege));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -635,11 +647,12 @@ void audit_server_shutdown_shutdown(const struct mysql_event_server_shutdown *ev
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("shutdown"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("shutdown"));
   cJSON_AddItemToObject(root, "code", cJSON_CreateNumber(event->exit_code));
   cJSON_AddItemToObject(root, "reason", cJSON_CreateNumber(event->reason));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -693,12 +706,13 @@ void audit_command_start(const struct mysql_event_command *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("command"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("start"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "commandid", cJSON_CreateNumber(event->command_id));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -722,13 +736,14 @@ void audit_command_end(const struct mysql_event_command *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("command"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("end"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "commandid", cJSON_CreateNumber(event->command_id));
 
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -754,6 +769,7 @@ void audit_query_start(const struct mysql_event_query *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("query"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("start"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -761,7 +777,7 @@ void audit_query_start(const struct mysql_event_query *event)
     cJSON_AddItemToObject(root, "sqltext", cJSON_CreateString(event->query.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -785,6 +801,7 @@ void audit_query_nested_start(const struct mysql_event_query *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("query"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("nested start"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -792,7 +809,7 @@ void audit_query_nested_start(const struct mysql_event_query *event)
     cJSON_AddItemToObject(root, "sqltext", cJSON_CreateString(event->query.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -816,6 +833,7 @@ void audit_query_status_end(const struct mysql_event_query *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("query"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("end"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -823,7 +841,7 @@ void audit_query_status_end(const struct mysql_event_query *event)
     cJSON_AddItemToObject(root, "sqltext", cJSON_CreateString(event->query.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -847,6 +865,7 @@ void audit_query_nested_status_end(const struct mysql_event_query *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("query"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("nested db"));
   cJSON_AddItemToObject(root, "status", cJSON_CreateNumber(event->status));
   cJSON_AddItemToObject(root, "connectionid", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sqlcommandid", cJSON_CreateNumber(event->sql_command_id));
@@ -854,7 +873,7 @@ void audit_query_nested_status_end(const struct mysql_event_query *event)
     cJSON_AddItemToObject(root, "sqltext", cJSON_CreateString(event->query.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -879,7 +898,8 @@ void audit_table_access_read(const struct mysql_event_table_access *event)
   cJSON *root;
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
-  cJSON_AddItemToObject(root, "type", cJSON_CreateString("table_access"));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("table access"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("read"));
   cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
   if (event->query.length > 0)
@@ -890,7 +910,7 @@ void audit_table_access_read(const struct mysql_event_table_access *event)
     cJSON_AddItemToObject(root, "table_name", cJSON_CreateString(event->table_name.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -914,6 +934,7 @@ void audit_table_access_insert(const struct mysql_event_table_access *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("table_access"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("insert"));
   cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
   if (event->query.length > 0)
@@ -924,7 +945,7 @@ void audit_table_access_insert(const struct mysql_event_table_access *event)
     cJSON_AddItemToObject(root, "table_name", cJSON_CreateString(event->table_name.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -948,6 +969,7 @@ void audit_table_access_update(const struct mysql_event_table_access *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("table_access"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("update"));
   cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
   if (event->query.length > 0)
@@ -958,7 +980,7 @@ void audit_table_access_update(const struct mysql_event_table_access *event)
     cJSON_AddItemToObject(root, "table_name", cJSON_CreateString(event->table_name.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -982,6 +1004,7 @@ void audit_table_access_delete(const struct mysql_event_table_access *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("table_access"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("delete"));
   cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
   if (event->query.length > 0)
@@ -992,7 +1015,7 @@ void audit_table_access_delete(const struct mysql_event_table_access *event)
     cJSON_AddItemToObject(root, "table_name", cJSON_CreateString(event->table_name.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -1017,16 +1040,17 @@ void audit_global_variable_get(const struct mysql_event_global_variable *event)
   cJSON *root;
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
-  cJSON_AddItemToObject(root, "type", cJSON_CreateString("global_variable"));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("global variable"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("get"));
   cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
   if (event->variable_name.length > 0)
-    cJSON_AddItemToObject(root, "variable_name", cJSON_CreateString(event->variable_name.str));
+    cJSON_AddItemToObject(root, "variable name", cJSON_CreateString(event->variable_name.str));
   if (event->variable_value.length > 0)
-    cJSON_AddItemToObject(root, "variable_value", cJSON_CreateString(event->variable_value.str));
+    cJSON_AddItemToObject(root, "variable value", cJSON_CreateString(event->variable_value.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -1049,16 +1073,17 @@ void audit_global_variable_set(const struct mysql_event_global_variable *event)
   cJSON *root;
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
-  cJSON_AddItemToObject(root, "type", cJSON_CreateString("global_variable"));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("global variable"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("set"));
   cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
   cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
   if (event->variable_name.length > 0)
-    cJSON_AddItemToObject(root, "variable_name", cJSON_CreateString(event->variable_name.str));
+    cJSON_AddItemToObject(root, "variable name", cJSON_CreateString(event->variable_name.str));
   if (event->variable_value.length > 0)
-    cJSON_AddItemToObject(root, "variable_value", cJSON_CreateString(event->variable_value.str));
+    cJSON_AddItemToObject(root, "variable value", cJSON_CreateString(event->variable_value.str));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);

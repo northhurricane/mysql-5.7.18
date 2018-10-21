@@ -24,7 +24,7 @@ class LogBuffer
   char buffer_inner_[LOG_BUFFER_SIZE];
   char *buffer_;
   int buffer_size_;
-  int available_pos_;
+  volatile int available_pos_;
   FILE *file_;
 
   void Buffer(const char *msg, int msg_len);

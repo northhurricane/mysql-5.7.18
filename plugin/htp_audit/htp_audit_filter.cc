@@ -604,21 +604,31 @@ static int htp_audit_get_event_init(
   }
   else if (strcasecmp(main_class, HTP_AUDIT_EVENT_QUERY_CLASS) == 0)
   {
-    *main_class_int = MYSQL_AUDIT_COMMAND_CLASS;
+    *main_class_int = MYSQL_AUDIT_QUERY_CLASS;
     if (strlen(sub_class) == 0)
     {
       *sub_class_int = EVENT_ALL;
       return 0;
     }
     if (strcasecmp(
-        sub_class, HTP_AUDIT_EVENT_COMMAND_SUB_START) == 0)
+        sub_class, HTP_AUDIT_EVENT_QUERY_SUB_START) == 0)
     {
-      *sub_class_int = MYSQL_AUDIT_COMMAND_START;
+      *sub_class_int = MYSQL_AUDIT_QUERY_START;
     }
     else if (strcasecmp(
-        sub_class, HTP_AUDIT_EVENT_COMMAND_SUB_END) == 0)
+        sub_class, HTP_AUDIT_EVENT_QUERY_SUB_NESTED_START) == 0)
     {
-      *sub_class_int = MYSQL_AUDIT_COMMAND_END;
+      *sub_class_int = MYSQL_AUDIT_QUERY_NESTED_START;
+    }
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_QUERY_SUB_STATUS_END) == 0)
+    {
+      *sub_class_int = MYSQL_AUDIT_QUERY_STATUS_END;
+    }
+    else if (strcasecmp(
+        sub_class, HTP_AUDIT_EVENT_QUERY_SUB_NESTED_STATUS_END) == 0)
+    {
+      *sub_class_int = MYSQL_AUDIT_QUERY_NESTED_STATUS_END;
     }
     else
     {
@@ -735,6 +745,20 @@ static void htp_audit_fill_event(
       return;
     }
     item->command_events[sub_class] = EVENT_SETTED;
+  }
+  else if (main_class == MYSQL_AUDIT_QUERY_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_QUERY_CLASS);
+    if (sub_class == EVENT_ALL)
+    {
+      item->audit_all_query = true;
+      for (int i = 0; i < MAX_FILTER_QUERY_EVENTS; i++)
+      {
+        item->query_events[i] = EVENT_SETTED;
+      }
+      return;
+    }
+    item->query_events[sub_class] = EVENT_SETTED;
   }
   else
     return;
