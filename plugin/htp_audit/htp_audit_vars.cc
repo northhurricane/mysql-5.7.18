@@ -450,6 +450,7 @@ static void htp_audit_rule_2_str(
       buffer_index -= strlen(HTP_AUDIT_EVENT_GLOBAL_VARIABLE_CLASS);
       *buffer_index = 0;
     }
+    need_semicolon=false;
 
     //command event
     if (item->audit_all_command)
@@ -496,6 +497,8 @@ static void htp_audit_rule_2_str(
       buffer_index -= strlen(HTP_AUDIT_EVENT_COMMAND_CLASS);
       *buffer_index = 0;
     }
+
+    need_semicolon = false;
 
     //query event
     if (item->audit_all_query)
