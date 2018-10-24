@@ -74,13 +74,15 @@ static int htp_audit_process_general_event(
   //进行审计
   switch (event_general->event_subclass) {
     case MYSQL_AUDIT_GENERAL_LOG:
+      number_of_records_general_log_incr();
       audit_general_log(event_general);
       break;
     case MYSQL_AUDIT_GENERAL_ERROR:
-      audit_general_error(event_general);
       number_of_records_general_error_incr();
+      audit_general_error(event_general);
       break;
     case MYSQL_AUDIT_GENERAL_RESULT:
+      number_of_records_general_result_incr();
       audit_general_result(event_general);
       break;
     case MYSQL_AUDIT_GENERAL_STATUS:
@@ -153,6 +155,16 @@ static int htp_audit_process_parse_event(
   info.main_class = MYSQL_AUDIT_PARSE_CLASS;
   info.sub_class = event_parse->event_subclass;
   info.query = event_parse->query.str;
+  switch (event_parse->event_subclass) {
+    case MYSQL_AUDIT_PARSE_PREPARSE:
+      number_of_calls_parse_preparse_incr();
+      break;
+    case MYSQL_AUDIT_PARSE_POSTPARSE:
+      number_of_calls_parse_postparse_incr();
+      break;
+    default:
+      break;
+  }
   if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
     return 0;
   }
@@ -160,11 +172,11 @@ static int htp_audit_process_parse_event(
   switch (event_parse->event_subclass) {
     case MYSQL_AUDIT_PARSE_PREPARSE:
       audit_parse_preparse(event_parse);
-      number_of_calls_parse_preparse_incr();
+      number_of_records_parse_preparse_incr();
       break;
     case MYSQL_AUDIT_PARSE_POSTPARSE:
       audit_parse_postparse(event_parse);
-      number_of_calls_parse_postparse_incr();
+      number_of_records_parse_postparse_incr();
       break;
     default:
       break;
@@ -280,6 +292,28 @@ htp_audit_process_shutdown_event(
 
   return 0;
 }
+
+static int
+htp_audit_process_stored_program_event(
+    MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event)
+{
+  const struct mysql_event_stored_program *event_stored_program =
+      (const struct mysql_event_stored_program *) event;
+  event_info_t info;
+  info.main_class = MYSQL_AUDIT_STORED_PROGRAM_CLASS;
+  info.sub_class = event_stored_program->event_subclass;
+  info.query = event_stored_program->query.str;
+  info.database = event_stored_program->database.str;
+  info.name=event_stored_program->name.str;
+  number_of_calls_stored_program_incr();
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+    return 0;
+  }
+  audit_stored_program_event(event_stored_program);
+  number_of_recordss_stored_program_incr();
+  return 0;
+}
+
 
 static int htp_audit_process_command_event(
     MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event)

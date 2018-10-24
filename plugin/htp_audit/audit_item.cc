@@ -185,7 +185,7 @@ void audit_general_log(const struct mysql_event_general *event)
 
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
-  Logger::GetELogger()->Write(json_str, ",");
+  Logger::GetLogger()->Write(json_str, ",");
 
   //释放资源
   cJSON_Delete(root);
@@ -1090,3 +1090,35 @@ void audit_global_variable_set(const struct mysql_event_global_variable *event)
   free(json_str);
 }
 
+void audit_stored_program_event(const struct mysql_event_stored_program *event)
+{
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_STORED_PROGRAM_EXECUTE);
+
+  char current_str[100];
+  //to do : 获取当前时间
+  time_t current;
+  struct tm current_broken;
+  current = time(NULL);
+  localtime_r(&current, &current_broken);
+
+  strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
+
+  cJSON *root;
+  root = cJSON_CreateObject();
+  cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("stored program"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("execute"));
+  cJSON_AddItemToObject(root, "connection_id", cJSON_CreateNumber(event->connection_id));
+  cJSON_AddItemToObject(root, "sql_command_id", cJSON_CreateNumber(event->sql_command_id));
+  if (event->query.length > 0)
+    cJSON_AddItemToObject(root, "query", cJSON_CreateString(event->query.str));
+  if (event->name.length > 0)
+    cJSON_AddItemToObject(root, "name", cJSON_CreateString(event->name.str));
+  //获得json字符串，输出到审计日志
+  char *json_str = cJSON_Print(root);
+  Logger::GetLogger()->Write(json_str, ",");
+
+  //释放资源
+  cJSON_Delete(root);
+  free(json_str);
+}

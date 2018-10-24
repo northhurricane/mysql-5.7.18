@@ -546,6 +546,66 @@ static void htp_audit_rule_2_str(
       *buffer_index = 0;
     }
 
+    need_semicolon=false;
+    if (item->audit_event_startup)
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_STARTUP_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_STARTUP_CLASS);
+      need_semicolon=true;
+    }
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_STARTUP_CLASS);
+      *buffer_index = 0;
+    }
+    
+    need_semicolon=false;
+    if (item->audit_event_startup)
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
+      need_semicolon=true;
+    }
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
+      *buffer_index = 0;
+    }
+
+    need_semicolon=false;
+    if (item->audit_event_startup)
+    {
+      strcpy(buffer_index, HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
+      buffer_index += strlen(HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
+      need_semicolon=true;
+    }
+    if (need_semicolon)
+    {
+      buffer_index--;
+      strcpy(buffer_index, "};{");
+      buffer_index += 3;
+    }
+    else
+    {
+      buffer_index--;
+      buffer_index -= strlen(HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
+      *buffer_index = 0;
+    }
+
     if (*(buffer_index - 1) == '{')
     {
       buffer_index -= 2;
@@ -675,6 +735,10 @@ HTP_AUDIT_VAR(table_access_read)
 /* Count MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS event instances */
 HTP_AUDIT_VAR(global_variable_get)
 HTP_AUDIT_VAR(global_variable_set)
+
+/* Count MYSQL_AUDIT_STORED_PROGRAM event instances */
+HTP_AUDIT_VAR(stored_program)
+
 
 
 /* 状态 */
@@ -845,6 +909,12 @@ void number_of_calls_authorization_proxy_incr()
   number_of_calls_authorization_proxy++;
 }
 
+void number_of_calls_stored_program_incr()
+{
+  number_of_calls_stored_program++;
+}
+
+
 /*被审计的事件统计*/
 static volatile int64_t number_of_records; /* for SHOW STATUS, see below */
 #define HTP_AUDIT_VAR_RECORD(x) static volatile int64_t number_of_records_ ## x;
@@ -908,6 +978,10 @@ HTP_AUDIT_VAR_RECORD(table_access_read)
 /* Count MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS event instances */
 HTP_AUDIT_VAR_RECORD(global_variable_get)
 HTP_AUDIT_VAR_RECORD(global_variable_set)
+
+/* Count MYSQL_AUDIT_STORED_PROGRAM_CLASS event instances */
+HTP_AUDIT_VAR_RECORD(stored_program)
+
 
 void number_of_records_incr()
 {
@@ -1059,6 +1133,11 @@ void number_of_records_authorization_proxy_incr()
   number_of_records_authorization_proxy++;
 }
 
+void number_of_records_stored_program_incr()
+{
+  number_of_records_stored_program++;
+}
+
 /*
   Plugin status variables for SHOW STATUS
 */
@@ -1148,6 +1227,9 @@ struct st_mysql_show_var htp_audit_status[] =
         {"Htp_audit_global_variable_set_called",
          (char *) &number_of_calls_global_variable_set,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_stored_program_called",
+         (char *) &number_of_calls_stored_program,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_recorded",
          (char *) &number_of_records,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
@@ -1176,7 +1258,7 @@ struct st_mysql_show_var htp_audit_status[] =
          (char *) &number_of_records_parse_preparse,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_postparse_recorded",
-         (char *) &number_of_records_general_error,
+         (char *) &number_of_records_parse_postparse,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_command_start_recorded",
          (char *) &number_of_records_command_start,
@@ -1232,6 +1314,9 @@ struct st_mysql_show_var htp_audit_status[] =
         {"Htp_audit_global_variable_set_recorded",
          (char *) &number_of_records_global_variable_set,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_stored_program_recorded",
+         (char *) &number_of_records_stored_program,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}
     };
 
@@ -1268,6 +1353,7 @@ void htp_audit_init_status()
   number_of_calls_table_access_read = 0;
   number_of_calls_global_variable_get = 0;
   number_of_calls_global_variable_set = 0;
+  number_of_calls_stored_program = 0;
   number_of_records = 0;
   number_of_records_general_log = 0;
   number_of_records_general_error = 0;
@@ -1298,6 +1384,7 @@ void htp_audit_init_status()
   number_of_records_table_access_read = 0;
   number_of_records_global_variable_get = 0;
   number_of_records_global_variable_set = 0;
+  number_of_records_stored_program = 0;
 
 }
 

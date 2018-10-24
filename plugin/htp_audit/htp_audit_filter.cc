@@ -105,88 +105,6 @@ void htp_audit_unlock_filter_and_var()
   mysql_mutex_unlock(&LOCK_filter_and_var);
 }
 
-/* 审计事件过滤 */
-//#define MAX_FILTER_NAME_LENGTH (128)
-//#define MAX_FILTER_NAME_BUFFER_SIZE (MAX_FILTER_NAME_LENGTH + 1)
-//#define MAX_FILTER_HOST_LENGTH (128)
-//#define MAX_FILTER_HOST_BUFFER_SIZE (MAX_FILTER_HOST_LENGTH + 1)
-//#define MAX_FILTER_IP_LENGTH (128)
-//#define MAX_FILTER_IP_BUFFER_SIZE (MAX_FILTER_IP_LENGTH + 1)
-//#define MAX_FILTER_USER_LENGTH (128)
-//#define MAX_FILTER_USER_BUFFER_SIZE (MAX_FILTER_USER_LENGTH + 1)
-//#define MAX_FILTER_ITEMS (32)
-//根据plugin_audit的subclass的数目决定
-//#define MAX_FILTER_GENERAL_EVENTS (4)
-//#define MAX_FILTER_CONNECTION_EVENTS (3)
-
-//#define MAX_FILTER_COMMAND (128)
-//#define MAX_FILTER_COMMAND_BUFFER_SIZE (MAX_FILTER_COMMAND + 1)
-//#define MAX_FILTER_SQL_COMMAND (128)
-//#define MAX_FILTER_SQL_COMMAND_BUFFER_SIZE (MAX_FILTER_SQL_COMMAND + 1)
-//#define MAX_FILTER_SQL_KEYWORD (128)
-//#define MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE (MAX_FILTER_SQL_KEYWORD + 1)
-//#define EVENT_UNSETTED   (-1)
-//#define EVENT_SETTED   (1)
-
-/*只指定主类型的情况，没有指定子类型。如general;connection，表示general的所有类型都进行过滤*/
-//#define EVENT_ALL   (-1)
-/*
-struct filter_item_struct
-{
-  bool name_setted;
-  char name[MAX_FILTER_NAME_BUFFER_SIZE];
-  bool host_setted;
-  char host[MAX_FILTER_HOST_BUFFER_SIZE];
-  int host_length;
-  bool user_setted;
-  char user[MAX_FILTER_USER_BUFFER_SIZE];
-  int user_length;
-  //事件(event)相关
-  bool event_setted;
-  bool audit_all_event;  //event=all
-  //初始化为-1，表示未设置
-  bool audit_all_connection; //event=connection
-  int connection_events[MAX_FILTER_CONNECTION_EVENTS];
-  //bool connection_events_setted;
-  bool audit_all_general;  //event=general
-  int general_events[MAX_FILTER_GENERAL_EVENTS];
-  //bool general_events_setted;
-  bool command_setted;
-  char command[MAX_FILTER_COMMAND_BUFFER_SIZE];
-  int command_length;
-  bool sql_command_setted;
-  char sql_command[MAX_FILTER_SQL_COMMAND_BUFFER_SIZE];
-  int sql_command_length;
-  bool sql_keyword_setted;
-  char sql_keyword[MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE];
-  int sql_keyword_length;
-};
-
-typedef struct filter_item_struct filter_item_t;
-
-struct event_info_struct
-{
-  const char *host;
-  const char *ip;
-  const char *user;
-  int main_class;
-  int sub_class;
-  const char *command;
-  const char *query;
-  const char *sql_command;
-};
-typedef event_info_struct event_info_t;
-
-#define MAX_REMOVE_ITEM MAX_FILTER_ITEMS
-struct remove_parse_struct
-{
-  int count;
-  char removes[MAX_REMOVE_ITEM][MAX_FILTER_NAME_BUFFER_SIZE];
-};
-typedef struct remove_parse_struct remove_parse_t;
-
-*/
-
 void remove_parse_init(remove_parse_t *parse)
 {
   parse->count = 0;
@@ -247,6 +165,9 @@ void htp_audit_init_filter_item(filter_item_t *item)
   item->user[0] = 0;
   item->user_length = 0;
   item->event_setted = false;
+  item->audit_event_startup = false;
+  item->audit_event_shutdown = false;
+  item->audit_event_stored_program = false;
   item->audit_all_event = false;
   item->audit_all_general = false;
   item->audit_all_connection = false;
@@ -343,41 +264,6 @@ inline bool htp_audit_is_event_splitter(char c)
   return false;
 }
 
-/*获取event的信息*/
-/*
-static int htp_audit_get_event_inchar(
-    const char *event, int event_len, const char **main_class, int *main_len, const char **sub_class,
-    int *sub_len) {
-  int main_class_len = 0, sub_class_len = 0;
-
-  *main_class = NULL;
-  *main_len = 0;
-  *sub_class = NULL;
-  *sub_len = 0;
-
-  *main_class = event;
-  for (int i = 0; i < event_len; i++) {
-    if (htp_audit_is_event_class_splitter(event[i]))
-      break;
-    main_class_len++;
-  }
-  *main_len = main_class_len;
-
-  //只输入主类型
-  if (main_class_len == event_len)
-    return 0;
-
-  //获取子类型长度
-  sub_class_len = event_len - main_class_len - 1;
-  if (sub_class_len == 0)
-    return 0;
-
-  *sub_class = event + main_class_len + 1;
-  *sub_len = sub_class_len;
-
-  return 0;
-}
-*/
 static int htp_audit_get_single_event_len(const char *event, int event_len)
 {
   int single_event_len = 0;
@@ -635,6 +521,24 @@ static int htp_audit_get_event_init(
       return -1;
     }
   }
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_STARTUP_CLASS) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_SERVER_STARTUP_CLASS;
+    *sub_class_int = EVENT_ALL;
+      return 0;
+  }
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_SHUTDOWN_CLASS) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS;
+    *sub_class_int = EVENT_ALL;
+    return 0;
+  }
+  else if (strcasecmp(main_class, HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS) == 0)
+  {
+    *main_class_int = MYSQL_AUDIT_STORED_PROGRAM_CLASS;
+    *sub_class_int = EVENT_ALL;
+    return 0;
+  }
   else
     return -1;
   return 0;
@@ -759,6 +663,24 @@ static void htp_audit_fill_event(
       return;
     }
     item->query_events[sub_class] = EVENT_SETTED;
+  }
+  else if (main_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS);
+    item->audit_event_startup=true;
+    return;
+  }
+  else if (main_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS);
+    item->audit_event_shutdown=true;
+    return;
+  }
+  else if (main_class == MYSQL_AUDIT_STORED_PROGRAM_CLASS)
+  {
+    DBUG_ASSERT(main_class == MYSQL_AUDIT_STORED_PROGRAM_CLASS);
+    item->audit_event_stored_program=true;
+    return;
   }
   else
     return;
@@ -1293,9 +1215,6 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
         }
       }
     }
-  }
-  else
-  {
   }
 
   return AUDIT_EVENT;

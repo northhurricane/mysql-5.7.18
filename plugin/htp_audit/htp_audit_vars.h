@@ -85,7 +85,7 @@ void number_of_calls_authorization_procedure_incr();
 
 void number_of_calls_authorization_proxy_incr();
 
-void number_of_records_incr();
+void number_of_calls_stored_program_incr();
 
 void number_of_records_incr();
 
@@ -146,6 +146,8 @@ void number_of_records_authorization_column_incr();
 void number_of_records_authorization_procedure_incr();
 
 void number_of_records_authorization_proxy_incr();
+
+void number_of_recordss_stored_program_incr();
 
 void htp_audit_deinit_status();
 

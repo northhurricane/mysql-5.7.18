@@ -98,6 +98,8 @@ void audit_global_variable_set(const struct mysql_event_global_variable *event);
 
 void audit_query_start(const struct mysql_event_query *event);
 
+void audit_stored_program_event(const struct mysql_event_stored_program *event);
+
 void htp_audit_process_event(MYSQL_THD thd __attribute__((unused)), unsigned int event_class, const void *event);
 
 //void htp_audit_init_filter_item(filter_item_t *item)
@@ -172,6 +174,15 @@ void htp_audit_deinit_lock();
 #define HTP_AUDIT_EVENT_QUERY_SUB_NESTED_START "nested start"
 #define HTP_AUDIT_EVENT_QUERY_SUB_STATUS_END "end"
 #define HTP_AUDIT_EVENT_QUERY_SUB_NESTED_STATUS_END "nested end"
+
+// startup events
+#define HTP_AUDIT_EVENT_STARTUP_CLASS "startup"
+
+//shutdown events
+#define HTP_AUDIT_EVENT_SHUTDOWN_CLASS "shutdown"
+
+//stored program events
+#define HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS "stored program"
 
 /* 审计事件过滤 */
 #define MAX_FILTER_NAME_LENGTH (128)
@@ -288,8 +299,10 @@ struct filter_item_struct
   int user_length;
   //事件(event)相关
   bool event_setted;
-  bool audit_all_event;  //event=all
-  //初始化为-1，表示未设置
+  bool audit_all_event;  //event=all,初始化为-1，表示未设置
+  bool audit_event_startup;
+  bool audit_event_shutdown;
+  bool audit_event_stored_program;
   bool audit_all_connection; //event=connection
   int connection_events[MAX_FILTER_CONNECTION_EVENTS];
   //bool connection_events_setted;
@@ -333,6 +346,7 @@ struct event_info_struct
   int sub_class;
   const char *command;
   const char *query;
+  const char *name;
   const char *sql_command;
   const char *database;
   const char *table;
