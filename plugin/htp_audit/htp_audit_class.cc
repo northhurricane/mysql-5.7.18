@@ -118,6 +118,9 @@ static int htp_audit_process_connection_event(
     case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
       number_of_calls_connection_change_user_incr();
       break;
+    case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
+      number_of_calls_connection_pre_authenticate_incr();
+      break;
     default:
       break;
   }
@@ -139,6 +142,10 @@ static int htp_audit_process_connection_event(
     case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
       number_of_records_connection_change_user_incr();
       audit_connection_change_user(event_connection);
+      break;
+    case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
+      number_of_records_connection_pre_authenticate_incr();
+      audit_connection_pre_authenticate(event_connection);
       break;
     default:
       break;
@@ -310,7 +317,7 @@ htp_audit_process_stored_program_event(
     return 0;
   }
   audit_stored_program_event(event_stored_program);
-  number_of_recordss_stored_program_incr();
+  number_of_records_stored_program_incr();
   return 0;
 }
 
@@ -554,6 +561,7 @@ void htp_audit_process_event(MYSQL_THD thd __attribute__((unused)),
       htp_audit_process_query_event(thd, event_class, event);
       break;
     case MYSQL_AUDIT_STORED_PROGRAM_CLASS:
+      htp_audit_process_stored_program_event(thd, event_class, event);
       break;
     default:
       DBUG_ASSERT(FALSE);

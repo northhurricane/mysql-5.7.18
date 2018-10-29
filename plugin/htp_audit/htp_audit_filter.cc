@@ -1123,14 +1123,11 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
     return NOT_AUDIT_EVENT;
 */
   //event
-  bool general_class_special_flag=false;
-
   if (item->audit_all_event != true)
   {
     if (info->main_class == MYSQL_AUDIT_GENERAL_CLASS ) {
-      if (item->general_events[get_sub_class_index(info->sub_class)] == EVENT_SETTED)
-        return AUDIT_EVENT;
-        general_class_special_flag=true;
+      if (item->general_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+        return NOT_AUDIT_EVENT;
     }
     else if (info->main_class == MYSQL_AUDIT_CONNECTION_CLASS &&
         item->connection_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
@@ -1158,7 +1155,7 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
       return NOT_AUDIT_EVENT;
   }
 
-  if (event_class == MYSQL_AUDIT_GENERAL_CLASS && general_class_special_flag==true)
+  if (info->main_class == MYSQL_AUDIT_GENERAL_CLASS)
   {
     //command & sql_command & query
     //command is toppest level and query is lowest level

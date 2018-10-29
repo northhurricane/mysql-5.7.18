@@ -546,62 +546,52 @@ static void htp_audit_rule_2_str(
       *buffer_index = 0;
     }
 
-    need_semicolon=false;
+    //need_semicolon=false;
+
+    strcpy(buffer_index, HTP_AUDIT_EVENT_STARTUP_CLASS);
+    buffer_index += strlen(HTP_AUDIT_EVENT_STARTUP_CLASS);
     if (item->audit_event_startup)
     {
-      strcpy(buffer_index, HTP_AUDIT_EVENT_STARTUP_CLASS);
-      buffer_index += strlen(HTP_AUDIT_EVENT_STARTUP_CLASS);
-      need_semicolon=true;
-    }
-    if (need_semicolon)
-    {
-      buffer_index--;
+      //need_semicolon=true;
       strcpy(buffer_index, "};{");
       buffer_index += 3;
     }
     else
     {
-      buffer_index--;
+      //buffer_index--;
       buffer_index -= strlen(HTP_AUDIT_EVENT_STARTUP_CLASS);
       *buffer_index = 0;
     }
-    
-    need_semicolon=false;
+
+    //need_semicolon=false;
+    strcpy(buffer_index, HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
+    buffer_index += strlen(HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
+
     if (item->audit_event_startup)
     {
-      strcpy(buffer_index, HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
-      buffer_index += strlen(HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
-      need_semicolon=true;
-    }
-    if (need_semicolon)
-    {
-      buffer_index--;
+//      need_semicolon=true;
       strcpy(buffer_index, "};{");
       buffer_index += 3;
     }
     else
     {
-      buffer_index--;
+      //buffer_index--;
       buffer_index -= strlen(HTP_AUDIT_EVENT_SHUTDOWN_CLASS);
       *buffer_index = 0;
     }
 
-    need_semicolon=false;
-    if (item->audit_event_startup)
+    //need_semicolon=false;
+    strcpy(buffer_index, HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
+    buffer_index += strlen(HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
+    if (item->audit_event_stored_program)
     {
-      strcpy(buffer_index, HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
-      buffer_index += strlen(HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
-      need_semicolon=true;
-    }
-    if (need_semicolon)
-    {
-      buffer_index--;
+      //buffer_index--;
       strcpy(buffer_index, "};{");
       buffer_index += 3;
     }
     else
     {
-      buffer_index--;
+      //buffer_index--;
       buffer_index -= strlen(HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS);
       *buffer_index = 0;
     }
@@ -696,6 +686,7 @@ HTP_AUDIT_VAR(general_status)
 HTP_AUDIT_VAR(connection_connect)
 HTP_AUDIT_VAR(connection_disconnect)
 HTP_AUDIT_VAR(connection_change_user)
+HTP_AUDIT_VAR(connection_pre_authenticate)
 //HTP_AUDIT_VAR(connection_pre_authenticate)
 
 /* Count MYSQL_AUDIT_PARSE_CLASS event instances */
@@ -797,6 +788,12 @@ void number_of_calls_connection_change_user_incr()
 {
   number_of_calls_connection_change_user++;
 }
+
+void number_of_calls_connection_pre_authenticate_incr()
+{
+  number_of_calls_connection_pre_authenticate++;
+}
+
 
 void number_of_calls_parse_preparse_incr()
 {
@@ -939,6 +936,7 @@ HTP_AUDIT_VAR_RECORD(general_status)
 HTP_AUDIT_VAR_RECORD(connection_connect)
 HTP_AUDIT_VAR_RECORD(connection_disconnect)
 HTP_AUDIT_VAR_RECORD(connection_change_user)
+HTP_AUDIT_VAR_RECORD(connection_pre_authenticate)
 //HTP_AUDIT_VAR_RECORD(connection_pre_authenticate)
 
 /* Count MYSQL_AUDIT_PARSE_CLASS event instances */
@@ -1021,6 +1019,11 @@ void number_of_records_connection_disconnect_incr()
 void number_of_records_connection_change_user_incr()
 {
   number_of_records_connection_change_user++;
+}
+
+void number_of_records_connection_pre_authenticate_incr()
+{
+  number_of_records_connection_pre_authenticate++;
 }
 
 void number_of_records_parse_preparse_incr()
@@ -1167,6 +1170,9 @@ struct st_mysql_show_var htp_audit_status[] =
         {"Htp_audit_connection_change_user_called",
          (char *) &number_of_calls_connection_change_user,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_connection_pre_authenticate_called",
+         (char *) &number_of_calls_connection_pre_authenticate,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_preparse_called",
          (char *) &number_of_calls_parse_preparse,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
@@ -1253,6 +1259,9 @@ struct st_mysql_show_var htp_audit_status[] =
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_connection_change_user_recorded",
          (char *) &number_of_records_connection_change_user,
+         SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+        {"Htp_audit_connection_pre_authenticate_recorded",
+         (char *) &number_of_records_connection_pre_authenticate,
          SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
         {"Htp_audit_parse_preparse_recorded",
          (char *) &number_of_records_parse_preparse,

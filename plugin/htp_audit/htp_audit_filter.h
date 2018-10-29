@@ -44,6 +44,8 @@ void audit_connection_disconnect(const struct mysql_event_connection *event);
 
 void audit_connection_change_user(const struct mysql_event_connection *event);
 
+void audit_connection_pre_authenticate(const struct mysql_event_connection *event);
+
 void audit_general_log(const struct mysql_event_general *event);
 
 void audit_general_error(const struct mysql_event_general *event);
@@ -197,7 +199,7 @@ void htp_audit_deinit_lock();
 
 //根据plugin_audit的subclass的数目决定
 #define MAX_FILTER_GENERAL_EVENTS (4)
-#define MAX_FILTER_CONNECTION_EVENTS (3)
+#define MAX_FILTER_CONNECTION_EVENTS (4)
 #define MAX_FILTER_PARSE_EVENTS (2)
 #define MAX_FILTER_COMMAND_EVENTS (2)
 #define MAX_FILTER_AUTHORIZATION_EVENTS (6)

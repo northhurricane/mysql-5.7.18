@@ -54,14 +54,15 @@ void audit_connection_connect(const struct mysql_event_connection *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("connection"));
-  cJSON_AddItemToObject(root, "connection type", cJSON_CreateString("connect"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("connect"));
   if (event->host.str != NULL)
     cJSON_AddItemToObject(root, "host", cJSON_CreateString(event->host.str));
   if (event->ip.str != NULL)
     cJSON_AddItemToObject(root, "ip", cJSON_CreateString(event->ip.str));
   if (event->user.str != NULL)
     cJSON_AddItemToObject(root, "user", cJSON_CreateString(event->user.str));
-
+  cJSON_AddItemToObject(root, "connection type",
+                        cJSON_CreateNumber(event->connection_type));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
   Logger::GetLogger()->Write(json_str, ",");
@@ -88,14 +89,15 @@ void audit_connection_disconnect(const struct mysql_event_connection *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("connection"));
-  cJSON_AddItemToObject(root, "connection type", cJSON_CreateString("disconnect"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("disconnect"));
   if (event->host.str != NULL)
     cJSON_AddItemToObject(root, "host", cJSON_CreateString(event->host.str));
   if (event->ip.str != NULL)
     cJSON_AddItemToObject(root, "ip", cJSON_CreateString(event->ip.str));
   if (event->user.str != NULL)
     cJSON_AddItemToObject(root, "user", cJSON_CreateString(event->user.str));
-
+  cJSON_AddItemToObject(root, "connection type",
+                        cJSON_CreateNumber(event->connection_type));
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
   Logger::GetLogger()->Write(json_str, ",");
@@ -122,13 +124,51 @@ void audit_connection_change_user(const struct mysql_event_connection *event)
   root = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
   cJSON_AddItemToObject(root, "type", cJSON_CreateString("connection"));
-  cJSON_AddItemToObject(root, "connection type", cJSON_CreateString("change user"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("change user"));
   if (event->host.str != NULL)
     cJSON_AddItemToObject(root, "host", cJSON_CreateString(event->host.str));
   if (event->ip.str != NULL)
     cJSON_AddItemToObject(root, "ip", cJSON_CreateString(event->ip.str));
   if (event->user.str != NULL)
     cJSON_AddItemToObject(root, "user", cJSON_CreateString(event->user.str));
+  cJSON_AddItemToObject(root, "connection type",
+                        cJSON_CreateNumber(event->connection_type));
+
+  //获得json字符串，输出到审计日志
+  char *json_str = cJSON_Print(root);
+  Logger::GetLogger()->Write(json_str, ",");
+
+  //释放资源
+  cJSON_Delete(root);
+  free(json_str);
+}
+
+void audit_connection_pre_authenticate(const struct mysql_event_connection *event)
+{
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_CONNECTION_AUTHENTICATE);
+
+  char current_str[100];
+  //to do : 获取当前时间
+  time_t current;
+  struct tm current_broken;
+  current = time(NULL);
+  localtime_r(&current, &current_broken);
+
+  strftime(current_str, sizeof(current_str), "%F %T", &current_broken);
+
+  cJSON *root;
+  root = cJSON_CreateObject();
+  cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(current_str));
+  cJSON_AddItemToObject(root, "type", cJSON_CreateString("connection"));
+  cJSON_AddItemToObject(root, "sub type", cJSON_CreateString("pre authenticate"));
+  if (event->host.str != NULL)
+    cJSON_AddItemToObject(root, "host", cJSON_CreateString(event->host.str));
+  if (event->ip.str != NULL)
+    cJSON_AddItemToObject(root, "ip", cJSON_CreateString(event->ip.str));
+  if (event->user.str != NULL)
+    cJSON_AddItemToObject(root, "user", cJSON_CreateString(event->user.str));
+  cJSON_AddItemToObject(root, "connection type",
+                        cJSON_CreateNumber(event->connection_type));
 
   //获得json字符串，输出到审计日志
   char *json_str = cJSON_Print(root);
