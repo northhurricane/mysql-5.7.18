@@ -709,7 +709,7 @@ int htp_audit_parse_event(const char *event, int event_len, filter_item_t *item)
     item->audit_all_event = true;
     return 0;
   }
-  strncpy(event_parse, event, 3999);
+  strncpy(event_parse, event, event_len);
   event_parse[4000] = 0;
 
   while (strlen(event_parse))
@@ -828,6 +828,18 @@ htp_audit_get_kv_unit(const char *current, const char **next, const char **k, in
   }
   *k = key;
   *k_len = k_counter;
+
+  if (strncasecmp(key, HTP_AUDIT_RULE_KEY_EVENT, k_counter) == 0)
+  {
+    while (*index !=0)
+    {
+      if (*index==';' &&(*(index+1) =='s' || *(index+1)=='c'))
+        break;
+      v_counter++;
+      index++;
+    }
+  }
+
   *v = value;
   *v_len = v_counter;
 
@@ -940,8 +952,8 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
     if (v_len >= MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE)
       return -1;
     strncpy(item->sql_keyword, value, v_len);
-    item->sql_command[v_len] = 0;
-    item->sql_command_length = v_len;
+    item->sql_keyword[v_len] = 0;
+    item->sql_keyword_length = v_len;
   }
   else
   {
@@ -1152,6 +1164,12 @@ htp_audit_filter_event(event_info_t *info, filter_item_t *item, unsigned int eve
       return NOT_AUDIT_EVENT;
     else if (info->main_class == MYSQL_AUDIT_COMMAND_CLASS &&
         item->command_events[get_sub_class_index(info->sub_class)] != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if (info->main_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS &&
+        item->audit_event_shutdown != EVENT_SETTED)
+      return NOT_AUDIT_EVENT;
+    else if (info->main_class == MYSQL_AUDIT_STORED_PROGRAM_CLASS &&
+        item->audit_event_stored_program!= EVENT_SETTED)
       return NOT_AUDIT_EVENT;
   }
 

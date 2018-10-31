@@ -293,10 +293,18 @@ htp_audit_process_shutdown_event(
 {
   const struct mysql_event_server_shutdown *event_shutdown =
       (const struct mysql_event_server_shutdown *) event;
-  audit_server_shutdown_shutdown(event_shutdown);
-  number_of_calls_server_shutdown_incr();
-  number_of_records_server_shutdown_incr();
 
+  event_info_t info;
+  info.main_class = MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS;
+  info.sub_class = event_shutdown->event_subclass;
+  number_of_calls_server_shutdown_incr();
+
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT)
+  {
+    return 0;
+  }
+  number_of_records_server_shutdown_incr();
+  audit_server_shutdown_shutdown(event_shutdown);
   return 0;
 }
 
@@ -312,8 +320,10 @@ htp_audit_process_stored_program_event(
   info.query = event_stored_program->query.str;
   info.database = event_stored_program->database.str;
   info.name=event_stored_program->name.str;
+
   number_of_calls_stored_program_incr();
-  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT) {
+  if (htp_audit_filter_event(&info, event_class) == NOT_AUDIT_EVENT)
+  {
     return 0;
   }
   audit_stored_program_event(event_stored_program);

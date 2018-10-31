@@ -267,6 +267,9 @@ void audit_general_error(const struct mysql_event_general *event)
                           cJSON_CreateString(event->general_query.str));
   cJSON_AddItemToObject(root, "code",
                         cJSON_CreateNumber(event->general_error_code));
+  if (event->general_command.str !=NULL)
+    cJSON_AddItemToObject(root, "error msg",
+                          cJSON_CreateString(event->general_command.str));
 
 
   //获得json字符串，输出到审计日志
