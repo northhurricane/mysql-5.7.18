@@ -31,12 +31,9 @@ static int htp_audit_rules_from_config(config_group_t *group)
 
   //从group中构造filter item的内容
   config_item = group->items;
-  while (config_item != NULL)
-  {
-    if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_NAME) == 0)
-    {
-      if (filter_item.name_setted == true)
-      {
+  while (config_item != NULL) {
+    if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_NAME) == 0) {
+      if (filter_item.name_setted == true) {
         //同一组中相同属性被多次指定
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate name setting in group %d",
@@ -44,8 +41,7 @@ static int htp_audit_rules_from_config(config_group_t *group)
         return -1;
       }
 
-      if (htp_audit_find_filter_by_name(config_item->value) >= 0)
-      {
+      if (htp_audit_find_filter_by_name(config_item->value) >= 0) {
         //配置文件中出现重名的配置项
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "group %s already defined.", config_item->value);
@@ -55,10 +51,8 @@ static int htp_audit_rules_from_config(config_group_t *group)
       strcpy(filter_item.name, config_item->value);
       filter_item.name_setted = true;
     }
-    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_HOST) == 0)
-    {
-      if (filter_item.host_setted == true)
-      {
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_HOST) == 0) {
+      if (filter_item.host_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate host setting in group %d",
                        group->number);
@@ -68,8 +62,7 @@ static int htp_audit_rules_from_config(config_group_t *group)
       strcpy(filter_item.host, config_item->value);
       filter_item.host_length = strlen(config_item->value);
       if (htp_audit_check_value_valid(
-          filter_item.host, filter_item.host_length))
-      {
+          filter_item.host, filter_item.host_length)) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "invalid host setting value in group %d",
                        group->number);
@@ -78,10 +71,8 @@ static int htp_audit_rules_from_config(config_group_t *group)
 
       filter_item.host_setted = true;
     }
-    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_USER) == 0)
-    {
-      if (filter_item.user_setted == true)
-      {
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_USER) == 0) {
+      if (filter_item.user_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate user setting in group %d",
                        group->number);
@@ -91,8 +82,7 @@ static int htp_audit_rules_from_config(config_group_t *group)
       strcpy(filter_item.user, config_item->value);
       filter_item.user_length = strlen(config_item->value);
       if (htp_audit_check_value_valid(
-          filter_item.user, filter_item.user_length))
-      {
+          filter_item.user, filter_item.user_length)) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "invalid user setting value in group %d",
                        group->number);
@@ -101,10 +91,8 @@ static int htp_audit_rules_from_config(config_group_t *group)
 
       filter_item.user_setted = true;
     }
-    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_EVENT) == 0)
-    {
-      if (filter_item.event_setted == true)
-      {
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_EVENT) == 0) {
+      if (filter_item.event_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate event setting in group %d",
                        group->number);
@@ -114,8 +102,7 @@ static int htp_audit_rules_from_config(config_group_t *group)
       int r = 0;
       int event_len = strlen(config_item->value);
       r = htp_audit_parse_event(config_item->value, event_len, &filter_item);
-      if (r)
-      {
+      if (r) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "invalid event setting value in group %d",
                        group->number);
@@ -124,18 +111,15 @@ static int htp_audit_rules_from_config(config_group_t *group)
 
       filter_item.event_setted = true;
     }
-    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_CMD) == 0)
-    {
-      if (filter_item.command_setted == true)
-      {
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_CMD) == 0) {
+      if (filter_item.command_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate command setting in group %d",
                        group->number);
         return -1;
       }
 
-      if (config_item->value_len >= MAX_FILTER_COMMAND_BUFFER_SIZE)
-      {
+      if (config_item->value_len >= MAX_FILTER_COMMAND_BUFFER_SIZE) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "too long value for command setting");
         return -1;
@@ -145,18 +129,15 @@ static int htp_audit_rules_from_config(config_group_t *group)
       filter_item.command_length = config_item->value_len;
       filter_item.command_setted = true;
     }
-    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_SQL_CMD) == 0)
-    {
-      if (filter_item.sql_command_setted == true)
-      {
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_SQL_CMD) == 0) {
+      if (filter_item.sql_command_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate sql_command setting in group %d",
                        group->number);
         return -1;
       }
 
-      if (config_item->value_len >= MAX_FILTER_SQL_COMMAND_BUFFER_SIZE)
-      {
+      if (config_item->value_len >= MAX_FILTER_SQL_COMMAND_BUFFER_SIZE) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "too long value for sql_command setting in group %d",
                        group->number);
@@ -167,18 +148,15 @@ static int htp_audit_rules_from_config(config_group_t *group)
       filter_item.sql_command_length = config_item->value_len;
       filter_item.sql_command_setted = true;
     }
-    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_SQL_KEYWORD) == 0)
-    {
-      if (filter_item.sql_keyword_setted == true)
-      {
+    else if (strcasecmp(config_item->key, HTP_AUDIT_RULE_KEY_SQL_KEYWORD) == 0) {
+      if (filter_item.sql_keyword_setted == true) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "duplicate sql_keyword setting in group %d",
                        group->number);
         return -1;
       }
 
-      if (config_item->value_len >= MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE)
-      {
+      if (config_item->value_len >= MAX_FILTER_SQL_KEYWORD_BUFFER_SIZE) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "too long value for sql_keyword setting in group %d",
                        group->number);
@@ -189,8 +167,7 @@ static int htp_audit_rules_from_config(config_group_t *group)
       filter_item.sql_keyword_length = config_item->value_len;
       filter_item.sql_keyword_setted = true;
     }
-    else
-    {
+    else {
       //不可识别的内容
       string err_msg = "unknow settings : ";
       err_msg += config_item->key;
@@ -217,36 +194,28 @@ static int htp_audit_general_from_config(config_group_t *group)
 {
   config_item_t *item;
   item = group->items;
-  while (item != NULL)
-  {
-    if (strcasecmp(item->key, HTP_AUDIT_GENERAL_SECTION_AUDIT_FILE) == 0)
-    {
+  while (item != NULL) {
+    if (strcasecmp(item->key, HTP_AUDIT_GENERAL_SECTION_AUDIT_FILE) == 0) {
       strcpy(htp_audit_log_file, item->value);
     }
     else if (strcasecmp
-        (item->key, HTP_AUDIT_GENERAL_SECTION_AUDIT_ERROR_FILE) == 0)
-    {
+        (item->key, HTP_AUDIT_GENERAL_SECTION_AUDIT_ERROR_FILE) == 0) {
       strcpy(htp_audit_error_log_file, item->value);
     }
     else if (strcasecmp
-        (item->key, HTP_AUDIT_GENERAL_SECTION_AUDIT_ENABLE_BUFFER) == 0)
-    {
+        (item->key, HTP_AUDIT_GENERAL_SECTION_AUDIT_ENABLE_BUFFER) == 0) {
       if (strcasecmp(item->value, "1") == 0
-          || strcasecmp(item->value, "on") == 0)
-      {
+          || strcasecmp(item->value, "on") == 0) {
         enable_buffer = TRUE;
       }
       else if (strcasecmp(item->value, "off") == 0
-          || strcasecmp(item->value, "0") == 0)
-      {
+          || strcasecmp(item->value, "0") == 0) {
         enable_buffer = FALSE;
       }
-      else
-      {
+      else {
       }
     }
-    else
-    {
+    else {
       //不可识别的配置内容
       return 1;
     }
@@ -264,24 +233,19 @@ static int htp_audit_init_env_from_config(config_t *config)
   htp_audit_error_log_file[0] = 0;
 
   group = config->groups;
-  while (group != NULL)
-  {
-    if (strcasecmp(group->name, HTP_AUDIT_RULE_GROUP_NAME) == 0)
-    {
-      if (htp_audit_rules_from_config(group))
-      {
+  while (group != NULL) {
+    if (strcasecmp(group->name, HTP_AUDIT_RULE_GROUP_NAME) == 0) {
+      if (htp_audit_rules_from_config(group)) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                        "group %d error", group->number);
         return -1;
       }
     }
-    else if (strcasecmp(group->name, HTP_AUDIT_GENERAL_GROUP_NAME) == 0)
-    {
+    else if (strcasecmp(group->name, HTP_AUDIT_GENERAL_GROUP_NAME) == 0) {
       if (htp_audit_general_from_config(group))
         return -1;
     }
-    else
-    {
+    else {
       htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
                      "unknown group name : %s", group->name);
       return -1;
@@ -345,8 +309,7 @@ static int htp_audit_plugin_deinit(void *arg __attribute__((unused)))
   if (!plugin_inited)
     return (0);
 
-  if (!probe_quiting_condition())
-  {
+  if (!probe_quiting_condition()) {
     return 1;
   }
   htp_audit_deinit_lock();
@@ -358,8 +321,7 @@ static int htp_audit_plugin_deinit(void *arg __attribute__((unused)))
   htp_audit_deinit_filter();
 
   int ret = Logger::FlushNew();
-  if (ret)
-  {
+  if (ret) {
     htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR, "flush log error");
   }
 
@@ -387,9 +349,9 @@ static int htp_audit_plugin_deinit(void *arg __attribute__((unused)))
 
 static int htp_audit_plugin_init(void *arg __attribute__((unused)))
 {
-  switch (0)
-  {
-    case 0:htp_audit_init_lock();
+  switch (0) {
+    case 0:
+      htp_audit_init_lock();
 
       htp_audit_init_status();
 
@@ -403,8 +365,7 @@ static int htp_audit_plugin_init(void *arg __attribute__((unused)))
       Logger::Initialize(log_file, error_log_file, enable_buffer);
 
       int ret = Logger::FlushNew();
-      if (ret)
-      {
+      if (ret) {
         htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR, "flush log error");
         break;
       }
