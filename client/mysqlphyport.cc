@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <list>
 #include <dirent.h>
+#include <algorithm>
 
 #include "mysql.h"
 using namespace std;
@@ -51,6 +52,7 @@ static char *opt_lv_name = NULL;
 static char *opt_mount_dir = NULL;
 static char *opt_lv_data_dir = NULL;
 static char *opt_owner = NULL;
+static char default_user[]= "mysql";
 
 static struct my_option my_long_options[] =
     {
@@ -844,7 +846,7 @@ export_tables(string *err, const string db_name)
     }
     else
     {
-      cout << "\033[32m" << "database " << db_name << " table " << table_name << " exporting failed" << "\n\033[0m"
+      cout << "\033[32m" << "database " << db_name << " table " << table_name << " exporting failed" << "\033[0m"
            << endl;
     }
     if (check_frm_files(opt_file_dir_fi, table_name, 1))
@@ -882,26 +884,115 @@ export_clean(const int is_slave_flag)
     r = mysql_query(&mysql, "start slave;");
   }
 }
+bool
+set_database(string *err, const string db_name)
+{
+
+  sprintf(buffer, "use %s", db_name.c_str());
+  if (mysql_query(&mysql, buffer))
+  {
+    err->append("Error in setting database ");
+    err->append(opt_db);
+    err->append(".");
+    return false;
+  }
+  return true;
+}
 
 bool
-do_export(const string db_name)
+set_database(const string db_name)
+{
+
+  sprintf(buffer, "use %s", db_name.c_str());
+  if (mysql_query(&mysql, buffer))
+  {
+    cout << "Error in setting database" << endl;
+    return false;
+  }
+  return true;
+}
+
+
+bool
+do_export(const bool slave_flag)
 {
   string err;
-  bool succ = true;
-  switch (0)
+  bool succ ;
+  list<char *>::iterator iter;
+  succ = get_databases();
+  if (!succ)
   {
-    case 0:
-      succ = export_tables(&err, db_name);
-      if (!succ)
-        break;
-      break;
+    cout << "Cannot get databases from server or options, please check manully!" << endl;
+    return false;
   }
-  return succ;
+  iter = databases.begin();
+  string para_dbname;
+  succ = export_flush_tables_with_read_lock(&err, slave_flag);
+  if (!succ)
+  {
+    cout << " Flush tables with read lock error, please check manully!" << endl;
+    return false;
+  }
+  succ = export_show_master_status(&err);
+  if (!succ)
+  {
+    cout << " Show master status error, please check manully!" << endl;
+    return false;
+  }
+
+  while (iter != databases.end())
+  {
+    para_dbname = *iter;
+    succ = set_database(&err, para_dbname);
+    if (!succ)
+    {
+      cout << err << endl;
+      return false;
+    }
+    succ = get_tables();
+    if (!succ)
+    {
+      cout << "failed when process exportting tables." << endl;
+      return false;
+    }
+    succ = export_tables(&err, para_dbname);
+    if (!succ)
+    {
+      cout << err << endl;
+      return false;
+    }
+    iter++;
+  }
+  export_clean(slave_flag);
+
+  return true;
 }
 
 bool
 import_check(string *err)
 {
+  return true;
+}
+
+bool import_mk_db(const string &db_name)
+{
+  MYSQL_RES *result = NULL;
+  string cmd = " show databases like '%";
+  cmd += db_name;
+  cmd += "%';";
+  mysql_query(&mysql, cmd.c_str());
+  result = mysql_store_result(&mysql);
+  if ((result != NULL) && (result->row_count !=0))
+  {
+    cout << "\033[31m" << db_name << "  already exists!" << "\033[0m"<< endl;
+    mysql_free_result(result);
+    return false;
+  }
+  mysql_free_result(result);
+  cmd="create database " + db_name+";";
+  int r = mysql_query(&mysql, cmd.c_str());
+  if (r != 0)
+    return false;
   return true;
 }
 
@@ -913,13 +1004,13 @@ bool
 import_get_file_tables(const string db_name, string *err)
 {
   int table_count = 0;
-  file_talbes.clear();
+  file_tables.clear();
   struct dirent *ptr;
   DIR *dir;
-  string opt_file_dir_fi = "";
+  string opt_file_dir_fi = opt_file_dir;
   opt_file_dir_fi += "/";
   opt_file_dir_fi += db_name;
-  dir = opendir(opt_file_dir);
+  dir = opendir(opt_file_dir_fi.c_str());
   while ((ptr = readdir(dir)) != NULL)
   {
     //跳过'.'和'..'两个目录
@@ -943,16 +1034,39 @@ bool import_get_file_databases(string *err)
 {
   database_buffer.number = 0;
   databases.clear();
-  DIR
-
+  DIR  *dir;
+  char s[100]={0};
+  string tmp_filename;
+  struct dirent *rent;
+  if ((dir = opendir(opt_file_dir)) == NULL)
+    return false;
+  while((rent = readdir(dir)))
+  {
+    strncpy(s, rent->d_name,strlen(rent->d_name));
+    s[strlen(rent->d_name)]=0;
+    tmp_filename = s;
+    if (s[0] == '.')
+      continue;
+    transform(tmp_filename.begin(), tmp_filename.end(), tmp_filename.begin(), ::tolower);
+    if((tmp_filename.find("db",0) != string::npos ))
+    {
+      strcpy(database_buffer.databases[database_buffer.number].name, s);
+      databases.push_back(database_buffer.databases[database_buffer.number].name);
+      database_buffer.number++;
+    }
+  }
+  return true;
 }
 bool
-import_single_table(const char *table_name)
+import_single_table(const string &db_name, const char *table_name)
 {
   list<char *>::iterator iter;
   iter = tables.begin();
   char *db_table_name = NULL;
   bool table_exist = false;
+  string opt_data_dir_fi = opt_data_dir;
+  string opt_file_dir_fi = opt_file_dir;
+
   while (iter != tables.end())
   {
     db_table_name = *iter;
@@ -971,18 +1085,14 @@ import_single_table(const char *table_name)
   }
   else
   {
-    //判断是否为指定表倒入
-    /*if (opt_tables != NULL && strlen(opt_tables) > 0)
-    {
-      //参数中指定倒入的表，而file tables不在这个列表之内
-      //do nothing
-    }
-    else*/
-    {
       //未指定倒入表，所以是整库导入，导入当前的文件表
       //在数据库中创建该表
+      opt_data_dir_fi += "/";
+      opt_data_dir_fi += db_name;
+      opt_file_dir_fi += "/";
+      opt_file_dir_fi += db_name;
       int r = 0;
-      sprintf(buffer, "%s/%s%s", opt_file_dir, table_name, ".def");
+      sprintf(buffer, "%s/%s%s", opt_file_dir_fi.c_str(), table_name, ".def");
       FILE *f = fopen(buffer, "r");
       fread(buffer, 1, sizeof(buffer), f);
       fclose(f);
@@ -990,7 +1100,6 @@ import_single_table(const char *table_name)
       if (r != 0)
         return false;
       do_it = true;
-    }
   }
   if (do_it)
   {
@@ -1002,24 +1111,19 @@ import_single_table(const char *table_name)
       return false;
     //文件拷贝
     //普通表/以及.def文件的拷贝
-    sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
+    sprintf(buffer, "cp %s/%s.* %s", opt_file_dir_fi.c_str(), table_name, opt_data_dir_fi.c_str());
 
     r = system(buffer);
     if (r != 0)
       return false;
-    //分区表
-    sprintf(buffer, "cp %s/%s#P#* %s", opt_file_dir, table_name, opt_data_dir);
-    r = system(buffer);
 
     //修改文件的所有者
     if (opt_owner != NULL)
     {
-      sprintf(buffer, "chown %s %s/%s.*", opt_owner, opt_data_dir, table_name);
+      sprintf(buffer, "chown %s %s/%s.*", opt_owner, opt_data_dir_fi.c_str(), table_name);
       r = system(buffer);
       if (r != 0)
         return false;
-      sprintf(buffer, "chown %s %s/%s#P#*", opt_owner, opt_data_dir, table_name);
-      r = system(buffer);
     }
 
     //导入数据文件
@@ -1028,12 +1132,12 @@ import_single_table(const char *table_name)
     if (r != 0)
       return false;
     //清除工具所用的.def文件
-    sprintf(buffer, "rm %s/%s.def", opt_data_dir, table_name);
+    sprintf(buffer, "rm -rf %s/%s.def", opt_data_dir_fi.c_str(), table_name);
     r = system(buffer);
     if (r != 0)
       return false;
     //清除工具所用的.def文件
-    sprintf(buffer, "rm %s/%s*.cfg", opt_data_dir, table_name);
+    sprintf(buffer, "rm -rf %s/%s*.cfg", opt_data_dir_fi.c_str(), table_name);
     r = system(buffer);
     if (r != 0)
       return false;
@@ -1059,17 +1163,20 @@ import_start_binlog_repl()
 }
 
 bool
-import_tables(string *err)
+import_tables(const string &db_name, string *err)
 {
   bool succ;
-
   list<char *>::iterator iter;
+
+  succ = set_database(db_name);
+  if (!succ)
+    return false;
   iter = file_tables.begin();
   char *table_name = NULL;
   while (iter != file_tables.end())
   {
     table_name = *iter;
-    succ = import_single_table(table_name);
+    succ = import_single_table(db_name, table_name);
     if (!succ)
     {
       printf(buffer, "table %s importing failed.\n", table_name);
@@ -1097,39 +1204,39 @@ import_tables(string *err)
 }
 
 bool
-do_import()
+do_import(const int slave_flag)
 {
+  if (slave_flag == 1)
+  {
+    cout << "Can not execute on slave"<<endl;
+    return false;
+  }
   string err;
   bool succ = true;
-  switch (0)
+  list<char *>::iterator iter;
+  succ = import_get_file_databases(&err);
+  if (!succ)
+    return false;
+
+  iter = databases.begin();
+  string para_dbname;
+  while (iter != databases.end())
   {
-    case 0:
-      succ = import_check(&err);
-      if (!succ)
-        break;
-      succ = import_get_file_tables(&err);
-      if (!succ)
-        break;
-      succ = import_tables(&err);
-      break;
+    para_dbname = *iter;
+    succ = import_mk_db(para_dbname);
+    if (!succ)
+      return false;
+    succ = import_get_file_tables(para_dbname, &err);
+    if (!succ)
+      return false;
+    succ = import_tables(para_dbname, &err);
+    if (!succ)
+      return false;
+    iter++;
   }
   return succ;
 }
 
-bool
-set_database(string *err, const string db_name)
-{
-
-  sprintf(buffer, "use %s", db_name.c_str());
-  if (mysql_query(&mysql, buffer))
-  {
-    err->append("Error in setting database ");
-    err->append(opt_db);
-    err->append(".");
-    return false;
-  }
-  return true;
-}
 
 bool
 args_export_check(string *err)
@@ -1151,7 +1258,12 @@ args_check(string *err)
   //  err->append("MySQL database must be setted");
   //  return false;
   //}
-  //to do:check opt_data_dir/opt_file_dir existed
+  //to do:check opt_data_dir/opt_file_dir
+
+  if (opt_owner == NULL)
+  {
+    opt_owner=default_user;
+  }
   if (opt_data_dir == NULL || strlen(opt_data_dir) == 0)
   {
     err->append("datadir must be setted");
@@ -1162,6 +1274,7 @@ args_check(string *err)
     err->append("filedir must be setted");
     return false;
   }
+
   //bool succ = true;
   //if (op == OP_EXPORT) {
   //  succ = args_export_check(err);
@@ -1189,7 +1302,6 @@ int main(int argc, char *argv[])
   }
 
   string err;
-  list<char *>::iterator iter;
 
   bool succ = args_check(&err);
   if (!succ)
@@ -1203,55 +1315,21 @@ int main(int argc, char *argv[])
   is_slave = do_check_slave();
   if (is_slave == -1)
   {
-    cout << "Running SQL error!" << endl;
+    cout << "Executing SQL error!" << endl;
     exit(1);
   }
-
-  succ = get_databases();
-  if (!succ)
+  if (strcasecmp(opt_op, "export") == 0)
   {
-    cout << "Cannot get databases from server or options, please check manully!" << endl;
-    exit(1);
-  }
-  iter = databases.begin();
-  string para_dbname;
-  succ = export_flush_tables_with_read_lock(&err, is_slave);
-  if (!succ)
-  {
-    cout << " Flush tables with read lock error, please check manully!" << endl;
-    exit(1);
-  }
-  succ = export_show_master_status(&err);
-  if (!succ)
-  {
-    cout << " Show master status error, please check manully!" << endl;
-    exit(1);
-  }
-
-  while (iter != databases.end())
-  {
-    para_dbname = *iter;
-    succ = set_database(&err, para_dbname);
+    succ = do_export(is_slave);
     if (!succ)
-    {
-      cout << err << endl;
       exit(1);
-    }
-    succ = get_tables();
-    if (!succ)
-    {
-      cout << "failed when process exportting tables." << endl;
-      exit(1);
-    }
-    succ = do_export(para_dbname);
-    if (!succ)
-    {
-      cout << err << endl;
-      exit(1);
-    }
-    iter++;
   }
-  export_clean(is_slave);
+  else
+  {
+    succ = do_import(is_slave);
+    if (!succ)
+      exit(1);
+  }
 
   return 0;
 }
