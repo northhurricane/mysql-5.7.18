@@ -123,16 +123,16 @@ typedef table_buffer_struct table_buffer_t;
 
 struct db_struct
 {
-  db_name_t name
+  db_name_t name;
 };
-typedef  db_struct db_t;
+typedef db_struct db_t;
 
 #define MAX_DATABASE_BUFFER_SIZE (1024)
-struct  db_buffer_struct
+struct db_buffer_struct
 {
   int number;
   db_t databases[MAX_DATABASE_BUFFER_SIZE];
-  db_buffer_struct() { number = 0;}
+  db_buffer_struct() { number = 0; }
 };
 typedef db_buffer_struct db_buffer_t;
 
@@ -155,19 +155,22 @@ table_buffer_t table_buffer;
 
 static void usage(int version)
 {
-  cout<<my_progname<<" Ver "<<VER<<" Distrib "<<MYSQL_SERVER_VERSION<<", for "<<SYSTEM_TYPE<<"("<<MACHINE_TYPE<<")"<<endl;
+  cout << my_progname << " Ver " << VER << " Distrib " << MYSQL_SERVER_VERSION << ", for " << SYSTEM_TYPE << "("
+       << MACHINE_TYPE << ")" << endl;
 
   if (version)
     return;
   puts(HTP_WELCOME_COPYRIGHT_NOTICE("2013"));
-  cout<<"Usage: "<<my_progname<<" [OPTIONS] [database]"<<endl;
+  cout << "Usage: " << my_progname << " [OPTIONS] [database]" << endl;
   /*
     Turn default for zombies off so that the help on how to 
     turn them off text won't show up.
     This is safe to do since it's followed by a call to exit().
   */
-  for (struct my_option *optp = my_long_options; optp->name; optp++) {
-    if (optp->id == OPT_SECURE_AUTH) {
+  for (struct my_option *optp = my_long_options; optp->name; optp++)
+  {
+    if (optp->id == OPT_SECURE_AUTH)
+    {
       optp->def_value = 0;
       break;
     }
@@ -221,7 +224,8 @@ my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
                char *argument)
 {
-  switch (optid) {
+  switch (optid)
+  {
     /*  case 't':
     get_option_tables(opt_tables);
     break;*/
@@ -229,13 +233,16 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
       tty_password = 1;
       break;
     case 'o':
-      if (strcasecmp(opt_op, "export") == 0) {
+      if (strcasecmp(opt_op, "export") == 0)
+      {
         op = OP_EXPORT;
       }
-      else if (strcasecmp(opt_op, "import") == 0) {
+      else if (strcasecmp(opt_op, "import") == 0)
+      {
         op = OP_IMPORT;
       }
-      else {
+      else
+      {
       }
       break;
     case 'I':
@@ -253,7 +260,8 @@ static int get_options(int argc, char **argv)
   if ((ho_error = handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (argc != 0) {
+  if (argc != 0)
+  {
     usage(0);
     exit(1);
   }
@@ -368,16 +376,19 @@ sql_real_connect(const char *host, const char *user, const char *password)
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           NULL, opt_mysql_port, opt_mysql_unix_port,
-                          CLIENT_INTERACTIVE | CLIENT_MULTI_STATEMENTS)) {
-    if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
+                          CLIENT_INTERACTIVE | CLIENT_MULTI_STATEMENTS))
+  {
+    if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
+    {
       fprintf(stdout, "Please use --connect-expired-password option or " \
                            "invoke mysql in interactive mode.\n");
       return -1;
     }
     if ((mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
-        mysql_errno(&mysql) != CR_CONNECTION_ERROR)) {
+        mysql_errno(&mysql) != CR_CONNECTION_ERROR))
+    {
       //printf("error connect");
-      cout <<"error connect"<<endl;
+      cout << "error connect" << endl;
     }
     return -1;                    // Retryable
   }
@@ -426,16 +437,20 @@ sql_connect()
 {
   int try_count = 1;
 
-  while (true) {
+  while (true)
+  {
     int error = sql_real_connect(opt_host, opt_user, opt_password);
-    if (error != 0) {
-      if (try_count > MAX_RECONNECT_TIME) {
-        cout<<"fail to connect, try "<<MAX_RECONNECT_TIME<<" times!"<<mysql_error(&mysql);
+    if (error != 0)
+    {
+      if (try_count > MAX_RECONNECT_TIME)
+      {
+        cout << "fail to connect, try " << MAX_RECONNECT_TIME << " times!" << mysql_error(&mysql);
         exit(-1);
       }
       try_count++;
     }
-    else {
+    else
+    {
       break;
     }
   }
@@ -455,18 +470,21 @@ char buffer[1024 * 32];
 bool
 get_tables_from_db()
 {
-  table_buffer.number=0;
+  table_buffer.number = 0;
   tables.clear();
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
-  sprintf(buffer, "show tables");
+  sprintf(buffer, "show tables;");
   mysql_query(&mysql, buffer);
-  if (!(result = mysql_store_result(&mysql))) {
+  if (!(result = mysql_store_result(&mysql)))
+  {
     return false;
   }
-  else {
+  else
+  {
     int table_count = 0;
-    while ((row = mysql_fetch_row(result))) {
+    while ((row = mysql_fetch_row(result)))
+    {
       char *table_name = strdup_root(&hash_mem_root, (char *) row[0]);
       strcpy(table_buffer.tables[table_count].name, table_name);
       table_buffer.number++;
@@ -480,28 +498,33 @@ get_tables_from_db()
 }
 
 bool
-get_dbs_from_server()
+get_databases_from_server()
 {
-  database_buffer.number=0;
-  databases.clear()
+  database_buffer.number = 0;
+  databases.clear();
   string tmp_dbname;
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
   sprintf(buffer, "show databases;");
   mysql_query(&mysql, buffer);
-  if (!(result = mysql_store_result(&mysql))) {
+  if (!(result = mysql_store_result(&mysql)))
+  {
     return false;
   }
-  else {
+  else
+  {
     int db_count = 0;
-    while ((row = mysql_fetch_row(result))) {
+    while ((row = mysql_fetch_row(result)))
+    {
       char *db_name = strdup_root(&hash_mem_root, (char *) row[0]);
-      tmp_dbname=db_name
-      if((tmp_dbname.find("mysql") == string::npos) && (tmp_dbname.find("sys") == string::npos) && (tmp_dbname.find("performance_schema") == string::npos) && (tmp_dbname.find("information_schema") == string::npos))
+      tmp_dbname = db_name;
+      if ((tmp_dbname.find("mysql", 0) == string::npos) && (tmp_dbname.find("sys", 0) == string::npos)
+          && (tmp_dbname.find("performance_schema", 0) == string::npos)
+          && (tmp_dbname.find("information_schema", 0) == string::npos))
       {
         strcpy(database_buffer.databases[database_buffer.number].name, db_name);
-        database_buffer.number++;
         databases.push_back(database_buffer.databases[database_buffer.number].name);
+        database_buffer.number++;
       }
       db_count++;
     }
@@ -533,10 +556,14 @@ bool get_databases_from_option()
 }
 bool get_databases()
 {
+  bool succ;
   if (opt_db != NULL)
-    get_databases_from_option();
+    succ = get_databases_from_option();
   else
-    get_dbs_from_server();
+    succ = get_databases_from_server();
+  if (databases.empty())
+    succ = false;
+  return succ;
 }
 bool
 export_check(string *err)
@@ -544,20 +571,21 @@ export_check(string *err)
   return true;
 }
 
-
 static int export_show_master_status(string *err)
 {
   MYSQL_ROW row;
   MYSQL_RES *result;
   mysql_query(&mysql, "SHOW MASTER STATUS");
-  if (!(result = mysql_store_result(&mysql))) {
+  if (!(result = mysql_store_result(&mysql)))
+  {
     err->append(mysql_error(&mysql));
     return false;
   }
   sprintf(buffer, "%s/master.info", opt_file_dir);
   FILE *master_info = fopen(buffer, "w+");
   row = mysql_fetch_row(result);
-  if (row && row[0] && row[1]) {
+  if (row && row[0] && row[1])
+  {
     /* SHOW MASTER STATUS reports file and position */
     fprintf(master_info,
             "\n--\n-- Position to start replication or point-in-time "
@@ -572,62 +600,96 @@ static int export_show_master_status(string *err)
   return true;
 }
 
-static bool export_flush_tables_with_read_lock(string *err)
+static int do_check_slave()
+{
+  MYSQL_RES *result;
+  int r = mysql_query(&mysql, "SHOW SLAVE STATUS;");
+  if (r != 0)
+  {
+    return -1;
+  }
+
+  result = mysql_store_result(&mysql);
+  if (mysql_num_rows(result))
+  {
+    mysql_free_result(result);
+    return 1;
+  }
+  else
+    return 0;
+}
+static bool export_flush_tables_with_read_lock(string *err, int is_slave_flag)
 {
   /*
     flush tables with read lock
     锁定数据库，确保数据的一致性
   */
+
   int r = mysql_query(&mysql, "FLUSH TABLES");
-  if (r != 0) {
+  if (r != 0)
+  {
     err->append(mysql_error(&mysql));
     return false;
   }
   r = mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK");
-  if (r != 0) {
+  if (r != 0)
+  {
     err->append(mysql_error(&mysql));
     return false;
   }
   r = mysql_query(&mysql, "set global read_only=1;");
-  if (r != 0) {
+  if (r != 0)
+  {
     err->append(mysql_error(&mysql));
     return false;
   }
 
   r = mysql_query(&mysql, "set global super_read_only=1;");
-  if (r != 0) {
+  if (r != 0)
+  {
     err->append(mysql_error(&mysql));
     return false;
+  }
+  if (is_slave_flag)
+  {
+    r = mysql_query(&mysql, "stop slave;");
+    if (r != 0)
+    {
+      err->append(mysql_error(&mysql));
+      return false;
+    }
   }
   return true;
 }
 
 void signalHandler(int signum)
 {
-  count <<"Interrupt signal ("<< signum <<") received"<< endl;
-  exist(signum);
+  cout << "Interrupt signal (" << signum << ") received" << endl;
+  exit(signum);
 }
 
-
-bool check_frm_files(const char *opt_dir, const char *tbname)
+bool check_frm_files(const string opt_dir, const string tbname, int check_file)
 {
   char s[100];
-  string res=tbname+".frm";
+  DIR *dir;
+  string tmp_opt_dir = opt_dir;
+  string res = tbname;
+  res += ".frm";
   string tmp_filename;
   struct dirent *rent;
   //signal(SIGSEGV, signalHandler);
-  if ((dir = opendir(opt_dir)) == NULL)
+  if ((dir = opendir(tmp_opt_dir.c_str())) == NULL)
   {
-    cout<<"Open directory "<<opt_dir<<" error,please check manually!"<<endl;
+    //cout<<"Open directory "<<opt_dir<<" error,please check manually!"<<endl;
     return false;
   }
-
-  int cnt = 0;
-  while((rent = readdir(dir)))
+  if (!check_file)
+    return true;
+  while ((rent = readdir(dir)))
   {
     strcpy(s, rent->d_name);
-    tmp_filename=s;
-    if (s.find(res) != string::npos)
+    tmp_filename = s;
+    if (tmp_filename.find(res) != string::npos)
       return true;
   }
   return false;
@@ -652,8 +714,10 @@ export_snapshot_copy(string *err)
   char lv_pdir[256];
   char *index = opt_lv_name;
   char *last_pos = opt_lv_name;
-  while (*index != 0) {
-    if (*index == '/' && (*(index + 1) != 0)) {
+  while (*index != 0)
+  {
+    if (*index == '/' && (*(index + 1) != 0))
+    {
       last_pos = index;
     }
     index++;
@@ -662,7 +726,8 @@ export_snapshot_copy(string *err)
   strncpy(lv_pdir, opt_lv_name, lv_pdir_len);
 
   //加载
-  switch (0) {
+  switch (0)
+  {
     case 0:
       sprintf(buffer, "sudo mount %s/dbbackup %s", lv_pdir, opt_mount_dir);
       r = system(buffer);
@@ -691,28 +756,37 @@ export_snapshot_copy(string *err)
 }
 
 bool
-export_single_table(const char *table_name)
+export_single_table(const string &db_name, const string &table_name)
 {
   int r = 0;
   //锁定表，并生成.cfg文件
-  sprintf(buffer, "FLUSH TABLES %s FOR EXPORT;", table_name);
+  string opt_data_dir_fi = opt_data_dir;
+  string opt_file_dir_fi = opt_file_dir;
+  opt_data_dir_fi += "/";
+  opt_data_dir_fi += db_name;
+  opt_file_dir_fi += "/";
+  opt_file_dir_fi += db_name;
+
+  sprintf(buffer, "FLUSH TABLES %s FOR EXPORT;", table_name.c_str());
   r = mysql_query(&mysql, buffer);
   if (r != 0)
     return false;
 
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
-  sprintf(buffer, "show create table %s", table_name);
+  sprintf(buffer, "show create table %s", table_name.c_str());
   if ((r = mysql_query(&mysql, buffer)) != 0)
     return false;
-  if (!(result = mysql_store_result(&mysql))) {
+  if (!(result = mysql_store_result(&mysql)))
+  {
     return false;
   }
-  else {
+  else
+  {
     row = mysql_fetch_row(result);
     char *table_sql = strdup_root(&hash_mem_root, (char *) row[1]);
     char table_file[512];
-    sprintf(table_file, "%s/%s.def", opt_file_dir, table_name);
+    sprintf(table_file, "%s/%s.def", opt_file_dir_fi.c_str(), table_name.c_str());
     FILE *f = fopen(table_file, "w");
     fprintf(f, "%s", table_sql);
     fclose(f);
@@ -721,10 +795,11 @@ export_single_table(const char *table_name)
 
   //文件拷贝
   //普通表的拷贝
-  //sprintf(buffer, "cp %s/%s.* %s", opt_data_dir, table_name, opt_file_dir);
-  //r = system(buffer);
-  //if (r != 0)
-   // return false;
+  sprintf(buffer, "cp %s/%s.* %s/", opt_data_dir_fi.c_str(), table_name.c_str(), opt_file_dir_fi.c_str());
+
+  r = system(buffer);
+  if (r != 0)
+    return false;
 
   //清除锁，否则在下一次的flush将会报告错误
   sprintf(buffer, "UNLOCK TABLES;");
@@ -736,97 +811,91 @@ export_single_table(const char *table_name)
 }
 
 bool
-export_tables(string *err)
+export_tables(string *err, const string db_name)
 {
+  FILE *fstream;
   list<char *>::iterator iter;
+  string opt_file_dir_fi;
+  string cmd = "";
+  opt_file_dir_fi += opt_file_dir;
+  opt_file_dir_fi += "/";
+  opt_file_dir_fi += db_name;
   iter = tables.begin();
-  char *table_name = NULL;
+
+  if (!check_frm_files(opt_file_dir_fi, "", 0))
+  {
+    cmd += "mkdir  ";
+    cmd += opt_file_dir_fi;
+    fstream = NULL;
+    fstream = popen(cmd.c_str(), "w");
+    pclose(fstream);
+  }
+  string table_name;
   int exported_table_count = 0;
-  while (iter != tables.end()) {
+  while (iter != tables.end())
+  {
     table_name = *iter;
     bool succ;
-    succ = export_single_table(table_name);
-    if (succ) {
+    succ = export_single_table(db_name, table_name);
+    if (succ)
+    {
       exported_table_count++;
-      cout<<"table "<<table_name<<" exported"<<endl;
+      //cout<<"database "<<db_name<<" table "<<table_name<<" exported"<<endl;
     }
-    else {
-      cout<<"table "<<table_name<<" exporting failed"<<endl;
+    else
+    {
+      cout << "\033[32m" << "database " << db_name << " table " << table_name << " exporting failed" << "\n\033[0m"
+           << endl;
     }
-    iter++;
-  }
-  cout<<"totally "<<exported_table_count<<" tables exported"<<endl;
+    if (check_frm_files(opt_file_dir_fi, table_name, 1))
+    {
+      cmd = "";
+      cmd += "rm -rf ";
+      cmd += opt_file_dir_fi;
+      cmd += "/" + table_name + ".frm";
+      fstream = NULL;
+      fstream = popen(cmd.c_str(), "w");
+      pclose(fstream);
+    }
 
-  if (tables.size()) {
-    FILE *fstream = NULL;
-    char cmd[256] = {0};
-    strcat(cmd,"ls ");
-    strncat(cmd,opt_data_dir,strlen(opt_data_dir));
-    strcat(cmd, "/*.frm");
-    try {
-      fstream = popen(cmd,"r");
-    }
-    catch(...)
-    {
-      cout<<"No frm files found in directory "<<opt_data_dir<<endl;
-      return true;
-    }
-    pclose(fstream);
-    //删除.frm文件，防止在迁移时覆盖原有的frm文件
-    cmd[0]=0;
-    strcat(cmd,"rm -rf ");
-    strncat(cmd,opt_data_dir,strlen(opt_data_dir));
-    strcat(cmd,"/*.frm");
-    fstream = NULL;
-    try {
-      fstream = popen(cmd,"w");
-    }
-    catch(...)
-    {
-      cout<<"popen error!"<<endl;
-      return false;
-    }
-    pclose(fstream);
+    iter++;
+
   }
-  //bool succ = export_snapshot_copy(err);
-  //if (!succ)
-  //  return false;
+  cout << "database " << "\033[34m" << db_name << "\033[0m" << " totally " << "\033[34m" << exported_table_count
+       << "\033[0m" << " tables exported" << endl;
   return true;
 }
 
 void
-export_clean()
+export_clean(const int is_slave_flag)
 {
   int r = mysql_query(&mysql, "set global read_only=0;");
-  if (r != 0) {
+  if (r != 0)
+  {
   }
   r = mysql_query(&mysql, "set global super_read_only=0;");
-  if (r != 0) {
+  if (r != 0)
+  {
+  }
+  if (is_slave_flag)
+  {
+    r = mysql_query(&mysql, "start slave;");
   }
 }
 
 bool
-do_export()
+do_export(const string db_name)
 {
   string err;
   bool succ = true;
-  switch (0) {
+  switch (0)
+  {
     case 0:
-      succ = export_flush_tables_with_read_lock(&err);
-      if (!succ)
-        break;
-      succ = export_show_master_status(&err);
-      if (!succ)
-        break;
-      succ = export_check(&err);
-      if (!succ)
-        break;
-      succ = export_tables(&err);
+      succ = export_tables(&err, db_name);
       if (!succ)
         break;
       break;
   }
-  export_clean();
   return succ;
 }
 
@@ -841,19 +910,24 @@ table_buffer_t file_table_buffer;
 list<char *> file_tables;
 
 bool
-import_get_file_tables(string *err)
+import_get_file_tables(const string db_name, string *err)
 {
   int table_count = 0;
-
+  file_talbes.clear();
   struct dirent *ptr;
   DIR *dir;
+  string opt_file_dir_fi = "";
+  opt_file_dir_fi += "/";
+  opt_file_dir_fi += db_name;
   dir = opendir(opt_file_dir);
-  while ((ptr = readdir(dir)) != NULL) {
+  while ((ptr = readdir(dir)) != NULL)
+  {
     //跳过'.'和'..'两个目录
     if (ptr->d_name[0] == '.')
       continue;
     //printf("%s\n",ptr->d_name);
-    if (strstr(ptr->d_name, ".def") != NULL) {
+    if (strstr(ptr->d_name, ".def") != NULL)
+    {
       int len = strlen(ptr->d_name);
       strncpy(file_table_buffer.tables[table_count].name, ptr->d_name, len - 4);
       table_buffer.number++;
@@ -865,6 +939,13 @@ import_get_file_tables(string *err)
   return true;
 }
 
+bool import_get_file_databases(string *err)
+{
+  database_buffer.number = 0;
+  databases.clear();
+  DIR
+
+}
 bool
 import_single_table(const char *table_name)
 {
@@ -872,20 +953,24 @@ import_single_table(const char *table_name)
   iter = tables.begin();
   char *db_table_name = NULL;
   bool table_exist = false;
-  while (iter != tables.end()) {
+  while (iter != tables.end())
+  {
     db_table_name = *iter;
-    if (strcasecmp(table_name, db_table_name) == 0) {
+    if (strcasecmp(table_name, db_table_name) == 0)
+    {
       table_exist = true;
       break;
     }
     iter++;
   }
   bool do_it = false;
-  if (table_exist) {
+  if (table_exist)
+  {
     //是否覆盖原有表
     do_it = true;
   }
-  else {
+  else
+  {
     //判断是否为指定表倒入
     /*if (opt_tables != NULL && strlen(opt_tables) > 0)
     {
@@ -907,17 +992,18 @@ import_single_table(const char *table_name)
       do_it = true;
     }
   }
-  if (do_it) {
+  if (do_it)
+  {
     int r = 0;
     //锁定表，并生成.cfg文件
     sprintf(buffer, "ALTER TABLE %s DISCARD TABLESPACE;", table_name);
     r = mysql_query(&mysql, buffer);
     if (r != 0)
       return false;
-
     //文件拷贝
     //普通表/以及.def文件的拷贝
     sprintf(buffer, "cp %s/%s.* %s", opt_file_dir, table_name, opt_data_dir);
+
     r = system(buffer);
     if (r != 0)
       return false;
@@ -926,7 +1012,8 @@ import_single_table(const char *table_name)
     r = system(buffer);
 
     //修改文件的所有者
-    if (opt_owner != NULL) {
+    if (opt_owner != NULL)
+    {
       sprintf(buffer, "chown %s %s/%s.*", opt_owner, opt_data_dir, table_name);
       r = system(buffer);
       if (r != 0)
@@ -971,7 +1058,6 @@ import_start_binlog_repl()
   return true;
 }
 
-
 bool
 import_tables(string *err)
 {
@@ -980,26 +1066,31 @@ import_tables(string *err)
   list<char *>::iterator iter;
   iter = file_tables.begin();
   char *table_name = NULL;
-  while (iter != file_tables.end()) {
+  while (iter != file_tables.end())
+  {
     table_name = *iter;
     succ = import_single_table(table_name);
-    if (!succ) {
+    if (!succ)
+    {
       printf(buffer, "table %s importing failed.\n", table_name);
       break;
     }
-    else {
+    else
+    {
       printf(buffer, "table %s imported.\n", table_name);
     }
     iter++;
   }
-  if (!succ) {
+  if (!succ)
+  {
     sprintf(buffer, "table %s failed importing.\n", table_name);
     err->append(buffer);
     return false;
   }
 
   succ = import_start_binlog_repl();
-  if (!succ) {
+  if (!succ)
+  {
     err->append("failed start master binlog replication.\n");
   }
   return true;
@@ -1010,7 +1101,8 @@ do_import()
 {
   string err;
   bool succ = true;
-  switch (0) {
+  switch (0)
+  {
     case 0:
       succ = import_check(&err);
       if (!succ)
@@ -1027,8 +1119,10 @@ do_import()
 bool
 set_database(string *err, const string db_name)
 {
-  sprintf(buffer, "use %s", db_name);
-  if (mysql_query(&mysql, buffer)) {
+
+  sprintf(buffer, "use %s", db_name.c_str());
+  if (mysql_query(&mysql, buffer))
+  {
     err->append("Error in setting database ");
     err->append(opt_db);
     err->append(".");
@@ -1040,7 +1134,8 @@ set_database(string *err, const string db_name)
 bool
 args_export_check(string *err)
 {
-  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0) {
+  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
+  {
     err->append("lvname must be setted");
     return false;
   }
@@ -1052,16 +1147,18 @@ bool
 args_check(string *err)
 {
   //database must be setted
-  if (opt_db == NULL || strlen(opt_db) == 0) {
-    err->append("MySQL database must be setted");
-    return false;
-  }
+  //if (opt_db == NULL || strlen(opt_db) == 0) {
+  //  err->append("MySQL database must be setted");
+  //  return false;
+  //}
   //to do:check opt_data_dir/opt_file_dir existed
-  if (opt_data_dir == NULL || strlen(opt_data_dir) == 0) {
+  if (opt_data_dir == NULL || strlen(opt_data_dir) == 0)
+  {
     err->append("datadir must be setted");
     return false;
   }
-  if (opt_file_dir == NULL || strlen(opt_file_dir) == 0) {
+  if (opt_file_dir == NULL || strlen(opt_file_dir) == 0)
+  {
     err->append("filedir must be setted");
     return false;
   }
@@ -1081,44 +1178,80 @@ int main(int argc, char *argv[])
 {
   init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 65535, 0);
 
-  if (get_options(argc, (char **) argv)) {
+  if (get_options(argc, (char **) argv))
+  {
     exit(1);
   }
-  if (op == OP_INVALID) {
-    cout<<"Invalid operation input,Valid value is export or import"<<endl;
+  if (op == OP_INVALID)
+  {
+    cout << "Invalid operation input,Valid value is export or import" << endl;
     exit(1);
   }
 
   string err;
+  list<char *>::iterator iter;
 
   bool succ = args_check(&err);
-  if (!succ) {
+  if (!succ)
+  {
     cout << err << endl;
     exit(1);
   }
-
   sql_connect();
-  db_name_t
-  succ = set_database(&err, para_dbname);
-  if (!succ) {
-    cout << err << endl;
+
+  int is_slave = 1;
+  is_slave = do_check_slave();
+  if (is_slave == -1)
+  {
+    cout << "Running SQL error!" << endl;
     exit(1);
   }
 
-  succ = get_tables();
-  if (!succ) {
-    cout<<"failed when process exportting tables."<<endl;
+  succ = get_databases();
+  if (!succ)
+  {
+    cout << "Cannot get databases from server or options, please check manully!" << endl;
+    exit(1);
+  }
+  iter = databases.begin();
+  string para_dbname;
+  succ = export_flush_tables_with_read_lock(&err, is_slave);
+  if (!succ)
+  {
+    cout << " Flush tables with read lock error, please check manully!" << endl;
+    exit(1);
+  }
+  succ = export_show_master_status(&err);
+  if (!succ)
+  {
+    cout << " Show master status error, please check manully!" << endl;
     exit(1);
   }
 
-  if (op == OP_EXPORT)
-    succ = do_export();
-  else
-    succ = do_import();
-  if (!succ) {
-    cout << err << endl;
-    exit(1);
+  while (iter != databases.end())
+  {
+    para_dbname = *iter;
+    succ = set_database(&err, para_dbname);
+    if (!succ)
+    {
+      cout << err << endl;
+      exit(1);
+    }
+    succ = get_tables();
+    if (!succ)
+    {
+      cout << "failed when process exportting tables." << endl;
+      exit(1);
+    }
+    succ = do_export(para_dbname);
+    if (!succ)
+    {
+      cout << err << endl;
+      exit(1);
+    }
+    iter++;
   }
+  export_clean(is_slave);
 
   return 0;
 }
