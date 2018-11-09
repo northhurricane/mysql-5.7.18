@@ -48,7 +48,7 @@ static char *opt_file_dir = NULL;
 //static char *opt_tables = NULL;
 static port_op_t op = OP_INVALID;
 static char *opt_owner = NULL;
-static char default_user[]= "mysql";
+static char default_user[] = "mysql";
 
 static struct my_option my_long_options[] =
     {
@@ -838,12 +838,11 @@ set_database(const string db_name)
   return true;
 }
 
-
 bool
 do_export(const bool slave_flag)
 {
   string err;
-  bool succ ;
+  bool succ;
   list<char *>::iterator iter;
   succ = get_databases();
   if (!succ)
@@ -908,19 +907,19 @@ bool import_mk_db(const string &db_name)
   cmd += "%';";
   mysql_query(&mysql, cmd.c_str());
   result = mysql_store_result(&mysql);
-  if ((result != NULL) && (result->row_count !=0))
+  if ((result != NULL) && (result->row_count != 0))
   {
-    cout << "\033[31m" << db_name << "  already exists!" << "\033[0m"<< endl;
+    cout << "\033[31m" << db_name << "  already exists!" << "\033[0m" << endl;
     mysql_free_result(result);
     return false;
   }
   while (!mysql_next_result(&mysql))
   {
-    if (!(result= mysql_store_result(&mysql)))
+    if (!(result = mysql_store_result(&mysql)))
       break;
     mysql_free_result(result);
   }
-  cmd="create database " + db_name+";";
+  cmd = "create database " + db_name + ";";
   int r = mysql_query(&mysql, cmd.c_str());
   if (r != 0)
     return false;
@@ -965,21 +964,21 @@ bool import_get_file_databases(string *err)
 {
   database_buffer.number = 0;
   databases.clear();
-  DIR  *dir;
-  char s[100]={0};
+  DIR *dir;
+  char s[100] = {0};
   string tmp_filename;
   struct dirent *rent;
   if ((dir = opendir(opt_file_dir)) == NULL)
     return false;
-  while((rent = readdir(dir)))
+  while ((rent = readdir(dir)))
   {
-    strncpy(s, rent->d_name,strlen(rent->d_name));
-    s[strlen(rent->d_name)]=0;
+    strncpy(s, rent->d_name, strlen(rent->d_name));
+    s[strlen(rent->d_name)] = 0;
     tmp_filename = s;
     if (s[0] == '.')
       continue;
     transform(tmp_filename.begin(), tmp_filename.end(), tmp_filename.begin(), ::tolower);
-    if((tmp_filename.find("db",0) != string::npos ))
+    if ((tmp_filename.find("db", 0) != string::npos))
     {
       strcpy(database_buffer.databases[database_buffer.number].name, s);
       databases.push_back(database_buffer.databases[database_buffer.number].name);
@@ -1016,21 +1015,21 @@ import_single_table(const string &db_name, const char *table_name)
   }
   else
   {
-      //未指定倒入表，所以是整库导入，导入当前的文件表
-      //在数据库中创建该表
-      opt_data_dir_fi += "/";
-      opt_data_dir_fi += db_name;
-      opt_file_dir_fi += "/";
-      opt_file_dir_fi += db_name;
-      int r = 0;
-      sprintf(buffer, "%s/%s%s", opt_file_dir_fi.c_str(), table_name, ".def");
-      FILE *f = fopen(buffer, "r");
-      fread(buffer, 1, sizeof(buffer), f);
-      fclose(f);
-      r = mysql_query(&mysql, buffer);
-      if (r != 0)
-        return false;
-      do_it = true;
+    //未指定倒入表，所以是整库导入，导入当前的文件表
+    //在数据库中创建该表
+    opt_data_dir_fi += "/";
+    opt_data_dir_fi += db_name;
+    opt_file_dir_fi += "/";
+    opt_file_dir_fi += db_name;
+    int r = 0;
+    sprintf(buffer, "%s/%s%s", opt_file_dir_fi.c_str(), table_name, ".def");
+    FILE *f = fopen(buffer, "r");
+    fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+    r = mysql_query(&mysql, buffer);
+    if (r != 0)
+      return false;
+    do_it = true;
   }
   if (do_it)
   {
@@ -1139,7 +1138,7 @@ do_import(const int slave_flag)
 {
   if (slave_flag == 1)
   {
-    cout << "Can not execute on slave"<<endl;
+    cout << "Can not execute on slave" << endl;
     return false;
   }
   string err;
@@ -1169,7 +1168,6 @@ do_import(const int slave_flag)
   return succ;
 }
 
-
 bool
 args_check(string *err)
 {
@@ -1182,7 +1180,7 @@ args_check(string *err)
 
   if (opt_owner == NULL)
   {
-    opt_owner=default_user;
+    opt_owner = default_user;
   }
   if (opt_data_dir == NULL || strlen(opt_data_dir) == 0)
   {
