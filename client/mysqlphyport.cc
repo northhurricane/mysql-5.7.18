@@ -1184,12 +1184,12 @@ import_tables(const string &db_name, string *err)
     succ = import_single_table(db_name, table_name);
     if (!succ)
     {
-      printf(buffer, "table %s importing failed.\n", table_name);
+      sprintf(buffer, "table %s importing failed.\n", table_name);
       break;
     }
     else
     {
-      printf(buffer, "table %s imported.\n", table_name);
+      sprintf(buffer, "table %s imported.\n", table_name);
     }
     iter++;
   }
@@ -1228,6 +1228,7 @@ do_import(const int slave_flag)
   while (iter != databases.end())
   {
     para_dbname = *iter;
+    cout << "Do import for database " << "\033[34m" << para_dbname << "\033[0m" << endl;
     succ = import_mk_db(para_dbname);
     if (!succ)
       return false;
