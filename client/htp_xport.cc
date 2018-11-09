@@ -47,10 +47,6 @@ static char *opt_data_dir = NULL;
 static char *opt_file_dir = NULL;
 //static char *opt_tables = NULL;
 static port_op_t op = OP_INVALID;
-static uint opt_lv_size = 128;
-static char *opt_lv_name = NULL;
-static char *opt_mount_dir = NULL;
-static char *opt_lv_data_dir = NULL;
 static char *opt_owner = NULL;
 static char default_user[]= "mysql";
 
@@ -90,16 +86,6 @@ static struct my_option my_long_options[] =
          &opt_file_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
         /*  {"tables", 't', "Port tables.", &opt_tables,
             &opt_tables, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},*/
-        {"lvname", 'l', "lvm name.", &opt_lv_name,
-         &opt_lv_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-        {"lvsize", 's', "lvm size in GiB.", &opt_lv_size,
-         &opt_lv_size, 0, GET_UINT, REQUIRED_ARG, 64, 0, 0, 0, 0,
-         0},
-        {"mount", 'm', "mount lvm dir.", &opt_mount_dir,
-         &opt_mount_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-        {"lvmdata", 'L', "Mounted lvm MySQL data dir from which data copied",
-         &opt_lv_data_dir,
-         &opt_lv_data_dir, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
         {"owner", 'O', "change files' ownership to owner",
          &opt_owner, &opt_owner, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -696,66 +682,6 @@ bool check_frm_files(const string opt_dir, const string tbname, int check_file)
   }
   return false;
 }
-/*
-  该部分存在可能的问题，lvcreate中关联的目录是按照携程现有的目录结构所设计。在
-  更加通用的环境下，目录的适配没有进行验证。该部分是应该被重点关注改进的。
-  dbbackup是我们内部使用目录，是否需要进行灵活性配置，或者将用户屏蔽于该细节
-  之外，能否将用户屏蔽于该细节之外？
-  /data-backup目录也是如同dbbackup一样，是固定目录
- */
-bool
-export_snapshot_copy(string *err)
-{
-  //创建逻辑卷的快照（-s表示快照的意思）
-  sprintf(buffer, "sudo lvcreate -L%dG -s -n dbbackup %s", opt_lv_size, opt_lv_name);
-  int r = system(buffer);
-  if (r != 0)
-    return false;
-
-  //进行快照的加载
-  char lv_pdir[256];
-  char *index = opt_lv_name;
-  char *last_pos = opt_lv_name;
-  while (*index != 0)
-  {
-    if (*index == '/' && (*(index + 1) != 0))
-    {
-      last_pos = index;
-    }
-    index++;
-  }
-  int lv_pdir_len = last_pos - opt_lv_name;
-  strncpy(lv_pdir, opt_lv_name, lv_pdir_len);
-
-  //加载
-  switch (0)
-  {
-    case 0:
-      sprintf(buffer, "sudo mount %s/dbbackup %s", lv_pdir, opt_mount_dir);
-      r = system(buffer);
-      if (r == 0) //mount success
-        break;
-      sprintf(buffer, "sudo mount -o nouuid %s/dbbackup %s", lv_pdir, opt_mount_dir);
-      r = system(buffer);
-      if (r != 0)
-        return false;
-      break;
-  }
-
-  //拷贝数据
-  sprintf(buffer, "cp %s/* %s", opt_lv_data_dir, opt_file_dir);
-  r = system(buffer);
-  sprintf(buffer, "rm %s/*.frm", opt_file_dir);
-  r = system(buffer);
-  //umount/lvremove
-  sprintf(buffer, "sudo umount %s", opt_mount_dir);
-  r = system(buffer);
-  sprintf(buffer, "sudo lvremove -f %s/dbbackup", lv_pdir);
-  r = system(buffer);
-  if (r != 0)
-    return false;
-  return true;
-}
 
 bool
 export_single_table(const string &db_name, const string &table_name)
@@ -1243,18 +1169,6 @@ do_import(const int slave_flag)
   return succ;
 }
 
-
-bool
-args_export_check(string *err)
-{
-  if (opt_lv_name == NULL || strlen(opt_lv_name) == 0)
-  {
-    err->append("lvname must be setted");
-    return false;
-  }
-
-  return true;
-}
 
 bool
 args_check(string *err)
