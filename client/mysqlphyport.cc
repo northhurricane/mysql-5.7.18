@@ -988,7 +988,12 @@ bool import_mk_db(const string &db_name)
     mysql_free_result(result);
     return false;
   }
-  mysql_free_result(result);
+  while (!mysql_next_result(&mysql))
+  {
+    if (!(result= mysql_store_result(&mysql)))
+      break;
+    mysql_free_result(result);
+  }
   cmd="create database " + db_name+";";
   int r = mysql_query(&mysql, cmd.c_str());
   if (r != 0)
