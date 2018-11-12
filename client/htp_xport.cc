@@ -458,7 +458,7 @@ char buffer[1024 * 32];
 bool
 get_tables_from_db()
 {
-  table_buffer.number = 0;
+  table_buffer.number = 1 ;
   tables.clear();
   MYSQL_RES *result = NULL;
   MYSQL_ROW row;
@@ -488,7 +488,7 @@ get_tables_from_db()
 bool
 get_databases_from_server()
 {
-  database_buffer.number = 0;
+  database_buffer.number = 1;
   databases.clear();
   string tmp_dbname;
   MYSQL_RES *result = NULL;
@@ -510,8 +510,8 @@ get_databases_from_server()
           && (tmp_dbname.find("performance_schema", 0) == string::npos)
           && (tmp_dbname.find("information_schema", 0) == string::npos))
       {
-        strcpy(database_buffer.databases[database_buffer.number].name, db_name);
-        databases.push_back(database_buffer.databases[database_buffer.number].name);
+        strcpy(database_buffer.databases[database_buffer.number - 1].name, db_name);
+        databases.push_back(database_buffer.databases[database_buffer.number - 1].name);
         database_buffer.number++;
       }
       db_count++;
@@ -962,7 +962,7 @@ import_get_file_tables(const string db_name, string *err)
 
 bool import_get_file_databases(string *err)
 {
-  database_buffer.number = 0;
+  database_buffer.number = 1;
   databases.clear();
   DIR *dir;
   char s[100] = {0};
@@ -975,15 +975,34 @@ bool import_get_file_databases(string *err)
     strncpy(s, rent->d_name, strlen(rent->d_name));
     s[strlen(rent->d_name)] = 0;
     tmp_filename = s;
-    if (s[0] == '.')
+    if (s[0] == '.' || tmp_filename.find("master.info") != string::npos)
       continue;
     transform(tmp_filename.begin(), tmp_filename.end(), tmp_filename.begin(), ::tolower);
-    if ((tmp_filename.find("db", 0) != string::npos))
+    strcpy(database_buffer.databases[database_buffer.number - 1].name, s);
+    databases.push_back(database_buffer.databases[database_buffer.number - 1].name);
+    database_buffer.number++;
+  }
+  if (opt_db != NULL)
+  {
+    list<char *>::iterator iter;
+    iter = databases.begin();
+    string opt_database_name = opt_db;
+    string tmp_databases_name;
+    while (iter != databases.end())
     {
-      strcpy(database_buffer.databases[database_buffer.number].name, s);
-      databases.push_back(database_buffer.databases[database_buffer.number].name);
-      database_buffer.number++;
+      tmp_databases_name = *iter;
+      if (tmp_databases_name.find(opt_database_name,0) != string::npos)
+      {
+        database_buffer.number = 1;
+        strcpy(database_buffer.databases[database_buffer.number -1].name, opt_db);
+        databases.clear();
+        databases.push_back(database_buffer.databases[database_buffer.number -1].name);
+        return true;
+      }
+      iter++;
     }
+    cout << "\033[31m" << "Database " <<  opt_db << "'s backup files not found!" << "\033[0m" << endl;
+    return false;
   }
   return true;
 }
