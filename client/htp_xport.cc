@@ -808,6 +808,10 @@ export_clean(const int is_slave_flag)
   if (is_slave_flag)
   {
     r = mysql_query(&mysql, "start slave;");
+    if (r !=0)
+    {
+      cout << "error!" <<endl;
+    }
   }
 }
 bool
@@ -1098,16 +1102,17 @@ import_single_table(const string &db_name, const char *table_name)
 bool
 import_start_binlog_repl()
 {
-  int r = 0;
+  //int r = 0;
   sprintf(buffer, "%s/master.info", opt_file_dir);
   FILE *f = fopen(buffer, "r");
   if (f == NULL)
     return false;
   fread(buffer, 1, sizeof(buffer), f);
   fclose(f);
-  r = mysql_query(&mysql, buffer);
-  if (r != 0)
-    return false;
+  cout << "Master info in Replication:" << buffer <<endl;
+  //r = mysql_query(&mysql, buffer);
+  //if (r != 0)
+  //  return false;
   return true;
 }
 
