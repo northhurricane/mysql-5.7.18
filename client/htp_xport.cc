@@ -1103,13 +1103,14 @@ bool
 import_start_binlog_repl()
 {
   //int r = 0;
-  sprintf(buffer, "%s/master.info", opt_file_dir);
-  FILE *f = fopen(buffer, "r");
+  char repl_buffer[1032 * 32]={0};
+  sprintf(repl_buffer, "%s/master.info", opt_file_dir);
+  FILE *f = fopen(repl_buffer, "r");
   if (f == NULL)
     return false;
-  fread(buffer, 1, sizeof(buffer), f);
+  fread(repl_buffer, 1, sizeof(repl_buffer), f);
   fclose(f);
-  cout << "Master info in Replication:" << buffer <<endl;
+  cout << "Master info in Replication:" << repl_buffer <<endl;
   //r = mysql_query(&mysql, buffer);
   //if (r != 0)
   //  return false;
@@ -1149,11 +1150,11 @@ import_tables(const string &db_name, string *err)
     return false;
   }
 
-  succ = import_start_binlog_repl();
-  if (!succ)
-  {
-    err->append("failed start master binlog replication.\n");
-  }
+//  succ = import_start_binlog_repl();
+//  if (!succ)
+//  {
+//    err->append("failed start master binlog replication.\n");
+//  }
   return true;
 }
 
@@ -1188,6 +1189,12 @@ do_import(const int slave_flag)
     if (!succ)
       return false;
     iter++;
+  }
+  succ = import_start_binlog_repl();
+  if (!succ)
+  {
+    cout << "failed start master binlog replication." << endl;
+    return false;
   }
   return succ;
 }
