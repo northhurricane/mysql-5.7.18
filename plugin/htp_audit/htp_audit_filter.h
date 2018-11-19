@@ -178,10 +178,10 @@ void htp_audit_deinit_lock();
 #define HTP_AUDIT_EVENT_QUERY_SUB_NESTED_STATUS_END "nested end"
 
 // startup events
-#define HTP_AUDIT_EVENT_STARTUP_CLASS "startup"
+#define HTP_AUDIT_EVENT_STARTUP_CLASS "server startup"
 
 //shutdown events
-#define HTP_AUDIT_EVENT_SHUTDOWN_CLASS "shutdown"
+#define HTP_AUDIT_EVENT_SHUTDOWN_CLASS "server shutdown"
 
 //stored program events
 #define HTP_AUDIT_EVENT_STORED_PROGRAM_CLASS "stored program"

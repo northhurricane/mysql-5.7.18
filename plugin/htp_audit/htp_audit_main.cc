@@ -125,6 +125,13 @@ static int htp_audit_rules_from_config(config_group_t *group)
         return -1;
       }
       strncpy(filter_item.command, config_item->value, config_item->value_len);
+      if (strcasecmp(filter_item.command,"query") !=0 && strcasecmp(filter_item.command,"execute") !=0)
+      {
+        htp_audit_logf(HTP_AUDIT_LOG_LEVEL_ERROR,
+                       "command can only be setted to query or execute",
+                       group->number);
+        return -1;
+      }
       filter_item.command[config_item->value_len] = 0;
       filter_item.command_length = config_item->value_len;
       filter_item.command_setted = true;

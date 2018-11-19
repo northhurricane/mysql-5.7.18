@@ -4,7 +4,6 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <string.h>
-//#include "ctrip_audit.h"
 #include "htp_audit_filter.h"
 #include "htp_audit_vars.h"
 #include "cJSON.h"
@@ -145,7 +144,7 @@ void audit_connection_change_user(const struct mysql_event_connection *event)
 
 void audit_connection_pre_authenticate(const struct mysql_event_connection *event)
 {
-  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_CONNECTION_AUTHENTICATE);
+  DBUG_ASSERT(event->event_subclass == MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE);
 
   char current_str[100];
   //to do : 获取当前时间
