@@ -1562,19 +1562,24 @@ static int htp_audit_add_rule_validate(
         success = false;
         break;
       }
-
       filter_item_t item;
       htp_audit_init_filter_item(&item);
 
-      htp_audit_parse_filter(dup_str, &item);
+      if (htp_audit_parse_filter(dup_str, &item) == -1)
+      {
+        success = false;
+        break;
+      }
+
       if (htp_audit_find_filter_by_name(item.name) != -1)
         success = false;
 
-      *static_cast<const char **>(save) = input;
-      free(dup_str);
   }
 
   htp_audit_unlock_filter_and_var();
+  
+  *static_cast<const char **>(save) = input;
+  free(dup_str);
   if (success)
     return (0);
 

@@ -725,8 +725,8 @@ htp_audit_get_kv_unit(const char *current, const char **next, const char **k, in
   *k_len = k_counter;
 
   if (strncasecmp(key, HTP_AUDIT_RULE_KEY_EVENT, k_counter) == 0) {
-    while (*index != 0) {
-      if (*index == ';' && (*(index + 1) == 's' || *(index + 1) == 'c'))
+    while (*index != 0 ) {
+      if (*index == ';' && (*(index + 1) != '{'))
         break;
       v_counter++;
       index++;
@@ -822,7 +822,7 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
     if (v_len >= MAX_FILTER_COMMAND_BUFFER_SIZE)
       return -1;
     strncpy(item->command, value, v_len);
-    if (strcasecmp(item->command,"query") != 0 &&  strcasecmp(item->command,"execute") != 0)
+    if (strcasecmp(item->command,"query") !=0 && strcasecmp(item->command,"execute") !=0 )
       return -1;
     item->command[v_len] = 0;
     item->command_length = v_len;
