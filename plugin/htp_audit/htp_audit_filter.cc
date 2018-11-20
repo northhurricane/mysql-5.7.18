@@ -49,16 +49,16 @@ htp_audit_logf(
 
   switch (level) {
     case HTP_AUDIT_LOG_LEVEL_INFO:
-      sql_print_information("Ctrip Audit: %s", str);
+      sql_print_information("Htp Audit: %s", str);
       break;
     case HTP_AUDIT_LOG_LEVEL_WARN:
-      sql_print_warning("Ctrip Audit: %s", str);
+      sql_print_warning("Htp Audit: %s", str);
       break;
     case HTP_AUDIT_LOG_LEVEL_ERROR:
-      sql_print_error("Ctrip Audit: %s", str);
+      sql_print_error("Htp Audit: %s", str);
       break;
     case HTP_AUDIT_LOG_LEVEL_FATAL:
-      sql_print_error("Ctrip Audit: %s", str);
+      sql_print_error("Htp Audit: %s", str);
       break;
   }
 
@@ -822,6 +822,8 @@ static int htp_audit_parse_kv_unit(const char *current, const char **next, filte
     if (v_len >= MAX_FILTER_COMMAND_BUFFER_SIZE)
       return -1;
     strncpy(item->command, value, v_len);
+    if (strcasecmp(item->command,"query") != 0 &&  strcasecmp(item->command,"execute") != 0)
+      return -1;
     item->command[v_len] = 0;
     item->command_length = v_len;
   }
