@@ -329,8 +329,12 @@ static int htp_audit_read_config_and_init_env()
 
   config = config_read(config_file);
   if (config == NULL)
+  {
+    strcpy(htp_audit_log_file,"htp_audit.log");
+    strcpy(htp_audit_error_log_file,"htp_audit_error.log");
+    enable_buffer = 1;
     return (0);
-
+  }
   ret = htp_audit_init_env_from_config(config);
 
   if (config->group_amount == 0)
