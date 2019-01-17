@@ -63,7 +63,7 @@ string get_page_type(uint16_t type)
   return "";
 }
 
-void read_fil_head(void *page, fil_head_t *head)
+void ibt_read_fil_head(void *page, fil_head_t *head)
 {
   //mach_read_from_4(page + FIL_PAGE_OFFSET);
   uint8_t* p = (uint8_t*)page;
@@ -75,26 +75,25 @@ void read_fil_head(void *page, fil_head_t *head)
   head->file_lsn = mach_read_from_8(p + FIL_PAGE_FILE_FLUSH_LSN);
 }
 
-void print_fil_head(fil_head_t *fil_head)
+void ibt_print_fil_head(fil_head_t *fil_head)
 {
   string page_type = get_page_type(fil_head->type);
   cout
   << "page fil head info : \n"
-  << "-page offset : " << fil_head->page_offset
-  << "-page prev : " << fil_head->page_prev
-  << "-page next : " << fil_head->page_next
-  << "-page lsn : " << fil_head->page_lsn
-  << "-page type : " << page_type
+  << "-page offset : " << fil_head->page_offset << "\n"
+  << "-page prev : " << fil_head->page_prev << "\n"
+  << "-page next : " << fil_head->page_next << "\n"
+  << "-page lsn : " << fil_head->page_lsn << "\n"
+  << "-page type : " << page_type << "\n"
   << endl;
 }
 
-int
-print_page_info(void *page, uint16_t page_size)
+int ibt_print_page_info(void *page, uint16_t page_size)
 {
   fil_head_t fil_head;
 
-  read_fil_head(page, &fil_head);
-  print_fil_head(&fil_head);
+  ibt_read_fil_head(page, &fil_head);
+  ibt_print_fil_head(&fil_head);
   /*  switch (fil_head.type)
   {
     case 
@@ -108,7 +107,7 @@ uint8_t page_buffer[64 * 1024];
 
 int ibtool_main(int argc, const char *argv[])
 {
-  const char * file = "";
+  const char * file = "/home/jiangyx/mywork/app/mysql-5.7.18/data/tdb1/t1.ibd";
   int flag = 0;
   int fd = open(file, flag);
 
@@ -119,6 +118,7 @@ int ibtool_main(int argc, const char *argv[])
 
   uint16_t page_size = 1024 * 16;
   read(fd, page_buffer, page_size);
+  ibt_print_page_info(page_buffer, page_size);
 
   return 0;
 }
