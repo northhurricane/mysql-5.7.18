@@ -450,6 +450,10 @@ ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
+SET(IBTOOL_SOURCE ibtool_main.cc ${DTRACE_PROBES_ALL})
+MYSQL_ADD_EXECUTABLE(ibtool ${IBTOOL_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+TARGET_LINK_LIBRARIES(ibtool innobase  sql binlog slave mysys mysys_ssl dbug regex strings vio binlogevents_static rpl master slave)
+
 OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
 MARK_AS_ADVANCED(DEBUG_EXTNAME)
 
