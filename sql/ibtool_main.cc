@@ -1,9 +1,8 @@
 #include <stdint.h>
 
-int print_page_info(void *page, uint16_t page_size);
+int ibtool_main(int argc, const char *argv[]);
 
 int main(int argc, const char *argv[])
 {
-  print_page_info(0, 16 * 1024);
-  return 0;
+  return ibtool_main(argc, argv);
 }

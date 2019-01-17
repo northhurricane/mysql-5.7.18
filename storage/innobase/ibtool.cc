@@ -103,3 +103,12 @@ print_page_info(void *page, uint16_t page_size)
 
   return 0;
 }
+
+int ibtool_main(int argc, const char *argv[])
+{
+  char * file = "";
+  int flag = 0;
+  int fd = open(file, flag);
+
+  return 0;
+}
