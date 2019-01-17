@@ -104,11 +104,21 @@ print_page_info(void *page, uint16_t page_size)
   return 0;
 }
 
+uint8_t page_buffer[64 * 1024];
+
 int ibtool_main(int argc, const char *argv[])
 {
-  char * file = "";
+  const char * file = "";
   int flag = 0;
   int fd = open(file, flag);
+
+  if (fd < 0)
+  {
+    exit(-1);
+  }
+
+  uint16_t page_size = 1024 * 16;
+  read(fd, page_buffer, page_size);
 
   return 0;
 }
