@@ -3,8 +3,18 @@
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "log0types.h"
+#include "fil0fil.h"
+#include <stdlib.h>
 
 using namespace std;
+
+//copied from flst_read_addr without mtr
+void
+flst_read_addr_raw(void *paddr, fil_addr_t *addr)
+{
+  addr->page = mach_read_from_4((uint8_t*)paddr + FIL_ADDR_PAGE);
+  addr->boffset = mach_read_from_4((uint8_t*)paddr + FIL_ADDR_BYTE);
+}
 
 struct fil_head_struct
 {
@@ -88,17 +98,101 @@ void ibt_print_fil_head(fil_head_t *fil_head)
   << endl;
 }
 
+struct fsp_struct
+{
+  uint32_t space_id;
+  uint32_t space_size;
+  uint32_t free_limit;
+  uint32_t flags;
+  uint32_t frag_n_used;
+  fil_addr_t free;
+  fil_addr_t free_frag;
+  fil_addr_t full_frag;
+  uint8_t seg_id;
+  fil_addr_t seg_inode_full;
+  fil_addr_t seg_inode_free;
+};
+typedef fsp_struct fsp_t;
+
+void
+ibt_read_fsp_hdr(void *page, fsp_t *fsp)
+{
+  uint8_t *fsp_head = (uint8_t*)page + FSP_HEADER_OFFSET;
+  fsp->space_id = mach_read_from_4(FSP_SPACE_ID + fsp_head);
+  fsp->space_size = mach_read_from_4(fsp_head + FSP_SIZE);
+  fsp->free_limit = mach_read_from_4(fsp_head + FSP_FREE_LIMIT);
+  fsp->flags = mach_read_from_4(FSP_SPACE_FLAGS + fsp_head);
+  fsp->frag_n_used = mach_read_from_4(FSP_FRAG_N_USED + fsp_head);
+  flst_read_addr_raw(fsp_head + FSP_FREE, &fsp->free);
+  flst_read_addr_raw(fsp_head + FSP_FREE_FRAG, &fsp->free_frag);
+  flst_read_addr_raw(fsp_head + FSP_FULL_FRAG, &fsp->full_frag);
+  fsp->seg_id = mach_read_from_8(fsp_head + FSP_SEG_ID);
+  flst_read_addr_raw(fsp_head + FSP_SEG_INODES_FULL, &fsp->seg_inode_full);
+  flst_read_addr_raw(fsp_head + FSP_SEG_INODES_FREE, &fsp->seg_inode_free);
+}
+
+void ibt_print_fsp_flags(uint32_t flags)
+{
+  /*char buf[128];
+  itoa(flags, buf, 2);
+  cout << "-flags : " << buf << "\n";*/
+}
+
+void ibt_print_fsp_hdr(fsp_t *fsp)
+{
+  cout
+  << "fsp head info : \n"
+  << "-space id : " << fsp->space_id << "\n"
+  << "-space size : " << fsp->space_size << "\n"
+  << "-free limit : " << fsp->free_limit << "\n";
+  ibt_print_fsp_flags(fsp->flags);
+  cout
+  << "-free : " << fsp->free.page << ":" << fsp->free.boffset << "\n"
+  << "-free frag : " << fsp->free_frag.page << ":" << fsp->free_frag.boffset << "\n"
+  << "-full frag : " << fsp->full_frag.page << ":" << fsp->full_frag.boffset << "\n"
+  << "-seg id : " << fsp->seg_id
+  << "-inode full : " << fsp->seg_inode_full.page
+  << ":" << fsp->seg_inode_full.boffset << "\n"
+  << "-inode free : " << fsp->seg_inode_free.page
+  << ":" << fsp->seg_inode_free.boffset << "\n"
+  << endl;
+}
+
 int ibt_print_page_info(void *page, uint16_t page_size)
 {
   fil_head_t fil_head;
 
   ibt_read_fil_head(page, &fil_head);
   ibt_print_fil_head(&fil_head);
-  /*  switch (fil_head.type)
+  switch (fil_head.type)
   {
-    case 
+  case FIL_PAGE_INDEX:
+  case FIL_PAGE_RTREE:
+  case FIL_PAGE_UNDO_LOG:
+  case FIL_PAGE_INODE:
+  case FIL_PAGE_IBUF_FREE_LIST:
+  case FIL_PAGE_IBUF_BITMAP:
+  case FIL_PAGE_TYPE_SYS:
+  case FIL_PAGE_TYPE_TRX_SYS:
+    break;
+  case FIL_PAGE_TYPE_FSP_HDR:
+    fsp_t fsp;
+    ibt_read_fsp_hdr(page, &fsp);
+    ibt_print_fsp_hdr(&fsp);
+    break;
+  case FIL_PAGE_TYPE_XDES:
+  case FIL_PAGE_TYPE_BLOB:
+  case FIL_PAGE_TYPE_ZBLOB:
+  case FIL_PAGE_TYPE_ZBLOB2:
+  case FIL_PAGE_TYPE_UNKNOWN:
+  case FIL_PAGE_COMPRESSED:
+  case FIL_PAGE_ENCRYPTED:
+  case FIL_PAGE_COMPRESSED_AND_ENCRYPTED:
+  case FIL_PAGE_ENCRYPTED_RTREE:
+    break;
+  default:
+    assert(false); //sanity check fail
   }
-  */
 
   return 0;
 }
@@ -119,6 +213,9 @@ int ibtool_main(int argc, const char *argv[])
   uint16_t page_size = 1024 * 16;
   read(fd, page_buffer, page_size);
   ibt_print_page_info(page_buffer, page_size);
+
+
+  close(fd);
 
   return 0;
 }
