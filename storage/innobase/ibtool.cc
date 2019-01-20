@@ -1,4 +1,6 @@
 #include <iostream>
+#include <string>
+#include <sstream>
 #include <stdint.h>
 #include "fil0fil.h"
 #include "fsp0fsp.h"
@@ -8,13 +10,29 @@
 
 using namespace std;
 
+struct flst_base_node_struct
+{
+  uint32_t len;
+  fil_addr_t first;
+  fil_addr_t last;
+};
+typedef struct flst_base_node_struct flst_base_node2_t;
+
 //copied from flst_read_addr without mtr
 void
-flst_read_addr_raw(void *paddr, fil_addr_t *addr)
+flst_read_addr_raw(uint8_t *paddr, fil_addr_t *addr)
 {
-  //TODO : 该函数现在是错误的是，flst
+  //TODO : 该函数现在是错误的是，flst的格式不是如此
   addr->page = mach_read_from_4((uint8_t*)paddr + FIL_ADDR_PAGE);
-  addr->boffset = mach_read_from_4((uint8_t*)paddr + FIL_ADDR_BYTE);
+  addr->boffset = mach_read_from_2((uint8_t*)paddr + FIL_ADDR_BYTE);
+}
+
+void
+flst_read_base_node(uint8_t *p, flst_base_node2_t *base_node)
+{
+  base_node->len = mach_read_from_4(p + FLST_LEN);
+  flst_read_addr_raw(p + FLST_FIRST, &base_node->first);
+  flst_read_addr_raw(p + FLST_LAST, &base_node->last);
 }
 
 struct fil_head_struct
@@ -106,12 +124,12 @@ struct fsp_struct
   uint32_t free_limit;
   uint32_t flags;
   uint32_t frag_n_used;
-  fil_addr_t free;
-  fil_addr_t free_frag;
-  fil_addr_t full_frag;
+  flst_base_node2_t free;
+  flst_base_node2_t free_frag;
+  flst_base_node2_t full_frag;
   uint8_t seg_id;
-  fil_addr_t seg_inode_full;
-  fil_addr_t seg_inode_free;
+  flst_base_node2_t seg_inode_full;
+  flst_base_node2_t seg_inode_free;
 };
 typedef fsp_struct fsp_t;
 
@@ -124,12 +142,12 @@ ibt_read_fsp_hdr(void *page, fsp_t *fsp)
   fsp->free_limit = mach_read_from_4(fsp_head + FSP_FREE_LIMIT);
   fsp->flags = mach_read_from_4(FSP_SPACE_FLAGS + fsp_head);
   fsp->frag_n_used = mach_read_from_4(FSP_FRAG_N_USED + fsp_head);
-  flst_read_addr_raw(fsp_head + FSP_FREE, &fsp->free);
-  flst_read_addr_raw(fsp_head + FSP_FREE_FRAG, &fsp->free_frag);
-  flst_read_addr_raw(fsp_head + FSP_FULL_FRAG, &fsp->full_frag);
+  flst_read_base_node(fsp_head + FSP_FREE, &fsp->free);
+  flst_read_base_node(fsp_head + FSP_FREE_FRAG, &fsp->free_frag);
+  flst_read_base_node(fsp_head + FSP_FULL_FRAG, &fsp->full_frag);
   fsp->seg_id = mach_read_from_8(fsp_head + FSP_SEG_ID);
-  flst_read_addr_raw(fsp_head + FSP_SEG_INODES_FULL, &fsp->seg_inode_full);
-  flst_read_addr_raw(fsp_head + FSP_SEG_INODES_FREE, &fsp->seg_inode_free);
+  flst_read_base_node(fsp_head + FSP_SEG_INODES_FULL, &fsp->seg_inode_full);
+  flst_read_base_node(fsp_head + FSP_SEG_INODES_FREE, &fsp->seg_inode_free);
 }
 
 void ibt_print_fsp_flags(uint32_t flags)
@@ -137,6 +155,17 @@ void ibt_print_fsp_flags(uint32_t flags)
   /*char buf[128];
   itoa(flags, buf, 2);
   cout << "-flags : " << buf << "\n";*/
+}
+
+string ibt_flst_base_node2str(flst_base_node2_t *node)
+{
+  stringstream ss;
+  ss
+  << "{len : " << node->len
+  << " | first : " << node->first.page << "-" << node->first.boffset
+  << " | last : " << node->last.page << "-" << node->last.boffset
+  << "}\n";
+  return ss.str();
 }
 
 void ibt_print_fsp_hdr(fsp_t *fsp)
@@ -148,15 +177,21 @@ void ibt_print_fsp_hdr(fsp_t *fsp)
   << "-free limit : " << fsp->free_limit << "\n";
   ibt_print_fsp_flags(fsp->flags);
   cout
-  << "-free : " << fsp->free.page << ":" << fsp->free.boffset << "\n"
-  << "-free frag : " << fsp->free_frag.page << ":" << fsp->free_frag.boffset << "\n"
-  << "-full frag : " << fsp->full_frag.page << ":" << fsp->full_frag.boffset << "\n"
-  << "-seg id : " << fsp->seg_id << "\n"
-  << "-inode full : " << fsp->seg_inode_full.page
-  << ":" << fsp->seg_inode_full.boffset << "\n"
-  << "-inode free : " << fsp->seg_inode_free.page
-  << ":" << fsp->seg_inode_free.boffset << "\n"
+  << "-free : " << ibt_flst_base_node2str(&fsp->free) << "\n"
+  << "-free frag : " << ibt_flst_base_node2str(&fsp->free_frag) << "\n"
+  << "-full_frag : " << ibt_flst_base_node2str(&fsp->full_frag) << "\n"
+  << "seg id : " << fsp->seg_id << "\n"
+  << "-inode full : " << ibt_flst_base_node2str(&fsp->seg_inode_full) << "\n"
+  << "-inode free : " << ibt_flst_base_node2str(&fsp->seg_inode_free) << "\n"
   << endl;
+}
+
+void ibt_read_xdes_info()
+{
+}
+
+void ibt_print_xdes_info()
+{
 }
 
 int ibt_print_page_info(void *page, uint16_t page_size)
@@ -180,6 +215,9 @@ int ibt_print_page_info(void *page, uint16_t page_size)
     fsp_t fsp;
     ibt_read_fsp_hdr(page, &fsp);
     ibt_print_fsp_hdr(&fsp);
+    //FSP是特殊的XDES类型的页面
+    ibt_read_xdes_info();
+    ibt_print_xdes_info();
     break;
   case FIL_PAGE_TYPE_XDES:
   case FIL_PAGE_TYPE_BLOB:
