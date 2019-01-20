@@ -12,6 +12,7 @@ using namespace std;
 void
 flst_read_addr_raw(void *paddr, fil_addr_t *addr)
 {
+  //TODO : 该函数现在是错误的是，flst
   addr->page = mach_read_from_4((uint8_t*)paddr + FIL_ADDR_PAGE);
   addr->boffset = mach_read_from_4((uint8_t*)paddr + FIL_ADDR_BYTE);
 }
@@ -150,7 +151,7 @@ void ibt_print_fsp_hdr(fsp_t *fsp)
   << "-free : " << fsp->free.page << ":" << fsp->free.boffset << "\n"
   << "-free frag : " << fsp->free_frag.page << ":" << fsp->free_frag.boffset << "\n"
   << "-full frag : " << fsp->full_frag.page << ":" << fsp->full_frag.boffset << "\n"
-  << "-seg id : " << fsp->seg_id
+  << "-seg id : " << fsp->seg_id << "\n"
   << "-inode full : " << fsp->seg_inode_full.page
   << ":" << fsp->seg_inode_full.boffset << "\n"
   << "-inode free : " << fsp->seg_inode_free.page
@@ -211,8 +212,15 @@ int ibtool_main(int argc, const char *argv[])
   }
 
   uint16_t page_size = 1024 * 16;
-  read(fd, page_buffer, page_size);
-  ibt_print_page_info(page_buffer, page_size);
+  uint32_t page_count = 0;
+  int r = 0;
+  r = read(fd, page_buffer, page_size);
+  while (r > 0)
+  {
+    page_count++;
+    ibt_print_page_info(page_buffer, page_size);
+    r = read(fd,  page_buffer, page_size);
+  }
 
 
   close(fd);
