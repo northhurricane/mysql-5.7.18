@@ -127,7 +127,7 @@ struct fsp_struct
   flst_base_node2_t free;
   flst_base_node2_t free_frag;
   flst_base_node2_t full_frag;
-  uint8_t seg_id;
+  uint64_t seg_id;
   flst_base_node2_t seg_inode_full;
   flst_base_node2_t seg_inode_free;
 };
@@ -164,7 +164,7 @@ string ibt_flst_base_node2str(flst_base_node2_t *node)
   << "{len : " << node->len
   << " | first : " << node->first.page << "-" << node->first.boffset
   << " | last : " << node->last.page << "-" << node->last.boffset
-  << "}\n";
+  << "}";
   return ss.str();
 }
 
