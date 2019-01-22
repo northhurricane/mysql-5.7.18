@@ -186,12 +186,103 @@ void ibt_print_fsp_hdr(fsp_t *fsp)
   << endl;
 }
 
-void ibt_read_xdes_info()
+struct xdes_flst_node_struct
 {
+  fil_addr_t prev;
+  fil_addr_t next;
+};
+typedef struct xdes_flst_node_struct xdes_flst_node_t;
+
+struct xdes_struct
+{
+  uint64_t id;
+  xdes_flst_node_t node;
+  uint32_t state;
+  uint8_t bitmap[16];
+};
+typedef struct xdes_struct xdes2_t;
+
+
+void ibt_read_xdes_info(uint8_t* descr, xdes2_t *xdes)
+{
+  xdes->id = mach_read_from_8(descr + XDES_ID);
+  //flst_read_addr_raw
+  flst_read_addr_raw(descr + XDES_FLST_NODE + FLST_PREV, &xdes->node.prev);
+  //TODO : read next fil_addr_t data
+  flst_read_addr_raw(descr + XDES_FLST_NODE + FLST_NEXT, &xdes->node.next);
+  xdes->state = mach_read_from_4(descr + XDES_STATE);
+  memcpy(xdes->bitmap, descr + XDES_BITMAP, XDES_SIZE - XDES_BITMAP);
 }
 
-void ibt_print_xdes_info()
+string ibt_xdes_info2str(xdes2_t *xdes)
 {
+  stringstream ss;
+  ss
+  << "seg id : " << xdes->id << "\n"
+  << "flst node : prev "
+  << "flst node : next "
+  << "\n";
+  return ss.str();
+}
+
+void ibt_print_xdes_infos(void *page)
+{
+  uint8_t* descr = (uint8_t*)page + XDES_ARR_OFFSET;
+  xdes2_t xdes;
+  //未找到定义的页面内，xdes entry的数组的定义长度，根据其他资料知道是256个
+  for (int i = 0; i < 256; i++)
+  {
+    ibt_read_xdes_info(descr, &xdes);
+    cout << ibt_xdes_info2str(&xdes) << "\n";
+    descr += XDES_SIZE;
+  }
+}
+
+//此处存在问题，FSEG_FRAG_ARR_N_SLOTS2对于16/32/64k的页面来说是32，对于8k是64，4k是128
+//应该是根据页面动态计算，可参考FSEG_FRAG_ARR_N_SLOTS的来由
+//const int FSEG_FRAG_ARR_N_SLOTS2 = FSEG_FRAG_ARR_N_SLOTS;
+const int FSEG_FRAG_ARR_N_SLOTS2 =32;
+const int MAX_FSEG_FRAG_ARR_N_SLOTS2 = 128;
+struct inode_entry_struct
+{
+  uint64_t seg_id;
+  uint32_t not_full_n_used;
+  flst_base_node2_t free;
+  flst_base_node2_t not_full;
+  flst_base_node2_t full;
+  uint32_t magic;
+  uint32_t frag_array_entry[MAX_FSEG_FRAG_ARR_N_SLOTS2];
+};
+typedef struct inode_entry_struct inode_entry_t;
+void ibt_read_inode_info(uint8_t *entry, inode_entry_t *entry2)
+{
+  entry2->seg_id = mach_read_from_8(entry + FSEG_ID);
+  entry2->not_full_n_used = mach_read_from_4(entry + FSEG_NOT_FULL_N_USED);
+  flst_read_base_node(entry + FSEG_FREE, &entry2->free);
+  flst_read_base_node(entry + FSEG_NOT_FULL, &entry2->not_full);
+  flst_read_base_node(entry + FSEG_FULL, &entry2->full);
+  entry2->magic = mach_read_from_4(entry + FSEG_MAGIC_N);
+  assert(entry2->magic == FSEG_MAGIC_N_VALUE);
+  memcpy(entry2->frag_array_entry, entry + FSEG_FRAG_ARR
+         , FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE);
+}
+
+void ibt_print_page_inode(void *page)
+{
+  uint8_t *page_node = (uint8_t*)page + FSEG_PAGE_DATA;
+  fil_addr_t prev, next;
+  flst_read_addr_raw(page_node + FLST_PREV, &prev);
+  flst_read_addr_raw(page_node + FLST_NEXT, &next);
+
+  //Each INODE page contains 85 file segment INODE entries (for a 16 KiB page)
+  //TODO : find definition of segment inode entries number
+  uint8_t *entry = (uint8_t*)page + FSEG_ARR_OFFSET;
+  inode_entry_t entry2;
+  for (int i = 0; i <= 85; i++)
+  {
+    ibt_read_inode_info(entry, &entry2);
+    entry += FSEG_INODE_SIZE;
+  }
 }
 
 int ibt_print_page_info(void *page, uint16_t page_size)
@@ -216,8 +307,7 @@ int ibt_print_page_info(void *page, uint16_t page_size)
     ibt_read_fsp_hdr(page, &fsp);
     ibt_print_fsp_hdr(&fsp);
     //FSP是特殊的XDES类型的页面
-    ibt_read_xdes_info();
-    ibt_print_xdes_info();
+    //ibt_print_xdes_infos(page);
     break;
   case FIL_PAGE_TYPE_XDES:
   case FIL_PAGE_TYPE_BLOB:
@@ -240,7 +330,7 @@ uint8_t page_buffer[64 * 1024];
 
 int ibtool_main(int argc, const char *argv[])
 {
-  const char * file = "/home/jiangyx/mywork/app/mysql-5.7.18/data/tdb1/t1.ibd";
+  const char * file = "/home/jiangyx/mywork/app/mysql-5.7.18/data/tdb1/t2.ibd";
   int flag = 0;
   int fd = open(file, flag);
 
