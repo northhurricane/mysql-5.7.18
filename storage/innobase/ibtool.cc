@@ -6,6 +6,7 @@
 #include "fsp0fsp.h"
 #include "log0types.h"
 #include "fil0fil.h"
+#include "page0page.h"
 #include <stdlib.h>
 
 using namespace std;
@@ -285,6 +286,73 @@ void ibt_print_page_inode(void *page)
   }
 }
 
+///index page whose type is FIL_PAGE_INDEX
+struct page_head_struct
+{
+  uint16_t n_dir_slot;
+  uint16_t heap_top;
+  uint16_t n_heap;
+  uint16_t free;
+  uint16_t garbage;
+  uint16_t last_insert;
+  uint16_t direction;
+  uint16_t n_direction;
+  uint16_t n_recs;
+  uint64_t max_trx_id;
+  uint16_t level;
+  uint64_t index_id;
+};
+typedef struct page_head_struct page_head_t;
+
+void ibt_read_index_head(void *page, page_head_t *head)
+{
+  uint8_t *page_head = (uint8_t*)page + PAGE_HEADER;
+  head->n_dir_slot = mach_read_from_2(page_head + PAGE_N_DIR_SLOTS);
+  head->heap_top = mach_read_from_2(page_head + PAGE_HEAP_TOP);
+  head->n_heap = mach_read_from_2(page_head + PAGE_N_HEAP);
+  head->free = mach_read_from_2(page_head + PAGE_FREE);
+  head->garbage = mach_read_from_2(page_head + PAGE_GARBAGE);
+  head->last_insert = mach_read_from_2(page_head + PAGE_LAST_INSERT);
+  head->direction = mach_read_from_2(page_head + PAGE_DIRECTION);
+  head->n_direction = mach_read_from_2(page_head + PAGE_N_DIRECTION);
+  head->n_recs = mach_read_from_2(page_head + PAGE_N_RECS);
+  head->max_trx_id = mach_read_from_8(page_head + PAGE_MAX_TRX_ID);
+  head->level = mach_read_from_8(page_head + PAGE_LEVEL);
+  head->index_id = mach_read_from_8(page_head + PAGE_INDEX_ID);
+}
+
+void ibt_print_index_head(page_head_t *head)
+{
+  cout
+  << "-n dir slot : " << head->n_dir_slot << "\n"
+  << "-heap top : " << head->heap_top << "\n"
+  << "-n heap : " << head->n_heap << "\n"
+  << "-free : " << head->free << "\n"
+  << "-garbage : " << head->garbage << "\n"
+  << "-last insert : " << head->last_insert << "\n"
+  << "-direction : " << head->direction << "\n"
+  << "-n direction : " << head->n_direction << "\n"
+  << "-n_recs : " << head->n_recs << "\n"
+  << "-max_trx_id : " << head->max_trx_id << "\n"
+  << "-level : " << head->level << "\n"
+  << "-index_id : " << head->index_id << "\n"
+  << endl;
+}
+
+void ibt_print_index_recs(void *page, page_head_t *head)
+{
+  //uint8_t *data = (uint8_t*)page + PAGE_DATA;
+  //data + PAGE_NEW_INFIMUM;
+}
+
+void ibt_print_index(void *page)
+{
+  page_head_t head;
+  ibt_read_index_head(page, &head);
+  ibt_print_index_head(&head);
+  ibt_print_index_recs(page, &head);
+}
+
 int ibt_print_page_info(void *page, uint16_t page_size)
 {
   fil_head_t fil_head;
@@ -294,6 +362,8 @@ int ibt_print_page_info(void *page, uint16_t page_size)
   switch (fil_head.type)
   {
   case FIL_PAGE_INDEX:
+    ibt_print_index(page);
+    break;
   case FIL_PAGE_RTREE:
   case FIL_PAGE_UNDO_LOG:
   case FIL_PAGE_INODE:
