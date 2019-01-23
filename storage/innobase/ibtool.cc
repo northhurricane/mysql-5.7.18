@@ -423,9 +423,11 @@ int ibtool_main(int argc, const char *argv[])
   r = read(fd, page_buffer, page_size);
   while (r > 0)
   {
+    cout << "-----------------------" << endl;
     page_count++;
     ibt_print_page_info(page_buffer, page_size);
     r = read(fd,  page_buffer, page_size);
+    cout << "-----------------------" << endl;
   }
 
 
