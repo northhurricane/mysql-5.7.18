@@ -328,16 +328,24 @@ int ibt_print_page_info(void *page, uint16_t page_size)
 
 uint8_t page_buffer[64 * 1024];
 
+const char *opt_file = NULL;
+
 int ibtool_main(int argc, const char *argv[])
 {
-  const char * file = "/home/jiangyx/mywork/app/mysql-5.7.18/data/tdb1/t2.ibd";
+  if (argc > 1)
+    opt_file = argv[1];
+  else
+    opt_file = "/home/jiangyx/mywork/app/mysql-5.7.18/data/tdb1/t1.ibd";
+
   int flag = 0;
-  int fd = open(file, flag);
+  int fd = open(opt_file, flag);
 
   if (fd < 0)
   {
     exit(-1);
   }
+
+  cout << opt_file << endl;
 
   uint16_t page_size = 1024 * 16;
   uint32_t page_count = 0;
