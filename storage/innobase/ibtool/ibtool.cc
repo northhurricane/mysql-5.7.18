@@ -397,6 +397,14 @@ int ibt_print_page_info(void *page, uint16_t page_size)
   return 0;
 }
 
+bool ibt_check_ibfile_version_compatibility()
+{
+  //TODO : check if file can be parsed
+  //According to "InnoDB: Error: the system tablespace is in a
+  //file format that this version doesn't support". Copy innobase's code.
+  return true;
+}
+
 uint8_t page_buffer[64 * 1024];
 
 const char *opt_file = NULL;
@@ -417,6 +425,11 @@ int ibtool_main(int argc, const char *argv[])
   }
 
   cout << opt_file << endl;
+  if (!ibt_check_ibfile_version_compatibility())
+  {
+    //TODO : print error info
+    exit(-1);
+  }
 
   uint16_t page_size = 1024 * 16;
   uint32_t page_count = 0;
