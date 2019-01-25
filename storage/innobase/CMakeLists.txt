@@ -143,7 +143,9 @@ SET(INNOBASE_SOURCES
 	ut/ut0ut.cc
 	ut/ut0vec.cc
 	ut/ut0wqueue.cc
-	ibtool.cc)
+	ibtool/ibtool.cc
+	ibtool/interactive.cc
+)
 
 IF(WITH_INNODB)
   # Legacy option
