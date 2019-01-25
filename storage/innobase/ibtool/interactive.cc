@@ -6,6 +6,8 @@
 using namespace std;
 
 const char *OP_LOAD = "load";
+const char *OP_PRINT = "print";
+const char *OP_SHOW = "show";
 
 string ibt_read_command()
 {
@@ -21,6 +23,13 @@ void ibt_do_command(string cmd)
   if (strcmp(op.c_str(), OP_LOAD) == 0)
   {
     //TODO : load ibd file
+  }
+  else if (strcmp(op.c_str(), OP_PRINT) == 0)
+  {
+  }
+  else
+  {
+    cout << "unkonw command " << op << endl;
   }
 }
 

@@ -287,7 +287,7 @@ void ibt_print_page_inode(void *page)
 }
 
 ///index page whose type is FIL_PAGE_INDEX
-struct page_head_struct
+struct index_head_struct
 {
   uint16_t n_dir_slot;
   uint16_t heap_top;
@@ -302,9 +302,9 @@ struct page_head_struct
   uint16_t level;
   uint64_t index_id;
 };
-typedef struct page_head_struct page_head_t;
+typedef struct index_head_struct index_head_t;
 
-void ibt_read_index_head(void *page, page_head_t *head)
+void ibt_read_index_head(void *page, index_head_t *head)
 {
   uint8_t *page_head = (uint8_t*)page + PAGE_HEADER;
   head->n_dir_slot = mach_read_from_2(page_head + PAGE_N_DIR_SLOTS);
@@ -321,7 +321,7 @@ void ibt_read_index_head(void *page, page_head_t *head)
   head->index_id = mach_read_from_8(page_head + PAGE_INDEX_ID);
 }
 
-void ibt_print_index_head(page_head_t *head)
+void ibt_print_index_head(index_head_t *head)
 {
   cout
   << "-n dir slot : " << head->n_dir_slot << "\n"
@@ -339,7 +339,7 @@ void ibt_print_index_head(page_head_t *head)
   << endl;
 }
 
-void ibt_print_index_recs(void *page, page_head_t *head)
+void ibt_print_index_recs(void *page, index_head_t *head)
 {
   //uint8_t *data = (uint8_t*)page + PAGE_DATA;
   //data + PAGE_NEW_INFIMUM;
@@ -347,7 +347,7 @@ void ibt_print_index_recs(void *page, page_head_t *head)
 
 void ibt_print_index(void *page)
 {
-  page_head_t head;
+  index_head_t head;
   ibt_read_index_head(page, &head);
   ibt_print_index_head(&head);
   ibt_print_index_recs(page, &head);
@@ -380,6 +380,7 @@ int ibt_print_page_info(void *page, uint16_t page_size)
     //ibt_print_xdes_infos(page);
     break;
   case FIL_PAGE_TYPE_XDES:
+    break;
   case FIL_PAGE_TYPE_BLOB:
   case FIL_PAGE_TYPE_ZBLOB:
   case FIL_PAGE_TYPE_ZBLOB2:
