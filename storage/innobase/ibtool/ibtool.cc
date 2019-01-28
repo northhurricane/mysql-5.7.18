@@ -287,6 +287,21 @@ void ibt_print_page_inode(void *page)
 }
 
 ///index page whose type is FIL_PAGE_INDEX
+struct index_fseg_struct
+{
+  uint32_t space_id;
+  uint32_t page_no;
+  uint16_t offset;
+};
+typedef struct index_fseg_struct index_fseg_t;
+
+void ibt_read_index_seg(uint8_t *seg, index_fseg_t *fseg)
+{
+  fseg->space_id = mach_read_from_4(seg + FSEG_HDR_SPACE);
+  fseg->page_no = mach_read_from_4(seg + FSEG_HDR_PAGE_NO);
+  fseg->offset = mach_read_from_2(seg + FSEG_HDR_OFFSET);
+}
+
 struct index_head_struct
 {
   uint16_t n_dir_slot;
@@ -301,6 +316,8 @@ struct index_head_struct
   uint64_t max_trx_id;
   uint16_t level;
   uint64_t index_id;
+  index_fseg_t leaf_seg;
+  index_fseg_t internal_seg;
 };
 typedef struct index_head_struct index_head_t;
 
@@ -319,6 +336,20 @@ void ibt_read_index_head(void *page, index_head_t *head)
   head->max_trx_id = mach_read_from_8(page_head + PAGE_MAX_TRX_ID);
   head->level = mach_read_from_8(page_head + PAGE_LEVEL);
   head->index_id = mach_read_from_8(page_head + PAGE_INDEX_ID);
+  ibt_read_index_seg(page_head + PAGE_BTR_SEG_LEAF, &head->leaf_seg);
+  ibt_read_index_seg(page_head + PAGE_BTR_SEG_TOP, &head->internal_seg);
+}
+
+string
+ibt_index_fseg2str(index_fseg_t *seg)
+{
+  stringstream ss;
+  ss
+  << "{space id : " << seg->space_id
+  << " | page no : " << seg->page_no
+  << " | offset : " << seg->offset
+  << "}";
+  return ss.str();
 }
 
 void ibt_print_index_head(index_head_t *head)
@@ -336,6 +367,8 @@ void ibt_print_index_head(index_head_t *head)
   << "-max_trx_id : " << head->max_trx_id << "\n"
   << "-level : " << head->level << "\n"
   << "-index_id : " << head->index_id << "\n"
+  << "-leaf_seg : " << ibt_index_fseg2str(&head->leaf_seg) << "\n"
+  << "-internal_seg : " << ibt_index_fseg2str(&head->internal_seg) << "\n"
   << endl;
 }
 
