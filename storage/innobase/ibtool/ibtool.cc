@@ -9,6 +9,30 @@
 #include "page0page.h"
 #include <stdlib.h>
 
+
+/*
+  typies of page and parse work situdation
+  FIL_PAGE_INDEX        : head part done. records part not yet
+  FIL_PAGE_RTREE        : not yet
+  FIL_PAGE_UNDO_LOG     : not yet
+  FIL_PAGE_INODE        : done
+  FIL_PAGE_IBUF_FREE_LIST : not yet
+  FIL_PAGE_TYPE_ALLOCATED : not yet
+  FIL_PAGE_IBUF_BITMAP  : not yet
+  FIL_PAGE_TYPE_SYS     : not yet
+  FIL_PAGE_TYPE_TRX_SYS : not yet
+  FIL_PAGE_TYPE_FSP_HDR : header parse ok. xdes part reference FIL_PAGE_TYPE_XDES
+  FIL_PAGE_TYPE_XDES    : not yet
+  FIL_PAGE_TYPE_BLOB    : not yet
+  FIL_PAGE_TYPE_ZBLOB   : not yet
+  FIL_PAGE_TYPE_ZBLOB2  : not yet
+  FIL_PAGE_TYPE_UNKNOWN : not yet
+  FIL_PAGE_COMPRESSED   : not yet
+  FIL_PAGE_ENCRYPTED    : not yet
+  FIL_PAGE_COMPRESSED_AND_ENCRYPTED : not yet
+  FIL_PAGE_ENCRYPTED_RTREE : not yet
+*/
+
 using namespace std;
 
 struct flst_base_node_struct
@@ -239,6 +263,7 @@ void ibt_print_xdes_infos(void *page)
   }
 }
 
+/* inode page whose type is FIL_PAGE_INODE */
 //此处存在问题，FSEG_FRAG_ARR_N_SLOTS2对于16/32/64k的页面来说是32，对于8k是64，4k是128
 //应该是根据页面动态计算，可参考FSEG_FRAG_ARR_N_SLOTS的来由
 //const int FSEG_FRAG_ARR_N_SLOTS2 = FSEG_FRAG_ARR_N_SLOTS;
@@ -354,10 +379,16 @@ ibt_index_fseg2str(index_fseg_t *seg)
 
 void ibt_print_index_head(index_head_t *head)
 {
+  string page_compact;
+  if (head->n_heap & 0x8000)
+    page_compact = "page compact : true";
+  else
+    page_compact = "page compact : false";
   cout
   << "-n dir slot : " << head->n_dir_slot << "\n"
   << "-heap top : " << head->heap_top << "\n"
-  << "-n heap : " << head->n_heap << "\n"
+  << page_compact
+  << "-n heap : " << (head->n_heap & 0x7fff) << "\n"
   << "-free : " << head->free << "\n"
   << "-garbage : " << head->garbage << "\n"
   << "-last insert : " << head->last_insert << "\n"
@@ -376,6 +407,13 @@ void ibt_print_index_recs(void *page, index_head_t *head)
 {
   //uint8_t *data = (uint8_t*)page + PAGE_DATA;
   //data + PAGE_NEW_INFIMUM;
+  if (head->n_heap & 0x8000)
+  {
+    //
+  }
+  else
+  {
+  }
 }
 
 void ibt_print_index(void *page)
