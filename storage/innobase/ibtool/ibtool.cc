@@ -408,6 +408,8 @@ uint16_t ibt_get_next_rec_off(void *page, index_head_t *head, uint16_t rec_off)
   uint16_t next_rec_off = 0;
   uint8_t *rec = (uint8_t*)page + rec_off;
   next_rec_off = mach_read_from_2(rec - REC_NEXT);
+  //COMPACT condition different from innobase code, here keep N_HEAP info
+  //innobase get compact flag by page_rec_is_comp. align page, and then calc compact flag
   if (head->n_heap & 0x8000)
   {
     //COMPACT
