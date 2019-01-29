@@ -381,9 +381,9 @@ void ibt_print_index_head(index_head_t *head)
 {
   string page_compact;
   if (head->n_heap & 0x8000)
-    page_compact = "page compact : true";
+    page_compact = "-page compact : true\n";
   else
-    page_compact = "page compact : false";
+    page_compact = "-page compact : false\n";
   cout
   << "-n dir slot : " << head->n_dir_slot << "\n"
   << "-heap top : " << head->heap_top << "\n"
@@ -403,17 +403,54 @@ void ibt_print_index_head(index_head_t *head)
   << endl;
 }
 
+uint16_t ibt_get_next_rec_off(void *page, index_head_t *head, uint16_t rec_off)
+{
+  uint16_t next_rec_off = 0;
+  uint8_t *rec = (uint8_t*)page + rec_off;
+  next_rec_off = mach_read_from_2(rec - REC_NEXT);
+  if (head->n_heap & 0x8000)
+  {
+    //COMPACT
+    return ut_align_offset(rec + next_rec_off, UNIV_PAGE_SIZE);
+  }
+
+  return next_rec_off;
+}
+
 void ibt_print_index_recs(void *page, index_head_t *head)
 {
+  uint16_t inf_rec_off = 0, sup_rec_off = 0;
+  uint16_t rec_off = 0;
+
   //uint8_t *data = (uint8_t*)page + PAGE_DATA;
   //data + PAGE_NEW_INFIMUM;
   if (head->n_heap & 0x8000)
   {
-    //
+    //COMPACT mode. Use PAGE_NEW_INFIMUM and PAGE_NEW_SUPREMUM
+    inf_rec_off = PAGE_NEW_INFIMUM;
+    sup_rec_off = PAGE_NEW_SUPREMUM;
   }
   else
   {
+    //REDUNDANT mode. Use PAGE_OLD_INFIMUM and PAGE_OLD_SUPREMUM
+    inf_rec_off = PAGE_OLD_INFIMUM;
+    sup_rec_off = PAGE_OLD_SUPREMUM;
   }
+  rec_off = ibt_get_next_rec_off(page, head, inf_rec_off);
+  cout << "infimum rec offset : " << inf_rec_off << "\n";
+  int counter = 0;
+  while (rec_off != sup_rec_off)
+  {
+    counter++;
+    if (counter > head->n_recs)
+    {
+      cout << "check page sanity." << endl;
+      exit(-1);
+    }
+    cout << "rec " << counter << " offset : " << rec_off << "\n";
+    rec_off = ibt_get_next_rec_off(page, head, rec_off);
+  }
+  cout << "supremum rec offset : " << sup_rec_off << "\n";
 }
 
 void ibt_print_index(void *page)
@@ -476,7 +513,7 @@ bool ibt_check_ibfile_version_compatibility()
   return true;
 }
 
-uint8_t page_buffer[64 * 1024];
+uint8_t page_buffer_inner[64 * 1024 * 2];
 
 const char *opt_file = NULL;
 
@@ -502,6 +539,7 @@ int ibtool_main(int argc, const char *argv[])
     exit(-1);
   }
 
+  uint8_t *page_buffer = (uint8_t*)ut_align(page_buffer_inner, UNIV_PAGE_SIZE);
   uint16_t page_size = 1024 * 16;
   uint32_t page_count = 0;
   int r = 0;
