@@ -8,7 +8,7 @@
 #include "fil0fil.h"
 #include "page0page.h"
 #include <stdlib.h>
-
+#include "trx0undo.h" //for undo page
 
 /*
   typies of page and parse work situdation
@@ -461,6 +461,53 @@ void ibt_print_index(void *page)
   ibt_read_index_head(page, &head);
   ibt_print_index_head(&head);
   ibt_print_index_recs(page, &head);
+}
+
+/* undo page whose type is FIL_PAGE_UNDO_LOG */
+/*
+  reference
+  1,innochecksum.cc:parse_page:case FIL_PAGE_UNDO_LOG
+  2,trx0undo.h:TRX_UNDO_PAGE_HDR etc
+*/
+
+struct undo_head_struct
+{
+  uint16_t type;
+  uint16_t start;
+  uint16_t free;
+  fil_addr_t node;
+};
+typedef struct undo_head_struct undo_head_t;
+
+void ibt_get_undo_head(void *page, undo_head_t *head)
+{
+  uint8_t *undo_head = (uint8_t*)page + TRX_UNDO_PAGE_HDR;
+  head->type = mach_read_from_2(undo_head + TRX_UNDO_PAGE_TYPE);
+  head->start = mach_read_from_2(undo_head + TRX_UNDO_PAGE_START);
+  head->free = mach_read_from_2(undo_head + TRX_UNDO_PAGE_FREE);
+  flst_read_addr_raw(undo_head + TRX_UNDO_PAGE_NODE, &head->node);
+}
+
+void ibt_print_undo_head(undo_head_t *head)
+{
+  string type;
+  if (head->type == TRX_UNDO_INSERT)
+    type = "undo_insert";
+  else
+    type = "undo_update";
+  cout
+  << "type : " << type << "\n"
+  << "start : " << head->start << "\n"
+  << "free : " << head->free << "\n"
+  << "node : " << head->node.page << "-" << head->node.boffset
+  ;
+}
+
+void ibt_print_undo(void *page)
+{
+  undo_head_t head;
+  ibt_get_undo_head(page, &head);
+  ibt_print_undo_head(&head);
 }
 
 int ibt_print_page_info(void *page, uint16_t page_size)
