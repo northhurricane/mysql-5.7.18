@@ -479,6 +479,34 @@ struct undo_head_struct
 };
 typedef struct undo_head_struct undo_head_t;
 
+struct undo_seg_head_struct
+{
+  uint16_t state;
+  uint16_t last_log;
+  index_fseg_t fseg;
+  flst_base_node2_t page_list;
+};
+typedef struct undo_seg_head_struct undo_seg_head_t;
+
+struct undo_info_struct
+{
+  uint64_t trx_id;
+  uint64_t trx_no;
+  uint16_t del_mark;
+  uint16_t last_log;
+  uint8_t  xid_exist;
+  uint64_t table_id;
+  uint16_t next_log;
+  uint16_t prev_log;
+  xdes_flst_node_t node;
+  //xa part. meaningful when xid_exist is true.
+  uint32_t xa_format;
+  uint32_t xa_trid_len;
+  uint32_t xa_bqual_len;
+  uint8_t  xa_xid[XIDDATASIZE];
+};
+typedef struct undo_info_struct undo_info_t;
+
 void ibt_get_undo_head(void *page, undo_head_t *head)
 {
   uint8_t *undo_head = (uint8_t*)page + TRX_UNDO_PAGE_HDR;
@@ -503,11 +531,53 @@ void ibt_print_undo_head(undo_head_t *head)
   ;
 }
 
+void ibt_get_undo_seg(void *page, undo_seg_head_t* head)
+{
+  uint8_t *seg_head = (uint8_t*)page + TRX_UNDO_SEG_HDR;
+  head->state = mach_read_from_2(seg_head + TRX_UNDO_STATE);
+  head->last_log = mach_read_from_2(seg_head + TRX_UNDO_LAST_LOG);
+  ibt_read_index_seg(seg_head + TRX_UNDO_FSEG_HEADER, &head->fseg);
+  flst_read_base_node(seg_head + TRX_UNDO_PAGE_LIST, &head->page_list);
+}
+
+string ibt_undo_state2str(uint16_t state)
+{
+  switch (state)
+  {
+  case TRX_UNDO_ACTIVE:
+    return "ACTIVE";
+  case TRX_UNDO_CACHED:
+    return "CACHED";
+  case TRX_UNDO_TO_FREE:
+    return "TO FREE";
+  case TRX_UNDO_TO_PURGE:
+    return "TO PURGE";
+  case TRX_UNDO_PREPARED:
+    return "PREPARED";
+  default:
+    assert(false);
+  }
+  return "";
+}
+
+void ibt_print_undo_seg_head(undo_seg_head_t *head)
+{
+  cout
+  << "state : " << ibt_undo_state2str(head->state) << "\n"
+  << "last log : " << head->last_log
+  << "seg : " << ibt_index_fseg2str(&head->fseg) << "\n"
+  << "page list : " << ibt_flst_base_node2str(&head->page_list) << "\n"
+  ;
+}
+
 void ibt_print_undo(void *page)
 {
   undo_head_t head;
   ibt_get_undo_head(page, &head);
   ibt_print_undo_head(&head);
+  undo_seg_head_t seg_head;
+  ibt_get_undo_seg(page, &seg_head);
+  ibt_print_undo_seg_head(&seg_head);
 }
 
 int ibt_print_page_info(void *page, uint16_t page_size)
@@ -522,7 +592,10 @@ int ibt_print_page_info(void *page, uint16_t page_size)
     ibt_print_index(page);
     break;
   case FIL_PAGE_RTREE:
+    break;
   case FIL_PAGE_UNDO_LOG:
+    ibt_print_undo(page);
+    break;
   case FIL_PAGE_INODE:
   case FIL_PAGE_IBUF_FREE_LIST:
   case FIL_PAGE_IBUF_BITMAP:
