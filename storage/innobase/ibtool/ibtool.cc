@@ -35,14 +35,6 @@
 
 using namespace std;
 
-struct flst_base_node_struct
-{
-  uint32_t len;
-  fil_addr_t first;
-  fil_addr_t last;
-};
-typedef struct flst_base_node_struct flst_base_node2_t;
-
 //copied from flst_read_addr without mtr
 void
 flst_read_addr_raw(uint8_t *paddr, fil_addr_t *addr)
@@ -52,6 +44,14 @@ flst_read_addr_raw(uint8_t *paddr, fil_addr_t *addr)
   addr->boffset = mach_read_from_2((uint8_t*)paddr + FIL_ADDR_BYTE);
 }
 
+struct flst_base_node_struct
+{
+  uint32_t len;
+  fil_addr_t first;
+  fil_addr_t last;
+};
+typedef struct flst_base_node_struct flst_base_node2_t;
+
 void
 flst_read_base_node(uint8_t *p, flst_base_node2_t *base_node)
 {
@@ -60,16 +60,16 @@ flst_read_base_node(uint8_t *p, flst_base_node2_t *base_node)
   flst_read_addr_raw(p + FLST_LAST, &base_node->last);
 }
 
-struct fil_head_struct
+string ibt_flst_base_node2str(flst_base_node2_t *node)
 {
-  ulint page_offset;
-  ulint page_prev;
-  ulint page_next;
-  lsn_t page_lsn;
-  uint16_t type;
-  uint8_t file_lsn;
-};
-typedef struct fil_head_struct fil_head_t;
+  stringstream ss;
+  ss
+  << "{len : " << node->len
+  << " | first : " << node->first.page << "-" << node->first.boffset
+  << " | last : " << node->last.page << "-" << node->last.boffset
+  << "}";
+  return ss.str();
+}
 
 string get_page_type(uint16_t type)
 {
@@ -117,6 +117,20 @@ string get_page_type(uint16_t type)
   return "";
 }
 
+/*
+  every page has fil head
+*/
+struct fil_head_struct
+{
+  ulint page_offset;
+  ulint page_prev;
+  ulint page_next;
+  lsn_t page_lsn;
+  uint16_t type;
+  uint8_t file_lsn;
+};
+typedef struct fil_head_struct fil_head_t;
+
 void ibt_read_fil_head(void *page, fil_head_t *head)
 {
   //mach_read_from_4(page + FIL_PAGE_OFFSET);
@@ -142,6 +156,9 @@ void ibt_print_fil_head(fil_head_t *fil_head)
   << endl;
 }
 
+/*
+  FIL_PAGE_TYPE_FSP_HDR
+*/
 struct fsp_struct
 {
   uint32_t space_id;
@@ -158,8 +175,7 @@ struct fsp_struct
 };
 typedef fsp_struct fsp_t;
 
-void
-ibt_read_fsp_hdr(void *page, fsp_t *fsp)
+void ibt_read_fsp_hdr(void *page, fsp_t *fsp)
 {
   uint8_t *fsp_head = (uint8_t*)page + FSP_HEADER_OFFSET;
   fsp->space_id = mach_read_from_4(FSP_SPACE_ID + fsp_head);
@@ -180,17 +196,6 @@ void ibt_print_fsp_flags(uint32_t flags)
   /*char buf[128];
   itoa(flags, buf, 2);
   cout << "-flags : " << buf << "\n";*/
-}
-
-string ibt_flst_base_node2str(flst_base_node2_t *node)
-{
-  stringstream ss;
-  ss
-  << "{len : " << node->len
-  << " | first : " << node->first.page << "-" << node->first.boffset
-  << " | last : " << node->last.page << "-" << node->last.boffset
-  << "}";
-  return ss.str();
 }
 
 void ibt_print_fsp_hdr(fsp_t *fsp)
@@ -226,7 +231,6 @@ struct xdes_struct
   uint8_t bitmap[16];
 };
 typedef struct xdes_struct xdes2_t;
-
 
 void ibt_read_xdes_info(uint8_t* descr, xdes2_t *xdes)
 {
