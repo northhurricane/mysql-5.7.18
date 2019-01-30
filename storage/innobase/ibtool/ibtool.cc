@@ -241,6 +241,7 @@ void ibt_read_xdes_info(uint8_t* descr, xdes2_t *xdes)
 
 string ibt_xdes_info2str(xdes2_t *xdes)
 {
+  //TODO : 
   stringstream ss;
   ss
   << "seg id : " << xdes->id << "\n"
@@ -470,6 +471,16 @@ void ibt_print_index(void *page)
   2,trx0undo.h:TRX_UNDO_PAGE_HDR etc
 */
 
+/*
+  structs to store undo information. first part is undo head and then follow seg head,
+  undo info after seg head
+*/
+/*general head*/
+typedef struct undo_head_struct undo_head_t;
+/*seg head*/
+typedef struct undo_seg_head_struct undo_seg_head_t;
+typedef struct undo_info_struct undo_info_t;
+
 struct undo_head_struct
 {
   uint16_t type;
@@ -477,35 +488,6 @@ struct undo_head_struct
   uint16_t free;
   fil_addr_t node;
 };
-typedef struct undo_head_struct undo_head_t;
-
-struct undo_seg_head_struct
-{
-  uint16_t state;
-  uint16_t last_log;
-  index_fseg_t fseg;
-  flst_base_node2_t page_list;
-};
-typedef struct undo_seg_head_struct undo_seg_head_t;
-
-struct undo_info_struct
-{
-  uint64_t trx_id;
-  uint64_t trx_no;
-  uint16_t del_mark;
-  uint16_t last_log;
-  uint8_t  xid_exist;
-  uint64_t table_id;
-  uint16_t next_log;
-  uint16_t prev_log;
-  xdes_flst_node_t node;
-  //xa part. meaningful when xid_exist is true.
-  uint32_t xa_format;
-  uint32_t xa_trid_len;
-  uint32_t xa_bqual_len;
-  uint8_t  xa_xid[XIDDATASIZE];
-};
-typedef struct undo_info_struct undo_info_t;
 
 void ibt_get_undo_head(void *page, undo_head_t *head)
 {
@@ -530,6 +512,14 @@ void ibt_print_undo_head(undo_head_t *head)
   << "node : " << head->node.page << "-" << head->node.boffset
   ;
 }
+
+struct undo_seg_head_struct
+{
+  uint16_t state;
+  uint16_t last_log;
+  index_fseg_t fseg;
+  flst_base_node2_t page_list;
+};
 
 void ibt_get_undo_seg(void *page, undo_seg_head_t* head)
 {
@@ -570,6 +560,94 @@ void ibt_print_undo_seg_head(undo_seg_head_t *head)
   ;
 }
 
+struct undo_info_struct
+{
+  uint64_t trx_id;
+  uint64_t trx_no;
+  uint16_t del_mark;
+  uint16_t last_log;
+  uint8_t  xid_exist;
+  uint8_t  dict_trans;
+  uint64_t table_id;
+  uint16_t next_log;
+  uint16_t prev_log;
+  xdes_flst_node_t node;
+  //xa part. meaningful when xid_exist is true.
+  XID      xid;
+  uint32_t xa_format;
+  uint32_t xa_trid_len;
+  uint32_t xa_bqual_len;
+  uint8_t  xa_xid[XIDDATASIZE];
+};
+
+void
+ibt_undo_read_xid(
+  /*==============*/
+  uint8_t*    log_hdr,/*!< in: undo log header */
+  XID*        xid)    /*!< out: X/Open XA Transaction Identification */
+{
+  xid->set_format_id(static_cast<long>(mach_read_from_4(
+    log_hdr + TRX_UNDO_XA_FORMAT)));
+
+  xid->set_gtrid_length(static_cast<long>(mach_read_from_4(
+    log_hdr + TRX_UNDO_XA_TRID_LEN)));
+
+  xid->set_bqual_length(static_cast<long>(mach_read_from_4(
+    log_hdr + TRX_UNDO_XA_BQUAL_LEN)));
+
+  xid->set_data(log_hdr + TRX_UNDO_XA_XID, XIDDATASIZE);
+}
+
+void ibt_get_undo_info(void *page, undo_info_t *info, uint16_t undo_offset)
+{
+  uint8_t *undo = (uint8_t*)page + undo_offset;
+  info->trx_id = mach_read_from_8(undo + TRX_UNDO_TRX_ID);
+  info->trx_no = mach_read_from_8(undo + TRX_UNDO_TRX_NO);
+  info->del_mark = mach_read_from_2(undo + TRX_UNDO_DEL_MARKS);
+  info->last_log = mach_read_from_2(undo + TRX_UNDO_LOG_START);
+  info->xid_exist = mach_read_from_1(undo + TRX_UNDO_XID_EXISTS);
+  info->dict_trans = mach_read_from_1(undo + TRX_UNDO_DICT_TRANS);
+  info->table_id = mach_read_from_8(undo + TRX_UNDO_TABLE_ID);
+  info->next_log = mach_read_from_2(undo + TRX_UNDO_NEXT_LOG);
+  info->prev_log = mach_read_from_2(undo + TRX_UNDO_PREV_LOG);
+  flst_read_addr_raw(undo + TRX_UNDO_HISTORY_NODE + FLST_PREV, &info->node.prev);
+  flst_read_addr_raw(undo + TRX_UNDO_HISTORY_NODE + FLST_NEXT, &info->node.next);
+  if (info->xid_exist)
+    ibt_undo_read_xid(undo, &info->xid);
+}
+
+string ibt_xid2str(XID *xid)
+{
+  stringstream ss;
+  ss
+  << "XID { formatID : " << xid->get_format_id()
+  << " | gtrid len :" << xid->get_gtrid_length()
+  << " | bqual len : " << xid->get_bqual_length()
+  << " | xdata : " << xid->get_data()
+  << "}\n"
+  ;
+  return ss.str();
+}
+
+void ibt_print_undo_info(undo_info_t *info)
+{
+  string xid_info("");
+  cout
+  << "trx id : " << info->trx_id << "\n"
+  << "trx no : " << info->trx_no << "\n"
+  << "delete mark : " << info->del_mark << "\n"
+  << "last log : " << info->last_log << "\n"
+  << "has xid : " << (info->xid_exist ? "true" : "false") << "\n"
+  << "dict trans : " << info->dict_trans << "\n"
+  << "table id : " << info->table_id << "\n"
+  << "next log : " << info->next_log << "\n"
+  << "prev_log : " << info->prev_log << "\n"
+  //TODO : print flst node
+  //TODO : print XID class
+  << ibt_xid2str(&info->xid)
+  ;
+}
+
 void ibt_print_undo(void *page)
 {
   undo_head_t head;
@@ -578,6 +656,9 @@ void ibt_print_undo(void *page)
   undo_seg_head_t seg_head;
   ibt_get_undo_seg(page, &seg_head);
   ibt_print_undo_seg_head(&seg_head);
+  undo_info_t undo_info;
+  ibt_get_undo_info(page, &undo_info, seg_head.last_log);
+  ibt_print_undo_info(&undo_info);
 }
 
 int ibt_print_page_info(void *page, uint16_t page_size)
