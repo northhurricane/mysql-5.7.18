@@ -672,7 +672,36 @@ void ibt_print_undo(void *page)
 void ibt_print_ibuf_free_list(void *page, fil_head_t *fil_head)
 {
   //TODO : learn insert buffer now.
+  cout
+  << "ibuf page"
+  << endl;
+  ;
 }
+
+/* allocated page whose type is FIL_PAGE_TYPE_ALLOCATED*/
+void ibt_print_allocated(void *page, fil_head_t *fil_head)
+{
+  //page is newly allocated, nothing to print
+}
+
+/* ibuf bitmap page whose type is FIL_PAGE_IBUF_BITMAP*/
+void ibt_print_ibuf_bitmap(void *page, fil_head_t *fil_head)
+{
+  //not sure how to print it
+}
+
+/* page whose type is FIL_PAGE_TYPE_SYS*/
+void ibt_print_sys(void *page, fil_head_t *fil_head)
+{
+  //not sure how to print it
+}
+
+/* page whose type is FIL_PAGE_TYPE_TRX_SYS*/
+void ibt_print_trx_sys(void *page, fil_head_t *fil_head)
+{
+  //not sure how to print it
+}
+
 
 int ibt_print_page_info(void *page, uint16_t page_size)
 {
@@ -696,9 +725,17 @@ int ibt_print_page_info(void *page, uint16_t page_size)
   case FIL_PAGE_IBUF_FREE_LIST:
     ibt_print_ibuf_free_list(page, &fil_head);
     break;
+  case FIL_PAGE_TYPE_ALLOCATED:
+    ibt_print_allocated(page, &fil_head);
+    break;
   case FIL_PAGE_IBUF_BITMAP:
+    ibt_print_ibuf_bitmap(page, &fil_head);
+    break;
   case FIL_PAGE_TYPE_SYS:
+    ibt_print_sys(page, &fil_head);
+    break;
   case FIL_PAGE_TYPE_TRX_SYS:
+    ibt_print_trx_sys(page, &fil_head);
     break;
   case FIL_PAGE_TYPE_FSP_HDR:
     fsp_t fsp;
@@ -717,6 +754,7 @@ int ibt_print_page_info(void *page, uint16_t page_size)
   case FIL_PAGE_ENCRYPTED:
   case FIL_PAGE_COMPRESSED_AND_ENCRYPTED:
   case FIL_PAGE_ENCRYPTED_RTREE:
+    //print nothing now
     break;
   default:
     assert(false); //sanity check fail
