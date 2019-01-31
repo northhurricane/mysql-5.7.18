@@ -298,7 +298,7 @@ void ibt_read_inode_info(uint8_t *entry, inode_entry_t *entry2)
          , FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE);
 }
 
-void ibt_print_page_inode(void *page)
+void ibt_print_inode(void *page)
 {
   uint8_t *page_node = (uint8_t*)page + FSEG_PAGE_DATA;
   fil_addr_t prev, next;
@@ -665,6 +665,15 @@ void ibt_print_undo(void *page)
   ibt_print_undo_info(&undo_info);
 }
 
+/* undo page whose type is FIL_PAGE_IBUF_FREE_LIST */
+/*
+  reference ibuf0ibuf.cc
+*/
+void ibt_print_ibuf_free_list(void *page, fil_head_t *fil_head)
+{
+  //TODO : learn insert buffer now.
+}
+
 int ibt_print_page_info(void *page, uint16_t page_size)
 {
   fil_head_t fil_head;
@@ -682,7 +691,11 @@ int ibt_print_page_info(void *page, uint16_t page_size)
     ibt_print_undo(page);
     break;
   case FIL_PAGE_INODE:
+    ibt_print_inode(page);
+    break;
   case FIL_PAGE_IBUF_FREE_LIST:
+    ibt_print_ibuf_free_list(page, &fil_head);
+    break;
   case FIL_PAGE_IBUF_BITMAP:
   case FIL_PAGE_TYPE_SYS:
   case FIL_PAGE_TYPE_TRX_SYS:
