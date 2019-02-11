@@ -10,6 +10,21 @@
 #include <stdlib.h>
 #include "trx0undo.h" //for undo page
 
+void stop_for_assert()
+{
+  int i = 0;
+  i++;
+}
+
+void ibt_assert(bool a)
+{
+  if (!a)
+    stop_for_assert();
+  assert(a);
+}
+
+#define IBT_ASSERT(V) ibt_assert(V)
+
 /*
   typies of page and parse work situdation
   FIL_PAGE_INDEX        : head part done. records part not yet
@@ -255,7 +270,7 @@ string ibt_xdes_info2str(xdes2_t *xdes)
   return ss.str();
 }
 
-void ibt_print_xdes_infos(void *page)
+void ibt_print_xdes_infos(void *page, fil_head_t *head)
 {
   uint8_t* descr = (uint8_t*)page + XDES_ARR_OFFSET;
   xdes2_t xdes;
@@ -288,14 +303,24 @@ typedef struct inode_entry_struct inode_entry_t;
 void ibt_read_inode_info(uint8_t *entry, inode_entry_t *entry2)
 {
   entry2->seg_id = mach_read_from_8(entry + FSEG_ID);
+  if (entry2->seg_id == 0)
+    return;
   entry2->not_full_n_used = mach_read_from_4(entry + FSEG_NOT_FULL_N_USED);
   flst_read_base_node(entry + FSEG_FREE, &entry2->free);
   flst_read_base_node(entry + FSEG_NOT_FULL, &entry2->not_full);
   flst_read_base_node(entry + FSEG_FULL, &entry2->full);
   entry2->magic = mach_read_from_4(entry + FSEG_MAGIC_N);
-  assert(entry2->magic == FSEG_MAGIC_N_VALUE);
+  IBT_ASSERT(entry2->magic == FSEG_MAGIC_N_VALUE);
+  //assert(entry2->magic == FSEG_MAGIC_N_VALUE);
   memcpy(entry2->frag_array_entry, entry + FSEG_FRAG_ARR
          , FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE);
+}
+
+void ibt_print_inode_entry(inode_entry_t *entry)
+{
+  cout <<
+  "seg_id : " << entry->seg_id << ", used : " << entry->not_full_n_used << "\n"
+  ;
 }
 
 void ibt_print_inode(void *page)
@@ -309,9 +334,11 @@ void ibt_print_inode(void *page)
   //TODO : find definition of segment inode entries number
   uint8_t *entry = (uint8_t*)page + FSEG_ARR_OFFSET;
   inode_entry_t entry2;
-  for (int i = 0; i <= 85; i++)
+  for (int i = 0; i < 85; i++)
   {
     ibt_read_inode_info(entry, &entry2);
+    if (entry2.seg_id != 0)
+      ibt_print_inode_entry(&entry2);
     entry += FSEG_INODE_SIZE;
   }
 }
@@ -702,6 +729,12 @@ void ibt_print_trx_sys(void *page, fil_head_t *fil_head)
   //not sure how to print it
 }
 
+/* page whose type is FIL_PAGE_TYPE_BLOB*/
+void ibt_print_blob(void *page, fil_head_t *fil_head)
+{
+  //not sure how to print it
+}
+
 
 int ibt_print_page_info(void *page, uint16_t page_size)
 {
@@ -745,8 +778,11 @@ int ibt_print_page_info(void *page, uint16_t page_size)
     //ibt_print_xdes_infos(page);
     break;
   case FIL_PAGE_TYPE_XDES:
+    ibt_print_xdes_infos(page, &fil_head);
     break;
   case FIL_PAGE_TYPE_BLOB:
+    ibt_print_blob(page, &fil_head);
+    break;
   case FIL_PAGE_TYPE_ZBLOB:
   case FIL_PAGE_TYPE_ZBLOB2:
   case FIL_PAGE_TYPE_UNKNOWN:
@@ -754,6 +790,7 @@ int ibt_print_page_info(void *page, uint16_t page_size)
   case FIL_PAGE_ENCRYPTED:
   case FIL_PAGE_COMPRESSED_AND_ENCRYPTED:
   case FIL_PAGE_ENCRYPTED_RTREE:
+    cout << "not done yet" << endl;
     //print nothing now
     break;
   default:
