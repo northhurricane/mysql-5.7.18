@@ -677,6 +677,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
     event_cache_type(cache_type_arg), event_logging_type(logging_type_arg),
     crc(0), common_header(header), common_footer(footer), thd(thd_arg)
 {
+  is_print_flashback = false;
   server_id= thd->server_id;
   common_header->unmasked_server_id= server_id;
   common_header->when= thd->start_time;
@@ -715,6 +716,7 @@ Log_event::Log_event(Log_event_header *header,
     event_logging_type(EVENT_INVALID_LOGGING),
     crc(0), common_header(header), common_footer(footer)
 {
+  is_print_flashback = false;
 #ifndef MYSQL_CLIENT
   thd= 0;
 #endif
@@ -2459,6 +2461,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   table_def *td;
   const char *sql_command, *sql_clause1, *sql_clause2;
   Log_event_type general_type_code= get_general_type_code();
+  bool update_swapped = false;
   
   if (m_extra_row_data)
   {
@@ -2484,6 +2487,8 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     my_b_printf(file, "\n");
   }
 
+  if (is_print_flashback == true)
+    my_b_printf(file, "###flashback\n");
   switch (general_type_code) {
   case binary_log::WRITE_ROWS_EVENT:
     sql_command= "INSERT INTO";
@@ -2543,10 +2548,20 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     my_b_printf(file, "### %s %s.%s\n",
                       sql_command,
                       quoted_db, quoted_table);
+    if (is_print_flashback == true && update_swapped == false
+        && general_type_code == binary_log::UPDATE_ROWS_EVENT)
+    {
+      //change clause sequence
+      const char * sql_clause_swap;
+      sql_clause_swap = sql_clause1;
+      sql_clause1 = sql_clause2;
+      sql_clause2 = sql_clause_swap;
+      update_swapped = true;
+    }
     /* Print the first image */
     if (!(length= print_verbose_one_row(file, td, print_event_info,
-                                  &m_cols, value,
-                                  (const uchar*) sql_clause1)))
+                                        &m_cols, value,
+                                        (const uchar*) sql_clause1)))
       goto end;
     value+= length;
 
@@ -2554,8 +2569,8 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     if (sql_clause2)
     {
       if (!(length= print_verbose_one_row(file, td, print_event_info,
-                                      &m_cols_ai, value,
-                                      (const uchar*) sql_clause2)))
+                                          &m_cols_ai, value,
+                                          (const uchar*) sql_clause2)))
         goto end;
       value+= length;
     }
@@ -2630,22 +2645,42 @@ void Log_event::print_base64(IO_CACHE* file,
     case binary_log::WRITE_ROWS_EVENT:
     case binary_log::WRITE_ROWS_EVENT_V1:
     {
-      ev= new Write_rows_log_event((const char*) ptr, size,
-                                   &fd_evt);
+      if (is_print_flashback)
+      {
+        //set revert flag of delete
+        char *ptr2 = (char*)ptr;
+        ptr2[EVENT_TYPE_OFFSET]= binary_log::DELETE_ROWS_EVENT;
+        ev= new Delete_rows_log_event((const char*) ptr, size, &fd_evt);
+        ev->is_print_flashback = true;
+      }
+      else
+      {
+        ev= new Write_rows_log_event((const char*) ptr, size, &fd_evt);
+      }
       break;
     }
     case binary_log::DELETE_ROWS_EVENT:
     case binary_log::DELETE_ROWS_EVENT_V1:
     {
-      ev= new Delete_rows_log_event((const char*) ptr, size,
-                                    &fd_evt);
+      if (is_print_flashback)
+      {
+        char *ptr2 = (char*)ptr;
+        ptr2[EVENT_TYPE_OFFSET]= binary_log::WRITE_ROWS_EVENT;
+        ev= new Write_rows_log_event((const char*) ptr2, size, &fd_evt);
+        ev->is_print_flashback = true;
+      }
+      else
+      {
+        ev= new Delete_rows_log_event((const char*) ptr, size, &fd_evt);
+      }
       break;
     }
     case binary_log::UPDATE_ROWS_EVENT:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     {
-      ev= new Update_rows_log_event((const char*) ptr, size,
-                                    &fd_evt);
+      ev= new Update_rows_log_event((const char*) ptr, size, &fd_evt);
+      if (is_print_flashback == true)
+        ev->is_print_flashback = true;
       break;
     }
     default:
@@ -4129,6 +4164,21 @@ void Query_log_event::print_query_header(IO_CACHE* file,
     my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
                 get_type_str(), (ulong) thread_id, (ulong) exec_time,
                 error_code);
+  }
+
+  if ((user != NULL && user_len > 0) || (host != NULL && host_len > 0))
+  {
+    const char *user2;
+    const char *host2;
+    if (user != NULL && user_len > 0)
+      user2 = user;
+    else
+      user2 = "unknownUser";
+    if (host != NULL && host_len > 0)
+      host2 = host;
+    else
+      host2 = "unkonwHost";
+    my_b_printf(file, "###invoker:%s@%s\n", user2, host2);
   }
 
   if ((common_header->flags & LOG_EVENT_SUPPRESS_USE_F))

@@ -2152,6 +2152,19 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
   return false;
 }
 
+static bool update_cached_long_query_total_time(sys_var *self, THD *thd,
+                                                enum_var_type type)
+{
+  if (type == OPT_SESSION)
+     thd->variables.long_query_total_time=
+     double2ulonglong(thd->variables.long_query_total_time_double * 1e6);
+  else
+     global_system_variables.long_query_total_time=
+     double2ulonglong(
+       global_system_variables.long_query_total_time_double * 1e6);
+  return false;
+}
+
 static Sys_var_double Sys_long_query_time(
        "long_query_time",
        "Log all queries that have taken more than long_query_time seconds "
@@ -2161,6 +2174,17 @@ static Sys_var_double Sys_long_query_time(
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
+
+static Sys_var_double Sys_long_query_total_time(
+  "long_query_total_time",
+        "Log all queries that have taken more than long_query_total_time seconds "
+        "total means lock time and execution time"
+        "to execute to file. The argument will be treated as a decimal value "
+  "with microsecond precision",
+  SESSION_VAR(long_query_total_time_double),
+  CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+  ON_UPDATE(update_cached_long_query_total_time));
 
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2324,6 +2348,19 @@ static Sys_var_ulong Sys_max_connect_errors(
        GLOBAL_VAR(max_connect_errors), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(100),
        BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_reserved_connections(
+  "reserved_connections", "The number of reserved connection for admin",
+  READ_ONLY GLOBAL_VAR(reserved_connections), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(1, 100),
+  DEFAULT(RESERVED_CONNECTIONS_DEFAULT),
+  BLOCK_SIZE(1),
+  NO_MUTEX_GUARD,
+  NOT_IN_BINLOG,
+  ON_CHECK(0),
+  ON_UPDATE(0),
+  NULL,
+  sys_var::PARSE_EARLY);
 
 static Sys_var_long Sys_max_digest_length(
        "max_digest_length",
@@ -4846,6 +4883,20 @@ static Sys_var_mybool Sys_general_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));
 
+static bool update_slow_query_total_log(sys_var *self, THD *thd,
+                                        enum_var_type type)
+{
+  return false;
+}
+static Sys_var_mybool Sys_slow_query_total_log(
+  "slow_query_total_log",
+        "slow_query_total_log depends on slow_query_log."
+        "Only when slow_query_log is set to on, setting of this variable will "
+  "have effect",
+  GLOBAL_VAR(opt_slow_log_total), CMD_LINE(OPT_ARG),
+  DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+  ON_UPDATE(update_slow_query_total_log));
+
 static bool fix_slow_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
   if (query_logger.is_log_file_enabled(QUERY_LOG_SLOW) == opt_slow_log)
@@ -5673,3 +5724,29 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+#include "ctrip_version.h"
+#define CTRIP_VERSION "0.0.2.1"
+static char *server_ctrip_version_ptr;
+static Sys_var_charptr Sys_ctrip_version(
+       "ctrip_version", "ctrip_version",
+       READ_ONLY GLOBAL_VAR(server_ctrip_version_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_VERSION));
+
+static char *server_ctrip_build_date_ptr;
+static Sys_var_charptr Sys_ctrip_build_date(
+       "ctrip_build_date", "ctrip_build_date",
+       READ_ONLY GLOBAL_VAR(server_ctrip_build_date_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_DATE));
+
+static char *server_ctrip_build_branch_ptr;
+static Sys_var_charptr Sys_ctrip_build_branch(
+       "ctrip_build_branch", "ctrip_build_branch",
+       READ_ONLY GLOBAL_VAR(server_ctrip_build_branch_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_BRANCH));
+
+static char *server_ctrip_build_commit_ptr;
+static Sys_var_charptr Sys_ctrip_build_commit(
+       "ctrip_build_commit", "ctrip_build_commit",
+       READ_ONLY GLOBAL_VAR(server_ctrip_build_commit_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(CTRIP_BUILD_COMMIT));

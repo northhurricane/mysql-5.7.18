@@ -109,6 +109,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 #include "row0ext.h"
 
+#include "sql_iostat.h"
+
 enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 #include "ha_innodb.h"
@@ -117,6 +119,13 @@ enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
+
+#define DEF_MAX_LOCKS_PRINT  (8)
+
+ulonglong innodb_handler_open = 0;
+ulong innodb_handler_size = sizeof(ha_innobase);
+my_bool innodb_print_deadlock_circle = FALSE;
+ulong innodb_max_locks_print = DEF_MAX_LOCKS_PRINT;
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
@@ -193,6 +202,8 @@ static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+io_stat_func_t io_stat_func = NULL;
 
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
@@ -2805,7 +2816,10 @@ ha_innobase::ha_innobase(
 	m_start_of_scan(),
 	m_num_write_row(),
         m_mysql_has_locked()
-{}
+{
+  __sync_fetch_and_add(&innodb_handler_open, 1);
+
+}
 
 /*********************************************************************//**
 Destruct ha_innobase handler. */
@@ -2813,6 +2827,7 @@ Destruct ha_innobase handler. */
 ha_innobase::~ha_innobase()
 /*======================*/
 {
+  __sync_fetch_and_sub(&innodb_handler_open, 1);
 }
 
 /*********************************************************************//**
@@ -3497,6 +3512,8 @@ innobase_init(
 	DBUG_ENTER("innobase_init");
 	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
+
+    io_stat_func = innobase_hton->io_stat_func;
 
 	innobase_hton->state = SHOW_OPTION_YES;
 	innobase_hton->db_type = DB_TYPE_INNODB;
@@ -19191,6 +19208,18 @@ innodb_log_checksums_update(
 	mutex_exit(&log_sys->mutex);
 }
 
+static
+void
+innodb_print_deadlock_circle_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+  innodb_print_deadlock_circle = *static_cast<my_bool*>(var_ptr)
+  = *static_cast<const my_bool*>(save);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
 	{NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
@@ -20146,6 +20175,29 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
+static MYSQL_SYSVAR_ULONGLONG(handler_open, innodb_handler_open,
+  PLUGIN_VAR_READONLY,
+  "hanlder openned by innobase",
+  NULL, NULL, 0, 0, ULLONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(handler_size, innodb_handler_size,
+  PLUGIN_VAR_READONLY,
+  "hanlder size of innobase",
+  NULL, NULL, sizeof(ha_innobase), 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_BOOL(print_deadlock_circle,
+  innodb_print_deadlock_circle,
+  PLUGIN_VAR_OPCMDARG,
+  "print all the transactions in deadlock circle.srv_print_all_deadlocks must be setted",
+  NULL, innodb_print_deadlock_circle_update, FALSE);
+
+#define MAX_LOCKS_PRINT (1024)
+#define MIN_LOCKS_PRINT (1)
+static MYSQL_SYSVAR_ULONG(max_locks_print, innodb_max_locks_print,
+  PLUGIN_VAR_OPCMDARG,
+  "max locks printed",
+  NULL, NULL, DEF_MAX_LOCKS_PRINT, MIN_LOCKS_PRINT, MAX_LOCKS_PRINT, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
@@ -20318,6 +20370,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
+  MYSQL_SYSVAR(handler_open),
+  MYSQL_SYSVAR(handler_size),
+  MYSQL_SYSVAR(print_deadlock_circle),
+  MYSQL_SYSVAR(max_locks_print),
   NULL
 };
 

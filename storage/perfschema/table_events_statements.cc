@@ -238,12 +238,47 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("NESTING_EVENT_LEVEL") },
     { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("CLIENT_USER") },
+    { C_STRING_WITH_LEN("varchar(128)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("CLIENT_HOST") },
+    { C_STRING_WITH_LEN("varchar(128)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("RU_UTIME") },
+    { C_STRING_WITH_LEN("biging") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("RU_STIME") },
+    { C_STRING_WITH_LEN("bigint") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("LOGIC_READ") },
+    { C_STRING_WITH_LEN("bigint") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("PHYSIC_READ") },
+    { C_STRING_WITH_LEN("bigint") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("PAGE_WRITE") },
+    { C_STRING_WITH_LEN("bigint") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{41 , field_types };
+{48 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -390,6 +425,32 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_object_name_length= statement->m_object_name_length;
   if (m_row.m_object_name_length > 0)
     memcpy(m_row.m_object_name, statement->m_object_name, m_row.m_object_name_length);
+
+  m_row.m_user_name_length = statement->m_user_name_length;
+  if (m_row.m_user_name_length > 0)
+    memcpy(m_row.m_user_name, statement->m_user_name, m_row.m_user_name_length);
+
+  m_row.m_host_name_length = statement->m_host_name_length;
+  if (m_row.m_host_name_length > 0)
+    memcpy(m_row.m_host_name, statement->m_host_name, m_row.m_host_name_length);
+
+  m_row.m_ru_utime = 0;
+  m_row.m_ru_stime = 0;
+#if defined(__linux__)
+  m_row.m_ru_utime =
+  (statement->end_ru_utime.tv_sec * 1000000 + statement->end_ru_utime.tv_usec)
+  - statement->start_ru_utime.tv_sec * 1000000
+  - statement->start_ru_utime.tv_usec;
+
+  m_row.m_ru_stime =
+  (statement->end_ru_stime.tv_sec * 1000000 + statement->end_ru_stime.tv_usec)
+  - statement->start_ru_stime.tv_sec * 1000000 
+  - statement->start_ru_stime.tv_usec;
+#endif
+  m_row.m_logic_read = statement->logic_read;
+  m_row.m_physic_read = statement->physic_read;
+  m_row.m_page_write = statement->page_write;
+  
 
   safe_source_file= statement->m_source_file;
   if (unlikely(safe_source_file == NULL))
@@ -661,6 +722,35 @@ int table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 40: /* NESTING_EVENT_LEVEL */
           set_field_ulong(f, m_row.m_nesting_event_level);
+        break;
+      case 41: /* CLIENT_USER */
+        if (m_row.m_user_name_length)
+          set_field_varchar_utf8(f, m_row.m_user_name,
+                                 m_row.m_user_name_length);
+        else
+          f->set_null();
+        break;
+      case 42: /* CLIENT_HOST */
+        if (m_row.m_host_name_length)
+          set_field_varchar_utf8(f, m_row.m_host_name,
+                                 m_row.m_host_name_length);
+        else
+          f->set_null();
+        break;
+      case 43: /* RU_UTIME */
+        set_field_ulonglong(f, m_row.m_ru_utime);
+        break;
+      case 44: /* RU_STIME */
+        set_field_ulonglong(f, m_row.m_ru_stime);
+        break;
+      case 45: /* LOGIC_READ */
+        set_field_ulonglong(f, m_row.m_logic_read);
+        break;
+      case 46: /* PHYSIC_READ */
+        set_field_ulonglong(f, m_row.m_physic_read);
+        break;
+      case 47: /* PAGE_WRITE */
+        set_field_ulonglong(f, m_row.m_page_write);
         break;
       default:
         DBUG_ASSERT(false);

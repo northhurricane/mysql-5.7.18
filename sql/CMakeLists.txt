@@ -36,6 +36,7 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/ctrip_version.h 
 )
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
@@ -660,4 +661,9 @@ ADD_CUSTOM_TARGET(distclean
 
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ctrip_version.h 
+  COMMAND ${CMAKE_SOURCE_DIR}/ctrip_version.sh ${CMAKE_SOURCE_DIR}/include/ctrip_version.h
 )

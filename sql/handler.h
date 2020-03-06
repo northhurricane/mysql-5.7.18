@@ -37,6 +37,8 @@
 #include <algorithm>
 #include <string>
 
+#include "sql_iostat.h"
+
 class Alter_info;
 class SE_cost_constants;     // see opt_costconstants.h
 class String;
@@ -985,6 +987,10 @@ struct handlerton
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
+
+  io_stat_func_t  io_stat_func;
+  io_stat_reset_func_t  io_stat_reset_func;
+  io_stat_get_func_t  io_stat_get_func;
 };
 
 

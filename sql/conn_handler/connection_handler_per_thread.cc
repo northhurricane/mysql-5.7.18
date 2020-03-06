@@ -29,6 +29,9 @@
 #include "sql_thd_internal_api.h"        // thd_set_thread_stack
 #include "log.h"                         // Error_log_throttle
 
+#ifdef __linux__
+#include <sys/syscall.h>    /* SYS_gettid */
+#endif
 
 // Initialize static members
 ulong Per_thread_connection_handler::blocked_pthread_count= 0;
@@ -182,6 +185,7 @@ static THD* init_new_thd(Channel_info *channel_info)
   }
 
   thd->set_new_thread_id();
+  thd->set_lwpid(0);
 
   thd->start_utime= thd->thr_create_utime= my_micro_time();
   if (channel_info->get_prior_thr_create_utime() != 0)
@@ -262,6 +266,10 @@ extern "C" void *handle_connection(void *arg)
       Connection_handler_manager::dec_connection_count();
       break; // We are out of resources, no sense in continuing.
     }
+
+#ifdef __linux__
+    thd->set_lwpid((pid_t) syscall(SYS_gettid));
+#endif
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (pthread_reused)

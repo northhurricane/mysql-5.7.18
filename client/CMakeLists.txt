@@ -47,6 +47,13 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
+ADD_DEFINITIONS(${SSL_DEFINES})
+MYSQL_ADD_EXECUTABLE(mysqlfbtool completion_hash.cc mysqlfbtool.cc readline.cc ../sql-common/sql_string.cc)
+TARGET_LINK_LIBRARIES(mysqlfbtool mysqlclient)
+IF(UNIX)
+  TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
+ENDIF(UNIX)				   
+
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade
     upgrade/program.cc

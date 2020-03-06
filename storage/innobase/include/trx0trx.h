@@ -380,6 +380,28 @@ trx_print_low(
 
 /**********************************************************************//**
 Prints info about a transaction.
+Caller must hold trx_sys->mutex. */
+void
+trx_dead_lock_print_json(
+/*==========*/
+  FILE*		f,
+  /*!< in: output stream */
+  ulint seq,
+  /*!< in: output stream */
+  const trx_t*	trx,
+  /*!< in: transaction inc circle */
+  ulint		max_query_len,
+  /*!< in: max query length to print,
+    or 0 to use the default max length */
+  ulint		n_rec_locks,
+  /*!< in: lock_number_of_rows_locked(&trx->lock) */
+  ulint		n_trx_locks,
+  /*!< in: length of trx->lock.trx_locks */
+  ulint		heap_size);
+    /*!< in: mem_heap_get_size(trx->lock.lock_heap) */
+
+/**********************************************************************//**
+Prints info about a transaction.
 The caller must hold lock_sys->mutex and trx_sys->mutex.
 When possible, use trx_print() instead. */
 void

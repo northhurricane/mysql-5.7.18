@@ -3604,6 +3604,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
+    thd->binlog_invoker();
     res= lex->m_sql_cmd->execute(thd);
     break;
   }
@@ -3614,6 +3615,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
+    thd->binlog_invoker();
     res= lex->m_sql_cmd->execute(thd);
     break;
   }
@@ -3840,6 +3842,8 @@ end_with_restore_list:
   {
     if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
+    if (check_db_name_droppable(&lex->name, FALSE) != IDENT_NAME_OK)
+      break;
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
@@ -3888,9 +3892,9 @@ end_with_restore_list:
   case SQLCOM_ALTER_DB:
   {
     LEX_STRING *db= &lex->name;
-    HA_CREATE_INFO create_info(lex->create_info);
     if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
+
     /*
       If in a slave thread :
       ALTER DATABASE DB may not be preceded by USE DB.
@@ -3905,9 +3909,18 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0))
-      break;
-    res= mysql_alter_db(thd, db->str, &create_info);
+
+    if (lex->alter_db_type == ALTER_DB_TYPE_RENAME)
+    {
+      res= mysql_rename_db(thd, to_lex_cstring(lex->name)
+                           , to_lex_cstring(lex->ident)
+                           , lex->drop_if_exists);
+    }
+    else
+    {
+      HA_CREATE_INFO create_info(lex->create_info);
+      res= mysql_alter_db(thd, db->str, &create_info);
+    }
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
